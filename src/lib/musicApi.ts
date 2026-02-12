@@ -1,5 +1,4 @@
-// src/lib/musicApi.ts
-
+//
 export interface Track {
   id: string;
   title: string;
@@ -10,7 +9,6 @@ export interface Track {
 
 export async function searchMusic(query: string): Promise<Track[]> {
   try {
-    // Chamamos a nossa própria API interna que criámos acima
     const res = await fetch(`/api/spotify?q=${encodeURIComponent(query)}`);
     const data = await res.json();
     
@@ -21,19 +19,27 @@ export async function searchMusic(query: string): Promise<Track[]> {
       thumbnail: t.album.images[0]?.url || "",
     }));
   } catch (error) {
-    console.error("Erro na busca:", error);
+    console.error("Erro na busca Spotify:", error);
     return [];
   }
 }
 
 export async function getYoutubeId(trackName: string, artist: string): Promise<string | null> {
   const API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-  const searchTerm = `${trackName} ${artist} official audio`;
+  // REMOVIDO "official audio" pois muitos bloqueiam embed. ADICIONADO "topic" ou "lyric" para melhor compatibilidade.
+  const searchTerm = `${trackName} ${artist} audio`; 
   const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&maxResults=1&key=${API_KEY}`;
 
   try {
     const res = await fetch(url);
     const data = await res.json();
+    
+    // Verifica se há erro de cota no debug
+    if (data.error) {
+      console.error("YouTube API Error:", data.error.message);
+      return null;
+    }
+
     return data.items?.[0]?.id?.videoId || null;
   } catch (error) {
     return null;
