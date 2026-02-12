@@ -1,77 +1,61 @@
 "use client";
 import { useXalanify } from "@/context/XalanifyContext";
-import { History, LogOut, Zap, Trash2, RefreshCw, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { History, Zap, Trash2, RefreshCw, PlayCircle } from "lucide-react";
 
 export default function Settings() {
   const { user, themeColor } = useXalanify();
 
-  const changelog = [
+  const updates = [
     {
-      version: "v1.0.5 (Atual)",
-      date: "12 Fev 2026",
+      version: "0.13.0",
+      status: "ATUAL",
       logs: [
-        { type: "added", text: "Suporte para Tailwind v4 e Next.js 16.", icon: Zap },
-        { type: "added", text: "Histórico detalhado de mudanças nas Definições.", icon: Zap },
-        { type: "fixed", text: "Erro de compilação 'bg-black' na Vercel.", icon: RefreshCw },
-        { type: "fixed", text: "Problema de capas gigantes no Search e Library.", icon: RefreshCw }
+        { type: "added", text: "Motor de áudio ReactPlayer ativado (As músicas já tocam).", icon: PlayCircle },
+        { type: "updated", text: "Removida mensagem de boas-vindas na Home.", icon: Trash2 },
+        { type: "added", text: "Badge 'BETA' permanente no topo.", icon: Zap },
+        { type: "added", text: "Pop-up de anúncio de nova versão no arranque.", icon: Zap }
       ]
     },
     {
-      version: "v1.0.4",
-      date: "11 Fev 2026",
+      version: "0.12.0",
+      status: "ANTERIOR",
       logs: [
-        { type: "added", text: "Sistema de cores dinâmicas via XalanifyContext.", icon: Zap },
-        { type: "removed", text: "Ficheiro BottomNav.tsx removido para evitar conflitos.", icon: Trash2 },
-        { type: "updated", text: "Navegação movida para o fundo (Estilo App).", icon: RefreshCw }
+        { type: "added", text: "Sistema de Histórico de Versões detalhado.", icon: History },
+        { type: "fixed", text: "Correção de imagens gigantes (w-14) no Search.", icon: RefreshCw },
+        { type: "fixed", text: "Suporte para Tailwind v4 configurado.", icon: RefreshCw }
       ]
     }
   ];
 
   return (
-    <div className="space-y-8 pb-44 animate-in fade-in duration-500">
-      <h1 className="text-3xl font-bold px-2">Definições</h1>
+    <div className="space-y-8 pb-44">
+      <h1 className="text-3xl font-black px-2">Definições</h1>
 
-      {/* Perfil */}
-      <section className="musi-card p-6 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-full bg-zinc-800 flex items-center justify-center text-xl font-bold border-2" style={{ borderColor: themeColor }}>
-          {user?.[0]?.toUpperCase()}
-        </div>
-        <div>
-          <h2 className="text-lg font-bold">{user}</h2>
-          <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Premium</p>
-        </div>
-      </section>
-
-      {/* HISTÓRICO DE ATUALIZAÇÕES */}
+      {/* Histórico Persistente */}
       <section className="space-y-4">
         <div className="flex items-center gap-2 px-2 text-zinc-500">
           <History size={16} />
-          <p className="text-[10px] font-black uppercase tracking-[0.2em]">Histórico de Atualizações</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em]">Logs de Sistema</p>
         </div>
 
-        <div className="space-y-4">
-          {changelog.map((rev, index) => (
-            <div key={rev.version} className={`p-5 rounded-3xl border ${index === 0 ? 'bg-zinc-900 border-white/10' : 'bg-black border-white/5 opacity-50'}`}>
+        <div className="space-y-4 px-1">
+          {updates.map((rev) => (
+            <div key={rev.version} className={`p-6 rounded-[2.5rem] border ${rev.status === 'ATUAL' ? 'bg-zinc-900 border-white/10' : 'bg-transparent border-white/5 opacity-50'}`}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-sm" style={{ color: index === 0 ? themeColor : 'white' }}>
-                  {rev.version}
+                <h3 className={`font-black tracking-tighter ${rev.status === 'ATUAL' ? 'text-lg' : 'text-sm'}`} style={{ color: rev.status === 'ATUAL' ? themeColor : 'white' }}>
+                  v{rev.version}
                 </h3>
-                <span className="text-[9px] text-zinc-600 font-bold">{rev.date}</span>
+                <span className="text-[9px] font-black px-2 py-1 bg-white/5 rounded-lg">{rev.status}</span>
               </div>
               
               <div className="space-y-3">
                 {rev.logs.map((log, i) => (
                   <div key={i} className="flex gap-3">
-                    <log.icon size={12} className="mt-0.5 text-zinc-500 flex-shrink-0" />
-                    <p className="text-[11px] text-zinc-300">
-                      <span className={`uppercase text-[8px] font-bold mr-1 ${
-                        log.type === 'added' ? 'text-green-500' : 
-                        log.type === 'fixed' ? 'text-blue-500' : 
-                        log.type === 'removed' ? 'text-red-500' : 'text-orange-500'
-                      }`}>
-                        {log.type}
-                      </span>
+                    <log.icon size={12} className="mt-1 text-zinc-500 flex-shrink-0" />
+                    <p className="text-[11px] text-zinc-300 leading-snug">
+                      <span className={`uppercase text-[8px] font-black mr-2 ${
+                        log.type === 'added' ? 'text-green-500' : 'text-blue-500'
+                      }`}>[{log.type}]</span>
                       {log.text}
                     </p>
                   </div>
@@ -81,10 +65,6 @@ export default function Settings() {
           ))}
         </div>
       </section>
-
-      <button className="w-full p-4 bg-red-500/10 text-red-500 rounded-2xl font-bold text-xs active:scale-95 transition-all">
-        Encerrar Sessão
-      </button>
     </div>
   );
 }
