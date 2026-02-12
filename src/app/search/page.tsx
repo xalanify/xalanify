@@ -2,13 +2,12 @@
 import { useState } from "react";
 import { Search as SearchIcon, Play, Loader2 } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
-import { searchMusic, getYoutubeId } from "@/lib/musicApi"; 
+import { searchMusic, getYoutubeId, Track } from "@/lib/musicApi"; 
 
 export default function Search() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
-  const [fetchingId, setFetchingId] = useState<string | null>(null);
   
   const { setCurrentTrack, setIsPlaying, themeColor } = useXalanify();
 
@@ -20,53 +19,57 @@ export default function Search() {
       const tracks = await searchMusic(query); 
       setResults(tracks);
     } catch (error) { 
-      console.error(error); 
+      console.error("Erro na busca:", error); 
     } finally { 
       setLoading(false); 
     }
   };
 
-  const playTrack = async (track: any) => {
-    setFetchingId(track.id);
+  const playTrack = async (track: Track) => {
+    console.log("DEBUG: Iniciando busca de áudio para:", track.title);
+    
     try {
-      // 1. Faz a pesquisa real no YouTube (o que gera o JSON verde que viste)
+      // Busca o ID do YouTube antes de dar play
       const ytId = await getYoutubeId(track.title, track.artist);
       
       if (ytId) {
-        // 2. Só atualiza o player quando temos o ID em mãos
-        setCurrentTrack({ ...track, youtubeId: ytId });
-        // 3. Pequeno delay técnico para o componente Player processar a nova URL
-        setTimeout(() => setIsPlaying(true), 150);
+        console.log("DEBUG: YouTube ID encontrado com sucesso:", ytId);
+        
+        // Atualiza o objeto da música com o ID de áudio encontrado
+        const trackWithAudio = {
+          ...track,
+          youtubeId: ytId
+        };
+        
+        setCurrentTrack(trackWithAudio);
+        setIsPlaying(true);
+      } else {
+        console.error("DEBUG: Falha ao obter ID do YouTube.");
+        alert("Não foi possível encontrar uma fonte de áudio para esta música.");
       }
-    } catch (err) {
-      console.error("Erro ao sincronizar áudio:", err);
-    } finally {
-      setFetchingId(null);
+    } catch (error) {
+      console.error("DEBUG: Erro ao processar playTrack:", error);
     }
   };
 
   return (
-    <div className="space-y-8 pt-12 px-4 flex flex-col items-center w-full min-h-screen">
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-black tracking-tighter italic">EXPLORAR</h2>
-        <p className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">Xalanify Engine</p>
-      </div>
-
-      <form onSubmit={handleSearch} className="relative w-full max-w-md">
+    <div className="space-y-6">
+      <form onSubmit={handleSearch} className="relative mx-1">
         <input
           type="text"
-          placeholder="Pesquisar música ou artista..."
-          className="w-full bg-[#1c1c1e] text-white py-4 pl-12 pr-4 rounded-[2rem] outline-none border border-white/5 focus:border-white/20 transition-all text-center"
+          placeholder="Pesquisar no Xalanify..."
+          className="w-full bg-[#1c1c1e] text-white py-3 pl-11 pr-4 rounded-2xl outline-none focus:ring-2 placeholder:text-zinc-500 transition-all"
+          style={{ boxShadow: `0 0 0 2px ${themeColor}20` } as any}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
       </form>
 
-      <div className="w-full max-w-md space-y-2 pb-40">
+      <div className="space-y-1">
         {loading && (
-          <div className="flex justify-center p-12">
-            <Loader2 className="animate-spin" style={{color: themeColor}} size={32} />
+          <div className="flex justify-center p-8">
+            <Loader2 className="animate-spin" style={{ color: themeColor }} />
           </div>
         )}
         
@@ -74,24 +77,21 @@ export default function Search() {
           <div 
             key={track.id} 
             onClick={() => playTrack(track)}
-            className="flex items-center gap-4 p-3 hover:bg-white/5 rounded-[2rem] active:scale-[0.98] transition-all cursor-pointer group border border-white/5"
+            className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-2xl active:scale-[0.98] transition-all cursor-pointer group"
           >
-            <div className="relative shrink-0">
-              <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-lg" alt="" />
-              {fetchingId === track.id && (
-                <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
-                  <Loader2 className="animate-spin text-white" size={16} />
-                </div>
-              )}
-            </div>
+            <img 
+              src={track.thumbnail} 
+              className="w-14 h-14 rounded-xl object-cover flex-shrink-0 bg-zinc-800 shadow-lg" 
+              alt={track.title} 
+            />
             
             <div className="flex-1 min-w-0">
               <p className="text-[15px] font-bold text-white truncate leading-tight">{track.title}</p>
-              <p className="text-[11px] text-zinc-500 truncate mt-1 uppercase font-black tracking-widest">{track.artist}</p>
+              <p className="text-[12px] text-zinc-500 truncate mt-1 uppercase tracking-wider font-medium">{track.artist}</p>
             </div>
             
-            <div className="p-2">
-               <Play size={18} style={{ color: themeColor }} fill="currentColor" />
+            <div className="p-2 mr-1">
+               <Play size={20} style={{ color: themeColor }} fill="currentColor" className="opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>
         ))}
