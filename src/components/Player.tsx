@@ -17,7 +17,11 @@ export default function Player() {
   if (!currentTrack) return null;
 
   const isLiked = likedTracks?.some((t: any) => t.id === currentTrack.id);
-  const videoId = currentTrack.youtubeId || currentTrack.id;
+  
+  // LOGICA DE EXTRAÇÃO DE ID (YouTube)
+  // Tentamos o youtubeId, se não existir usamos o id normal
+  const videoId = currentTrack.youtubeId || (typeof currentTrack.id === 'string' ? currentTrack.id : null);
+  const videoUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : null;
 
   return (
     <AnimatePresence>
@@ -25,25 +29,27 @@ export default function Player() {
         initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         className="mx-2 mb-2 bg-[#121212]/95 backdrop-blur-2xl border border-white/10 p-3 rounded-[2rem] flex items-center justify-between z-50 shadow-2xl"
       >
-        {isClient && (
+        {isClient && videoUrl && (
           <div className="hidden">
             <ReactPlayer 
               ref={playerRef}
-              url={`https://www.youtube.com/watch?v=${videoId}`}
+              url={videoUrl}
               playing={isPlaying}
               volume={1}
               muted={false}
               playsinline
+              controls={false}
               config={{
                 youtube: {
                   playerVars: { 
                     autoplay: 1, 
-                    controls: 0, 
-                    modestbranding: 1,
-                    origin: typeof window !== 'undefined' ? window.location.origin : '' 
+                    controls: 0,
+                    origin: window.location.origin 
                   }
                 }
               }}
+              onReady={() => console.log("Player pronto para tocar")}
+              onError={(e: any) => console.error("Erro fatal no áudio:", e)}
             />
           </div>
         )}
