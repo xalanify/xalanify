@@ -17,11 +17,7 @@ export default function Search() {
     try {
       const tracks = await searchMusic(query);
       setResults(tracks);
-    } catch (error) {
-      console.error("Erro na busca:", error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error(error); } finally { setLoading(false); }
   };
 
   const playTrack = async (track: any) => {
@@ -31,34 +27,34 @@ export default function Search() {
   };
 
   return (
-    <div className="w-full space-y-6">
-      <form onSubmit={handleSearch} className="relative">
+    <div className="w-full space-y-4">
+      <form onSubmit={handleSearch} className="relative group">
         <input
           type="text"
-          placeholder="Pesquisar músicas ou artistas..."
-          className="w-full bg-surface border border-white/5 p-4 pl-12 rounded-2xl outline-none focus:border-primary/50 transition-all text-sm"
+          placeholder="Artistas, músicas..."
+          className="w-full bg-white/5 border border-white/10 p-3 pl-10 rounded-xl outline-none focus:border-primary/50 transition-all text-sm"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={16} />
       </form>
 
-      <div className="space-y-3">
-        {loading && <p className="text-center text-xs text-primary animate-pulse">A procurar no Spotify...</p>}
+      <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+        {loading && <div className="text-center py-4 text-primary animate-pulse text-xs">A sintonizar...</div>}
         {results.map((track) => (
           <div 
             key={track.id} 
             onClick={() => playTrack(track)}
-            className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-primary/10 transition-colors cursor-pointer group"
+            className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition-all active:scale-[0.98] cursor-pointer"
           >
-            <div className="flex items-center gap-3">
-              <img src={track.thumbnail} className="w-12 h-12 rounded-lg object-cover" alt="" />
-              <div>
-                <p className="text-sm font-medium line-clamp-1">{track.title}</p>
-                <p className="text-xs text-gray-500">{track.artist}</p>
-              </div>
+            <img src={track.thumbnail} className="w-12 h-12 rounded-md object-cover flex-shrink-0" alt="" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate text-white/90">{track.title}</p>
+              <p className="text-[11px] text-gray-500 truncate uppercase tracking-wider">{track.artist}</p>
             </div>
-            <Play size={18} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="bg-primary/10 p-2 rounded-full">
+               <Play size={14} className="text-primary fill-current" />
+            </div>
           </div>
         ))}
       </div>

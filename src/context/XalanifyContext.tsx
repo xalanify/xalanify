@@ -1,7 +1,6 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
 
-// Adicionamos as definições de LikedTracks e toggleLike aqui na Interface
 interface XalanifyContextType {
   user: string | null;
   login: (username: string) => void;
@@ -9,8 +8,8 @@ interface XalanifyContextType {
   setCurrentTrack: (track: any) => void;
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
-  likedTracks: any[];
-  toggleLike: (track: any) => void;
+  likedTracks: any[]; // Adicionado
+  toggleLike: (track: any) => void; // Adicionado
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
@@ -24,7 +23,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const savedUser = localStorage.getItem("xalanify_user");
     if (savedUser) setUser(savedUser);
-    
+
     const savedLikes = localStorage.getItem("xalanify_likes");
     if (savedLikes) setLikedTracks(JSON.parse(savedLikes));
   }, []);
@@ -47,12 +46,10 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <XalanifyContext.Provider 
-      value={{ 
-        user, login, currentTrack, setCurrentTrack, 
-        isPlaying, setIsPlaying, likedTracks, toggleLike 
-      }}
-    >
+    <XalanifyContext.Provider value={{ 
+      user, login, currentTrack, setCurrentTrack, 
+      isPlaying, setIsPlaying, likedTracks, toggleLike 
+    }}>
       {children}
     </XalanifyContext.Provider>
   );
