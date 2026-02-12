@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Search as SearchIcon, Play } from "lucide-react";
+import { Search as SearchIcon, Play, Loader2 } from "lucide-react";
 import { searchMusic, getYoutubeId } from "@/lib/musicApi";
 import { useXalanify } from "@/context/XalanifyContext";
 
@@ -27,34 +27,45 @@ export default function Search() {
   };
 
   return (
-    <div className="w-full space-y-4">
-      <form onSubmit={handleSearch} className="relative group">
+    <div className="space-y-4 pt-4">
+      <h1 className="text-2xl font-bold px-2">Pesquisa</h1>
+      
+      <form onSubmit={handleSearch} className="relative mx-2">
         <input
           type="text"
           placeholder="Artistas, músicas..."
-          className="w-full bg-white/5 border border-white/10 p-3 pl-10 rounded-xl outline-none focus:border-primary/50 transition-all text-sm"
+          className="w-full bg-[#1c1c1e] text-white p-3 pl-10 rounded-xl outline-none focus:ring-2 focus:ring-[#a855f7] placeholder:text-gray-500"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={16} />
+        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
       </form>
 
-      <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
-        {loading && <div className="text-center py-4 text-primary animate-pulse text-xs">A sintonizar...</div>}
+      <div className="space-y-1">
+        {loading && <div className="flex justify-center p-4"><Loader2 className="animate-spin text-[#a855f7]" /></div>}
+        
         {results.map((track) => (
           <div 
             key={track.id} 
             onClick={() => playTrack(track)}
-            className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition-all active:scale-[0.98] cursor-pointer"
+            // AQUI ESTÁ A CORREÇÃO VISUAL: Flexbox alinha lado a lado
+            className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition-all active:scale-95 cursor-pointer"
           >
-            <img src={track.thumbnail} className="w-12 h-12 rounded-md object-cover flex-shrink-0" alt="" />
+            {/* AQUI ESTÁ A CURA PARA CAPAS GIGANTES: w-14 h-14 fixa o tamanho */}
+            <img 
+              src={track.thumbnail} 
+              className="w-14 h-14 rounded-lg object-cover flex-shrink-0 shadow-lg" 
+              alt="" 
+            />
+            
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate text-white/90">{track.title}</p>
-              <p className="text-[11px] text-gray-500 truncate uppercase tracking-wider">{track.artist}</p>
+              <p className="text-sm font-semibold truncate text-white">{track.title}</p>
+              <p className="text-xs text-gray-400 truncate">{track.artist}</p>
             </div>
-            <div className="bg-primary/10 p-2 rounded-full">
-               <Play size={14} className="text-primary fill-current" />
-            </div>
+            
+            <button className="p-2 text-gray-400 hover:text-[#a855f7]">
+               <Play size={20} fill="currentColor" />
+            </button>
           </div>
         ))}
       </div>
