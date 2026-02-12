@@ -2,13 +2,12 @@
 import { useState } from "react";
 import { Search as SearchIcon, Play, Loader2 } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
-import { searchMusic, getYoutubeId, Track } from "@/lib/musicApi"; 
+import { searchMusic, getYoutubeId } from "@/lib/musicApi"; // Importe o getYoutubeId
 
 export default function Search() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Track[]>([]);
+  const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  
   const { setCurrentTrack, setIsPlaying, themeColor } = useXalanify();
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -19,36 +18,33 @@ export default function Search() {
       const tracks = await searchMusic(query); 
       setResults(tracks);
     } catch (error) { 
-      console.error("Erro na busca:", error); 
+      console.error(error); 
     } finally { 
       setLoading(false); 
     }
   };
 
-  const playTrack = async (track: Track) => {
-    console.log("DEBUG: Iniciando busca de áudio para:", track.title);
+  const playTrack = async (track: any) => {
+    // 1. Pausa o player atual para evitar o AbortError
+    setIsPlaying(false);
     
     try {
-      // Busca o ID do YouTube antes de dar play
+      // 2. Busca o ID real do YouTube
       const ytId = await getYoutubeId(track.title, track.artist);
       
       if (ytId) {
-        console.log("DEBUG: YouTube ID encontrado com sucesso:", ytId);
+        // 3. Atualiza a track com o ID e só depois dá Play
+        setCurrentTrack({ ...track, youtubeId: ytId });
         
-        // Atualiza o objeto da música com o ID de áudio encontrado
-        const trackWithAudio = {
-          ...track,
-          youtubeId: ytId
-        };
-        
-        setCurrentTrack(trackWithAudio);
-        setIsPlaying(true);
+        // Pequeno delay para o ReactPlayer processar a nova URL
+        setTimeout(() => {
+          setIsPlaying(true);
+        }, 200);
       } else {
-        console.error("DEBUG: Falha ao obter ID do YouTube.");
-        alert("Não foi possível encontrar uma fonte de áudio para esta música.");
+        alert("Não foi possível encontrar áudio para esta música.");
       }
     } catch (error) {
-      console.error("DEBUG: Erro ao processar playTrack:", error);
+      console.error("Erro ao carregar música:", error);
     }
   };
 
@@ -67,11 +63,7 @@ export default function Search() {
       </form>
 
       <div className="space-y-1">
-        {loading && (
-          <div className="flex justify-center p-8">
-            <Loader2 className="animate-spin" style={{ color: themeColor }} />
-          </div>
-        )}
+        {loading && <div className="flex justify-center p-8"><Loader2 className="animate-spin" style={{color: themeColor}} /></div>}
         
         {results.map((track) => (
           <div 
@@ -79,17 +71,11 @@ export default function Search() {
             onClick={() => playTrack(track)}
             className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-2xl active:scale-[0.98] transition-all cursor-pointer group"
           >
-            <img 
-              src={track.thumbnail} 
-              className="w-14 h-14 rounded-xl object-cover flex-shrink-0 bg-zinc-800 shadow-lg" 
-              alt={track.title} 
-            />
-            
+            <img src={track.thumbnail} className="w-14 h-14 rounded-xl object-cover flex-shrink-0 bg-zinc-800 shadow-lg" alt="" />
             <div className="flex-1 min-w-0">
               <p className="text-[15px] font-bold text-white truncate leading-tight">{track.title}</p>
               <p className="text-[12px] text-zinc-500 truncate mt-1 uppercase tracking-wider font-medium">{track.artist}</p>
             </div>
-            
             <div className="p-2 mr-1">
                <Play size={20} style={{ color: themeColor }} fill="currentColor" className="opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>

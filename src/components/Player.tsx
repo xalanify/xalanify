@@ -32,30 +32,41 @@ export default function Player() {
           </div>
         )}
 
-        <div className="hidden">
-          {videoUrl && (
-            <ReactPlayer
-              ref={playerRef}
-              key={currentTrack.youtubeId}
-              url={videoUrl}
-              playing={isPlaying}
-              volume={1}
-              onStart={() => setPlayerStatus("PLAYING_STARTED")}
-              onBuffer={() => setPlayerStatus("BUFFERING")}
-              onReady={() => setPlayerStatus("READY_TO_PLAY")}
-              onError={(e: any) => {
-                setPlayerStatus("ERROR_REPRODUCAO");
-                setHasError(true);
-                console.log("Erro Detalhado Player:", e);
-              }}
-              config={{
-                youtube: {
-                  playerVars: { autoplay: 1, controls: 0, modestbranding: 1 }
-                }
-              }}
-            />
-          )}
-        </div>
+        // Dentro do return do Player.tsx, altera a div do ReactPlayer:
+
+<div className="opacity-0 pointer-events-none absolute w-1 h-1">
+  {videoUrl && (
+    <ReactPlayer
+      ref={playerRef}
+      key={currentTrack.youtubeId} // Importante para resetar o player a cada música
+      url={videoUrl}
+      playing={isPlaying}
+      volume={1}
+      playsinline={true} // Adicionado para melhor suporte mobile
+      onStart={() => {
+        setPlayerStatus("PLAYING_STARTED");
+        setHasError(false);
+      }}
+      onBuffer={() => setPlayerStatus("BUFFERING")}
+      onReady={() => setPlayerStatus("READY_TO_PLAY")}
+      onError={(e: any) => {
+        setPlayerStatus("ERROR_REPRODUCAO");
+        setHasError(true);
+        console.log("Erro Detalhado Player:", e);
+      }}
+      config={{
+        youtube: {
+          playerVars: { 
+            autoplay: 1, 
+            controls: 0, 
+            modestbranding: 1,
+            origin: window.location.origin 
+          }
+        }
+      }}
+    />
+  )}
+</div>
 
         <div className="bg-[#18181b]/95 border border-white/10 p-2 rounded-[2rem] flex items-center justify-between shadow-2xl backdrop-blur-xl">
           <div className="flex items-center gap-3 pl-1 truncate">
