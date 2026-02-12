@@ -1,13 +1,19 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
 
-interface Track {
+export interface Track {
   id: string;
   title: string;
   artist: string;
   thumbnail: string;
-  youtubeId?: string;
+  audioUrl?: string; // Adicionado aqui
   isLocal?: boolean;
+}
+
+interface Playlist {
+  id: string;
+  name: string;
+  tracks: Track[];
 }
 
 interface XalanifyContextType {
@@ -18,11 +24,13 @@ interface XalanifyContextType {
   user: string | null;
   isAdmin: boolean;
   login: (name: string) => void;
-  updateUserName: (newName: string) => void; 
+  updateUserName: (name: string) => void; // Adicionado
   themeColor: string;
   setThemeColor: (color: string) => void;
   likedTracks: Track[];
   toggleLike: (track: Track) => void;
+  playlists: Playlist[];
+  createPlaylist: (name: string) => void;
   clearAdminCache: () => void;
 }
 
@@ -35,6 +43,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [themeColor, setThemeColor] = useState("#a855f7");
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem("xalanify_user");
@@ -50,16 +59,10 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("xalanify_user", name);
   };
 
-  const updateUserName = (newName: string) => {
-    setUser(newName);
-    setIsAdmin(newName === "@admin1");
-    localStorage.setItem("xalanify_user", newName);
-  };
-
-  const toggleLike = (track: Track) => {
-    setLikedTracks(prev => 
-      prev.some(t => t.id === track.id) ? prev.filter(t => t.id !== track.id) : [...prev, track]
-    );
+  const updateUserName = (name: string) => {
+    setUser(name);
+    setIsAdmin(name === "@admin1");
+    localStorage.setItem("xalanify_user", name);
   };
 
   const clearAdminCache = () => {
@@ -67,11 +70,21 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     window.location.reload();
   };
 
+  const toggleLike = (track: Track) => {
+    setLikedTracks(prev => prev.some(t => t.id === track.id) 
+      ? prev.filter(t => t.id !== track.id) 
+      : [...prev, track]);
+  };
+
+  const createPlaylist = (name: string) => {
+    setPlaylists(prev => [...prev, { id: Date.now().toString(), name, tracks: [] }]);
+  };
+
   return (
     <XalanifyContext.Provider value={{ 
       currentTrack, setCurrentTrack, isPlaying, setIsPlaying, 
-      user, isAdmin, login, updateUserName, themeColor, setThemeColor, 
-      likedTracks, toggleLike, clearAdminCache 
+      user, isAdmin, login, updateUserName, themeColor, setThemeColor,
+      likedTracks, toggleLike, playlists, createPlaylist, clearAdminCache 
     }}>
       {children}
     </XalanifyContext.Provider>
@@ -80,6 +93,6 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
 
 export const useXalanify = () => {
   const context = useContext(XalanifyContext);
-  if (!context) throw new Error("useXalanify missing");
+  if (!context) throw new Error("useXalanify must be used within provider");
   return context;
 };
