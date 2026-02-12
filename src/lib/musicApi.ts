@@ -5,6 +5,7 @@ export interface Track {
   title: string;
   artist: string;
   thumbnail: string;
+  duration?: string;
   youtubeId?: string;
 }
 
@@ -21,18 +22,17 @@ async function getSpotifyToken() {
     const data = await res.json();
     return data.access_token;
   } catch (error) {
-    console.error("Erro Token Spotify:", error);
+    console.error("Erro ao obter token Spotify:", error);
     return null;
   }
 }
 
-// RESTAURADO: Exportação da função de pesquisa
 export async function searchMusic(query: string): Promise<Track[]> {
   const token = await getSpotifyToken();
   if (!token) return [];
 
   try {
-    const spotRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=15`, {
+    const spotRes = await fetch(`https://api.spotify.com/v1/search?q=$${encodeURIComponent(query)}&type=track&limit=15`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const spotData = await spotRes.json();
@@ -44,23 +44,34 @@ export async function searchMusic(query: string): Promise<Track[]> {
       thumbnail: t.album.images[0].url,
     }));
   } catch (error) {
-    console.error("Erro Search Spotify:", error);
+    console.error("Erro na busca Spotify:", error);
     return [];
   }
 }
 
-// RESTAURADO: Exportação da busca no YouTube
 export async function getYoutubeId(trackName: string, artist: string): Promise<string | null> {
   const API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-  if (!API_KEY) return null;
+  
+  if (!API_KEY) {
+    console.error("ERRO: NEXT_PUBLIC_YOUTUBE_API_KEY não encontrada!");
+    return null;
+  }
 
-  const query = encodeURIComponent(`${trackName} ${artist} official audio`);
+  const searchTerm = `${trackName} ${artist} official audio`;
+  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&maxResults=1&key=${API_KEY}`;
+
   try {
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&type=video&maxResults=1&key=${API_KEY}`);
+    const res = await fetch(url);
     const data = await res.json();
+
+    if (data.error) {
+      console.error("Erro na API do YouTube:", data.error.message);
+      return null;
+    }
+
     return data.items?.[0]?.id?.videoId || null;
   } catch (error) {
-    console.error("Erro YouTube API:", error);
+    console.error("Erro na requisição YouTube:", error);
     return null;
   }
 }
