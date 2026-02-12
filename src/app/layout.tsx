@@ -5,9 +5,19 @@ import Player from "@/components/Player";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
+    
     <html lang="pt">
       <body className="bg-black text-white antialiased overflow-hidden">
         <XalanifyProvider>
+          <head>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+</head>
+          <link rel="manifest" href="/manifest.json" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
           {/* Contentor principal que trava o ecrã no tamanho do telemóvel */}
           <div className="flex flex-col h-[100dvh] w-full max-w-md mx-auto relative overflow-hidden bg-black">
             
