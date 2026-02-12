@@ -6,19 +6,18 @@ import Player from "@/components/Player";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt">
-      <body className="antialiased">
+      <body className="bg-black text-white antialiased overflow-hidden">
         <XalanifyProvider>
-          {/* CONTENTOR MESTRE: Ocupa exatamente 100% da altura do ecrã */}
-          <div className="flex flex-col h-[100dvh] w-full max-w-md mx-auto bg-black relative overflow-hidden">
+          {/* Contentor principal que trava o ecrã no tamanho do telemóvel */}
+          <div className="flex flex-col h-[100dvh] w-full max-w-md mx-auto relative overflow-hidden bg-black">
             
-            {/* ÁREA DE CONTEÚDO (SCROLLABLE): Onde as páginas aparecem */}
-            {/* O padding-bottom (pb-40) garante que o conteúdo não fica atrás do player */}
-            <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-40 scroll-smooth no-scrollbar">
+            {/* Onde o conteúdo rola (Início, Search, Library) */}
+            <main className="flex-1 overflow-y-auto p-4 pb-48 no-scrollbar">
               {children}
             </main>
             
-            {/* ZONA FLUTUANTE: Player e Menu sempre por cima do conteúdo */}
-            <div className="absolute bottom-0 left-0 right-0 z-50">
+            {/* PLAYER E NAV: Fixos no fundo absoluto do contentor */}
+            <div className="absolute bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black via-black/95 to-transparent">
               <Player />
               <Navigation />
             </div>

@@ -20,3 +20,19 @@ body {
 /* Utilitários para esconder scrollbar mas manter scroll */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+@layer base {
+  body {
+    @apply bg-black text-white;
+    /* Isso impede que a página inteira role, apenas o conteúdo dentro do main rola */
+    overflow: hidden; 
+  }
+}
+
+.musi-card {
+  @apply bg-[#121212] border border-white/5 rounded-3xl shadow-xl;
+}
+
+/* Esconder a barra de scroll feia */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
