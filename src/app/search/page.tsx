@@ -1,152 +1,85 @@
 "use client";
 import { useState } from "react";
-import { Search as SearchIcon, Play, Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { Search as SearchIcon, Play, Loader2, CheckCircle } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
 import { searchMusic, getDirectAudio, getYoutubeId } from "@/lib/musicApi"; 
+import TrackOptions from "@/components/TrackOptions";
 
 export default function Search() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingTrackId, setLoadingTrackId] = useState<string | null>(null);
-  
-  // Importamos o audioEngine para saber qual motor usar
+  const [loadingId, setLoadingId] = useState<string | null>(null);
   const { setCurrentTrack, setIsPlaying, themeColor, currentTrack, audioEngine } = useXalanify();
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-    
     setLoading(true);
-    try {
-      const tracks = await searchMusic(query); 
-      setResults(tracks);
-    } catch (error) { 
-      console.error("Erro na pesquisa:", error);
-    } finally { 
-      setLoading(false); 
-    }
+    const tracks = await searchMusic(query); 
+    setResults(tracks);
+    setLoading(false);
   };
 
   const playTrack = async (track: any) => {
-    if (loadingTrackId) return;
-    
-    setLoadingTrackId(track.id);
-    setIsPlaying(false); 
-    
+    if (loadingId) return;
+    setLoadingId(track.id);
+    setIsPlaying(false);
     try {
       let trackToPlay = { ...track, isLocal: false };
-
-      // LÓGICA HÍBRIDA BASEADA NAS DEFINIÇÕES
       if (audioEngine === 'direct') {
-        console.log("Modo Musify: Extraindo áudio direto...");
-        const audioUrl = await getDirectAudio(track.title, track.artist);
-        if (audioUrl) {
-          trackToPlay.audioUrl = audioUrl;
-          trackToPlay.youtubeId = undefined;
-        } else {
-          throw new Error("Falha no Direct Audio");
-        }
+        const url = await getDirectAudio(track.title, track.artist);
+        trackToPlay.audioUrl = url || undefined;
       } else {
-        console.log("Modo YouTube: Procurando ID do vídeo...");
-        const ytId = await getYoutubeId(track.title, track.artist);
-        if (ytId) {
-          trackToPlay.youtubeId = ytId;
-          trackToPlay.audioUrl = undefined;
-        } else {
-          throw new Error("Falha no YouTube ID");
-        }
+        const id = await getYoutubeId(track.title, track.artist);
+        trackToPlay.youtubeId = id || undefined;
       }
-
       setCurrentTrack(trackToPlay);
-      
-      // Pequeno delay para o Player (YouTube ou Nativo) carregar o novo src
-      setTimeout(() => {
-        setIsPlaying(true);
-      }, 400);
-
-    } catch (error) {
-      console.error("Erro ao carregar áudio:", error);
-      alert("O motor selecionado falhou. Tente mudar o 'Motor de Áudio' nas Definições.");
-    } finally {
-      setLoadingTrackId(null);
-    }
+      setTimeout(() => setIsPlaying(true), 400);
+    } catch (e) { alert("Falha ao carregar áudio."); }
+    setLoadingId(null);
   };
 
-  const isCurrentTrack = (trackId: string) => currentTrack?.id === trackId;
-
   return (
-    <div className="space-y-6 pb-40 px-4">
-      {/* BARRA DE PESQUISA */}
+    <div className="p-4 space-y-6 pb-40">
       <form onSubmit={handleSearch} className="relative mt-4">
         <input
-          type="text"
-          placeholder="Pesquisar músicas ou artistas..."
-          className="w-full bg-[#1c1c1e] text-white py-4 pl-12 pr-4 rounded-2xl outline-none focus:ring-2 placeholder:text-zinc-500 transition-all"
-          style={{ 
-            boxShadow: `0 0 0 2px ${themeColor}20`,
-            border: `1px solid ${themeColor}40`
-          }}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={query} onChange={(e) => setQuery(e.target.value)}
+          placeholder="Artistas, músicas..."
+          className="w-full bg-zinc-900/50 border border-white/10 p-4 pl-12 rounded-2xl outline-none focus:ring-2"
+          style={{ boxShadow: `0 0 0 2px ${themeColor}20` } as any}
         />
         <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
       </form>
 
-      {/* FEEDBACK DE CARREGAMENTO */}
-      {loading && (
-        <div className="flex flex-col items-center justify-center p-20">
-          <Loader2 className="animate-spin mb-4" style={{ color: themeColor }} size={40} />
-          <p className="text-zinc-500 text-sm font-bold uppercase tracking-widest">A procurar...</p>
-        </div>
-      )}
+      {loading && <Loader2 className="animate-spin mx-auto mt-10 text-zinc-500" />}
 
-      {/* LISTA DE RESULTADOS */}
-      {!loading && results.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] px-2 mb-4">
-            {results.length} Sugestões encontradas
-          </p>
-          
-          {results.map((track) => (
-            <div 
-              key={track.id} 
-              onClick={() => playTrack(track)}
-              className={`flex items-center gap-4 p-3 rounded-[1.8rem] cursor-pointer transition-all active:scale-[0.97] group ${isCurrentTrack(track.id) ? 'bg-white/10' : 'hover:bg-white/5'}`}
-            >
+      <div className="space-y-2">
+        {results.map((track) => (
+          <div key={track.id} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-[1.8rem] transition-all group">
+            <div onClick={() => playTrack(track)} className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer">
               <div className="relative flex-shrink-0">
-                <img src={track.thumbnail} className="w-14 h-14 rounded-[1.2rem] object-cover shadow-lg" alt="" />
-                {loadingTrackId === track.id && (
-                  <div className="absolute inset-0 bg-black/70 rounded-[1.2rem] flex items-center justify-center">
-                    <Loader2 className="animate-spin text-white" size={20} />
+                <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-md" />
+                {loadingId === track.id && (
+                  <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
+                    <Loader2 className="animate-spin text-white" size={18} />
                   </div>
                 )}
               </div>
-
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-[15px] font-bold text-white truncate leading-tight">{track.title}</p>
-                <p className="text-[11px] text-zinc-500 truncate mt-1 uppercase font-black tracking-tighter italic">{track.artist}</p>
-              </div>
-
-              <div className="flex-shrink-0 pr-2">
-                {isCurrentTrack(track.id) ? (
-                  <CheckCircle size={22} style={{ color: themeColor }} fill="currentColor" />
-                ) : (
-                  <Play size={22} style={{ color: themeColor }} fill="currentColor" className="opacity-30 group-hover:opacity-100 transition-opacity" />
-                )}
+              <div className="flex-1 truncate">
+                <p className="text-sm font-bold truncate pr-2">{track.title}</p>
+                <p className="text-[10px] text-zinc-500 font-black uppercase mt-1 italic">{track.artist}</p>
               </div>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* ESTADO VAZIO */}
-      {!loading && query && results.length === 0 && (
-        <div className="flex flex-col items-center justify-center p-16 text-center">
-          <AlertCircle size={40} className="text-zinc-700 mb-4" />
-          <p className="text-zinc-500 text-sm font-medium">Não encontrámos resultados para "{query}"</p>
-        </div>
-      )}
+            
+            {/* ÁREA DE BOTÕES - COM ESPAÇAMENTO */}
+            <div className="flex items-center gap-2 pl-2">
+              {currentTrack?.id === track.id && <CheckCircle size={16} style={{ color: themeColor }} />}
+              <TrackOptions track={track} />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

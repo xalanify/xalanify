@@ -1,74 +1,122 @@
 "use client";
 import { useXalanify } from "@/context/XalanifyContext";
-import { Play, Pause, Loader2 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { Play, Pause, ChevronDown, Heart, ListPlus, Shuffle, Repeat } from "lucide-react";
+import { useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
+import TrackOptions from "./TrackOptions";
 
-// Importação dinâmica corrigida para evitar erro de módulo não encontrado
-const ReactPlayer = dynamic(() => import("react-player").then(mod => mod.default), { 
-  ssr: false,
-  loading: () => <div className="hidden" /> 
-}) as any; 
+const ReactPlayer = dynamic(() => import("react-player").then(m => m.default), { ssr: false }) as any;
 
 export default function Player() {
-  const { currentTrack, isPlaying, setIsPlaying, themeColor } = useXalanify();
+  const { currentTrack, isPlaying, setIsPlaying, themeColor, isExpanded, setIsExpanded } = useXalanify();
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (audioRef.current) {
-      if (isPlaying && (currentTrack?.audioUrl || currentTrack?.isLocal)) {
-        audioRef.current.play().catch(() => setIsPlaying(false));
-      } else {
-        audioRef.current.pause();
-      }
+      if (isPlaying) audioRef.current.play().catch(() => {});
+      else audioRef.current.pause();
     }
-  }, [isPlaying, currentTrack, setIsPlaying]);
+  }, [isPlaying, currentTrack]);
 
   if (!currentTrack) return null;
 
   return (
-    <div className="fixed bottom-[85px] left-0 right-0 z-50 px-4 pointer-events-none">
-      <div className="max-w-md mx-auto pointer-events-auto">
-        
-        {/* MOTOR YOUTUBE */}
-        {currentTrack.youtubeId && !currentTrack.audioUrl && (
-          <div className="hidden">
-            <ReactPlayer
-              url={`https://www.youtube.com/watch?v=${currentTrack.youtubeId}`}
-              playing={isPlaying}
-              onEnded={() => setIsPlaying(false)}
-              config={{ youtube: { playerVars: { autoplay: 1, controls: 0 } } }}
-            />
+    <>
+      {/* MINI PLAYER FLUTUANTE */}
+      {!isExpanded && (
+        <div 
+          onClick={() => setIsExpanded(true)}
+          className="fixed bottom-[85px] left-4 right-4 z-50 bg-zinc-900/90 border border-white/10 p-2 rounded-[2rem] flex items-center justify-between backdrop-blur-xl animate-in slide-in-from-bottom-4"
+        >
+          <div className="flex items-center gap-3 pl-1 truncate">
+            <img src={currentTrack.thumbnail} className="w-12 h-12 rounded-2xl object-cover shadow-lg" alt="" />
+            <div className="truncate">
+              <p className="text-sm font-bold truncate">{currentTrack.title}</p>
+              <p className="text-[10px] text-zinc-500 font-black uppercase tracking-tighter">{currentTrack.artist}</p>
+            </div>
           </div>
-        )}
+          <button 
+            onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }}
+            className="w-12 h-12 rounded-full flex items-center justify-center text-black"
+            style={{ backgroundColor: themeColor }}
+          >
+            {isPlaying ? <Pause size={20} fill="currentColor"/> : <Play size={20} fill="currentColor" className="ml-1"/>}
+          </button>
+        </div>
+      )}
 
-        {/* MOTOR NATIVO (Local/Direct) */}
-        {(currentTrack.audioUrl || currentTrack.isLocal) && (
-          <audio 
-            ref={audioRef} 
-            src={currentTrack.isLocal ? "/test.mp3" : currentTrack.audioUrl} 
+      {/* PLAYER FULL SCREEN */}
+      {isExpanded && (
+        <div className="fixed inset-0 z-[100] bg-black animate-in slide-in-from-bottom duration-500 overflow-hidden">
+          {/* Fundo Desfocado Dinâmico */}
+          <div className="absolute inset-0 opacity-40 blur-[100px]" style={{ background: `radial-gradient(circle, ${themeColor} 0%, transparent 70%)` }} />
+          
+          <div className="relative h-full flex flex-col p-8 justify-between">
+            <button onClick={() => setIsExpanded(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center">
+              <ChevronDown size={28} />
+            </button>
+
+            <div className="space-y-8">
+              <img src={currentTrack.thumbnail} className="w-full aspect-square object-cover rounded-[3rem] shadow-2xl scale-105" alt="" />
+              
+              <div className="flex items-center justify-between">
+                <div className="max-w-[80%]">
+                  <h2 className="text-3xl font-black tracking-tighter leading-tight">{currentTrack.title}</h2>
+                  <p className="text-zinc-500 font-bold uppercase tracking-widest text-sm mt-1">{currentTrack.artist}</p>
+                </div>
+                <TrackOptions track={currentTrack} />
+              </div>
+
+              {/* BARRA DE PROGRESSO (ESTÉTICA) */}
+              <div className="space-y-2">
+                <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full animate-pulse" style={{ backgroundColor: themeColor, width: '35%' }} />
+                </div>
+                <div className="flex justify-between text-[10px] font-black text-zinc-600">
+                  <span>1:24</span>
+                  <span>3:45</span>
+                </div>
+              </div>
+
+              {/* CONTROLOS PRINCIPAIS */}
+              <div className="flex items-center justify-between px-4">
+                <Shuffle size={20} className="text-zinc-600" />
+                <div className="flex items-center gap-8">
+                  <button className="rotate-180"><Play size={32} fill="white" /></button>
+                  <button 
+                    onClick={() => setIsPlaying(!isPlaying)}
+                    className="w-20 h-20 rounded-full flex items-center justify-center text-black shadow-2xl"
+                    style={{ backgroundColor: themeColor }}
+                  >
+                    {isPlaying ? <Pause size={36} fill="currentColor"/> : <Play size={36} fill="currentColor" className="ml-1"/>}
+                  </button>
+                  <button><Play size={32} fill="white" /></button>
+                </div>
+                <Repeat size={20} className="text-zinc-600" />
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-10 pb-8 text-zinc-500">
+              <Heart size={24} />
+              <ListPlus size={24} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MOTORES INVISÍVEIS */}
+      <div className="hidden">
+        {currentTrack.youtubeId && !currentTrack.audioUrl && (
+          <ReactPlayer 
+            url={`https://www.youtube.com/watch?v=${currentTrack.youtubeId}`} 
+            playing={isPlaying} 
             onEnded={() => setIsPlaying(false)}
           />
         )}
-
-        <div className="bg-zinc-900/95 border border-white/10 p-2.5 rounded-[2.2rem] flex items-center justify-between shadow-2xl backdrop-blur-2xl">
-          <div className="flex items-center gap-3 pl-1 truncate max-w-[70%]">
-            <img src={currentTrack.thumbnail} className="w-12 h-12 rounded-2xl object-cover" alt="" />
-            <div className="truncate text-left">
-              <p className="text-[14px] font-bold text-white truncate leading-tight">{currentTrack.title}</p>
-              <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">{currentTrack.artist}</p>
-            </div>
-          </div>
-
-          <button 
-            onClick={() => setIsPlaying(!isPlaying)} 
-            className="w-12 h-12 rounded-full flex items-center justify-center text-black active:scale-90 transition-all shadow-lg"
-            style={{ backgroundColor: themeColor }}
-          >
-            {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}
-          </button>
-        </div>
+        {(currentTrack.audioUrl || currentTrack.isLocal) && (
+          <audio ref={audioRef} src={currentTrack.isLocal ? "/test.mp3" : currentTrack.audioUrl} onEnded={() => setIsPlaying(false)} />
+        )}
       </div>
-    </div>
+    </>
   );
 }
