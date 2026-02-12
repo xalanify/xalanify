@@ -24,27 +24,27 @@ export default function Search() {
     }
   };
 
-  const playTrack = async (track: any) => {
-    // 1. Pausa o player atual para evitar o AbortError
+ const playTrack = async (track: any) => {
+    // 1. Para o que estiver a dar antes de mudar
     setIsPlaying(false);
     
     try {
-      // 2. Busca o ID real do YouTube
+      // 2. Chama a API para converter Spotify -> YouTube
       const ytId = await getYoutubeId(track.title, track.artist);
       
       if (ytId) {
-        // 3. Atualiza a track com o ID e só depois dá Play
+        // 3. Atualiza o contexto com o ID novo
         setCurrentTrack({ ...track, youtubeId: ytId });
         
-        // Pequeno delay para o ReactPlayer processar a nova URL
+        // 4. Pequeno delay (importante!) para o Player carregar a URL nova antes do Play
         setTimeout(() => {
           setIsPlaying(true);
-        }, 200);
+        }, 300);
       } else {
-        alert("Não foi possível encontrar áudio para esta música.");
+        alert("Áudio não disponível para esta faixa.");
       }
     } catch (error) {
-      console.error("Erro ao carregar música:", error);
+      console.error("Erro ao dar play:", error);
     }
   };
 
