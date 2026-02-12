@@ -1,6 +1,6 @@
 {
   "name": "xalanify",
-  "version": "0.50.0",
+  "version": "0.50.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,25 +9,19 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@tailwindcss/postcss": "^4.1.18",
-    "lucide-react": "^0.469.0",
-    "next": "^15.1.6",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "react-player": "^3.4.0"
+    "next": "15.5.12",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-player": "^2.16.0",
+    "lucide-react": "^0.474.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "postcss": "^8.4.49"
   },
   "devDependencies": {
-    "@types/node": "^22",
+    "typescript": "^5",
+    "@types/node": "^20",
     "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "^15.1.6",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.19",
-    "typescript": "^5"
-  },
-  "description": "Player de música estilo Musi com integração Spotify + YouTube",
-  "engines": {
-    "node": ">=18.0.0"
+    "@types/react-dom": "^19"
   }
 }

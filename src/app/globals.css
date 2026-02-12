@@ -6,27 +6,14 @@
   --bg-secondary: #121212;
 }
 
-/* No Tailwind v4, usamos CSS puro para o body em vez de @apply no base */
 body {
   background-color: black;
   color: white;
   overscroll-behavior: none;
   overflow: hidden;
   height: 100vh;
+  font-family: sans-serif;
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* Card estilo Musi */
-.musi-card {
-  background-color: #121212;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 1.5rem;
-}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
