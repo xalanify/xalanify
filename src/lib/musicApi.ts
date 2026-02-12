@@ -56,7 +56,7 @@ export async function getYoutubeId(trackName: string, artist: string): Promise<s
   try {
     const res = await fetch(url, { cache: 'no-store' });
     const data = await res.json();
-    
+    console.log("DEBUG API YOUTUBE:", data);
     // Se der erro de autorização ou cota, o log dirá aqui
     if (data.error) {
       console.error("DEBUG API YOUTUBE:", data.error.message);
