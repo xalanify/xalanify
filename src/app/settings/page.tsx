@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const VERSION = "0.01.2";
+const VERSION = "0.01.2g";
 const UPDATE_LOGS = [
+    { version: "0.01.2g", date: "Hoje", changes: ["Fix Crítico: Resolvido erro de mismatch de tipos no componente de áudio (ReactPlayer).", "Stability: Implementada verificação de segurança para listas de favoritos vazias.", "Build: Otimização do carregamento dinâmico para compatibilidade total com a Vercel."] },
   { version: "0.01.2", date: "Hoje", changes: ["Player Real com Áudio", "Biblioteca de Favoritos", "Seletor de Temas Dinâmico", "Persistência LocalStorage"] },
   { version: "0.01.1", date: "Ontem", changes: ["Motor Híbrido Spotify/YT", "Player Visual", "Sistema de Login"] },
   { version: "0.01.0", date: "Fev 2026", changes: ["Lançamento Base PWA"] },

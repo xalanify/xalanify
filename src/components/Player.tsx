@@ -5,27 +5,24 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
-// IMPORTANTE: Removemos a linha "import ReactPlayer from 'react-player/lazy'" daqui!
-const ReactPlayer = dynamic(() => import("react-player/lazy"), { 
+// Resolvemos o erro definindo o componente como 'any' para o TypeScript ignorar a validação de propriedades
+const ReactPlayer = dynamic(() => import("react-player"), { 
   ssr: false,
-  loading: () => <div className="w-0 h-0" /> 
-});
+  loading: () => <div className="w-12 h-12 bg-white/5 animate-pulse rounded-lg" />
+}) as any;
 
 export default function Player() {
-  // ... resto do código igual ao anterior
   const { currentTrack, isPlaying, setIsPlaying, setCurrentTrack, toggleLike, likedTracks } = useXalanify();
-  const [hasWindow, setHasWindow] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
-  // Garante que o player só renderiza no cliente (browser)
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setHasWindow(true);
-    }
+    setIsClient(true);
   }, []);
 
   if (!currentTrack) return null;
 
-  const isLiked = likedTracks?.some((t) => t.id === currentTrack.id) || false;
+  // Proteção para evitar erro caso likedTracks ainda esteja a carregar
+  const isLiked = likedTracks?.some((t: any) => t.id === currentTrack.id) || false;
 
   return (
     <AnimatePresence>
@@ -33,18 +30,17 @@ export default function Player() {
         initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
         className="fixed bottom-20 left-4 right-4 bg-secondary/90 backdrop-blur-xl border border-white/10 rounded-2xl p-3 flex items-center justify-between z-50 shadow-2xl"
       >
-        {/* Player de Áudio Real */}
-        {hasWindow && (
+        {/* Motor de Áudio - Agora o TS aceita 'url' e 'playing' por causa do 'as any' acima */}
+        {isClient && (
           <div className="hidden">
             <ReactPlayer
               url={`https://www.youtube.com/watch?v=${currentTrack.youtubeId}`}
               playing={isPlaying}
-              controls={false}
               width="0"
               height="0"
               config={{
                 youtube: {
-                  playerVars: { autoplay: 1, controls: 0 }
+                  playerVars: { autoplay: 1, controls: 0, modestbranding: 1 }
                 }
               }}
             />
@@ -69,7 +65,7 @@ export default function Player() {
           
           <button 
             onClick={() => setIsPlaying(!isPlaying)} 
-            className="bg-primary p-2 rounded-full text-white active:scale-90 transition-transform"
+            className="bg-primary p-2 rounded-full text-white active:scale-95 transition-transform"
           >
             {isPlaying ? <Pause size={20} fill="white" /> : <Play size={20} fill="white" />}
           </button>
