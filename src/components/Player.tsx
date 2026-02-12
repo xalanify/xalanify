@@ -13,11 +13,6 @@ export default function Player() {
   const playerRef = useRef<any>(null);
 
   useEffect(() => { setIsClient(true); }, []);
-  
-  // Reset do Play ao trocar de música
-  useEffect(() => {
-    if (currentTrack) setIsPlaying(true);
-  }, [currentTrack?.id]);
 
   if (!currentTrack) return null;
 
@@ -37,13 +32,18 @@ export default function Player() {
               url={`https://www.youtube.com/watch?v=${videoId}`}
               playing={isPlaying}
               volume={1}
+              muted={false}
               playsinline
               config={{
                 youtube: {
-                  playerVars: { autoplay: 1, controls: 0, origin: window.location.origin }
+                  playerVars: { 
+                    autoplay: 1, 
+                    controls: 0, 
+                    modestbranding: 1,
+                    origin: typeof window !== 'undefined' ? window.location.origin : '' 
+                  }
                 }
               }}
-              onError={(e: any) => console.log("Erro no Player:", e)}
             />
           </div>
         )}
