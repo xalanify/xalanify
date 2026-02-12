@@ -16,67 +16,62 @@ export default function Player() {
   if (!currentTrack) return null;
 
   const isLiked = likedTracks?.some((t: any) => t.id === currentTrack.id);
-  // Usa o youtubeId se existir, senão tenta o ID normal
   const videoUrl = currentTrack.youtubeId ? `https://www.youtube.com/watch?v=${currentTrack.youtubeId}` : null;
 
   return (
-    // FIX: bottom-[70px] para ficar ACIMA da barra de navegação
-    <div className="fixed bottom-[70px] left-0 right-0 z-50 px-2 pointer-events-none">
-      <div className="pointer-events-auto">
+    <div className="fixed bottom-[80px] left-0 right-0 z-50 px-3 pointer-events-none">
+      <div className="pointer-events-auto max-w-md mx-auto">
         
-        {/* Painel Debug (Admin Only) */}
         <AnimatePresence>
         {isAdmin && (
           <motion.div 
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="mx-1 mb-2 p-3 bg-black/90 border border-yellow-500/30 rounded-2xl backdrop-blur-md shadow-2xl"
+            className="mb-2 p-3 bg-black/90 border border-yellow-500/30 rounded-2xl backdrop-blur-md shadow-2xl font-mono text-[9px]"
           >
-             <div className="flex justify-between items-center text-[9px] text-zinc-400 font-mono">
-                <span>YT_ID: {currentTrack.youtubeId || "WAITING"}</span>
-                {currentTrack.youtubeId ? <Activity size={10} className="text-green-500" /> : <Activity size={10} className="text-red-500 animate-pulse" />}
+             <div className="flex justify-between items-center text-zinc-400">
+                <span className="flex items-center gap-2">
+                  <Terminal size={10} className="text-yellow-500" /> 
+                  ID: <span className="text-white">{currentTrack.youtubeId || "WAITING..."}</span>
+                </span>
+                <Activity size={10} className={currentTrack.youtubeId ? "text-green-500" : "text-red-500 animate-pulse"} />
              </div>
           </motion.div>
         )}
         </AnimatePresence>
 
         <motion.div 
-          initial={{ y: 50, opacity: 0 }} 
-          animate={{ y: 0, opacity: 1 }}
-          className="bg-[#18181b] border border-white/10 p-2 rounded-[1.5rem] flex items-center justify-between shadow-2xl overflow-hidden relative"
+          initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+          className="bg-[#18181b]/95 border border-white/10 p-2 rounded-[1.8rem] flex items-center justify-between shadow-2xl backdrop-blur-xl"
         >
-           {/* Player Invisível */}
            {isClient && videoUrl && (
             <div className="hidden">
               <ReactPlayer 
+                key={currentTrack.youtubeId} // FORÇA O RELOAD QUANDO O ID MUDA
                 url={videoUrl}
                 playing={isPlaying}
                 volume={1}
                 playsinline
                 width="0" height="0"
-                config={{ youtube: { playerVars: { playsinline: 1 } } }}
+                config={{ youtube: { playerVars: { autoplay: 1, controls: 0 } } }}
               />
             </div>
           )}
 
           <div className="flex items-center gap-3 pl-1 max-w-[65%]">
-            <img 
-              src={currentTrack.thumbnail} 
-              className={`w-10 h-10 rounded-xl object-cover border border-white/5 ${isPlaying ? 'animate-[spin_10s_linear_infinite]' : ''}`} 
-              alt="" 
-            />
+            <img src={currentTrack.thumbnail} className="w-11 h-11 rounded-xl object-cover shadow-lg" alt="" />
             <div className="truncate">
               <p className="text-[13px] font-bold text-white truncate">{currentTrack.title}</p>
-              <p className="text-[10px] text-zinc-400 truncate uppercase font-bold">{currentTrack.artist}</p>
+              <p className="text-[10px] text-zinc-500 truncate uppercase font-bold tracking-tight">{currentTrack.artist}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 pr-1">
-            <button onClick={() => toggleLike(currentTrack)} className="active:scale-90">
-              <Heart size={20} style={{ color: isLiked ? themeColor : '#52525b' }} fill={isLiked ? themeColor : "none"} />
+            <button onClick={() => toggleLike(currentTrack)} className="active:scale-90 transition-transform">
+              <Heart size={20} style={{ color: isLiked ? themeColor : '#3f3f46' }} fill={isLiked ? themeColor : "none"} />
             </button>
             <button 
               onClick={() => setIsPlaying(!isPlaying)} 
-              className="w-10 h-10 rounded-full flex items-center justify-center text-black active:scale-90 transition-all shadow-lg shadow-white/5"
+              className="w-11 h-11 rounded-full flex items-center justify-center text-black active:scale-90 transition-all shadow-lg"
               style={{ backgroundColor: themeColor }}
             >
               {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}

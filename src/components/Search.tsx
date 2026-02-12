@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Search as SearchIcon, Play, Loader2 } from "lucide-react"; // FIX: Adicionado 'Play' aqui
+import { Search as SearchIcon, Play, Loader2 } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
 import { searchMusic, getYoutubeId } from "@/lib/musicApi"; 
 
@@ -28,18 +28,26 @@ export default function Search() {
   const playTrack = async (track: any) => {
     setIsFetching(track.id);
     try {
+      // 1. Vai buscar o ID do YouTube (o que deu "verde" no seu teste)
       const ytId = await getYoutubeId(track.title, track.artist);
-      setCurrentTrack({ ...track, youtubeId: ytId });
-      setIsPlaying(true);
+      
+      if (ytId) {
+        // 2. ATUALIZAÇÃO CRÍTICA: Passamos o objeto completo com o ID
+        const trackWithId = { ...track, youtubeId: ytId };
+        setCurrentTrack(trackWithId);
+        setIsPlaying(true);
+      } else {
+        alert("Não foi possível localizar o áudio.");
+      }
     } catch (err) {
-      console.error("Erro ao buscar áudio:", err);
+      console.error("Erro ao processar clique:", err);
     } finally {
       setIsFetching(null);
     }
   };
 
   return (
-    <div className="space-y-8 pt-12 px-4 flex flex-col items-center w-full">
+    <div className="space-y-8 pt-12 px-4 flex flex-col items-center w-full min-h-screen">
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-black tracking-tighter">Explorar</h2>
         <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Encontra a tua batida</p>
@@ -56,9 +64,9 @@ export default function Search() {
         <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
       </form>
 
-      <div className="w-full max-w-md space-y-2 pb-20">
+      <div className="w-full max-w-md space-y-2 pb-40">
         {loading && (
-          <div className="flex flex-col items-center justify-center p-12 gap-3">
+          <div className="flex flex-col items-center justify-center p-12">
             <Loader2 className="animate-spin" style={{ color: themeColor }} size={32} />
           </div>
         )}
@@ -83,7 +91,7 @@ export default function Search() {
               <p className="text-[11px] text-zinc-500 truncate mt-1 uppercase font-black tracking-wider">{track.artist}</p>
             </div>
             
-            <Play size={18} style={{ color: themeColor }} fill="currentColor" className="mr-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all" />
+            <Play size={18} style={{ color: themeColor }} fill="currentColor" className="mr-2" />
           </div>
         ))}
       </div>
