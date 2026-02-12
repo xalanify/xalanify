@@ -1,39 +1,28 @@
+import type { Metadata } from "next";
 import "./globals.css";
-import { XalanifyProvider } from "@/context/XalanifyContext";
-import Navigation from "@/components/Navigation";
-import Player from "@/components/Player";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const metadata: Metadata = {
+  title: "Xalanify",
+  description: "Xalana's Music Experience",
+  manifest: "/manifest.json",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    
     <html lang="pt">
-      <body className="bg-black text-white antialiased overflow-hidden">
-        <XalanifyProvider>
-          <head>
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
-</head>
-          <link rel="manifest" href="/manifest.json" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-          {/* Contentor principal que trava o ecrã no tamanho do telemóvel */}
-          <div className="flex flex-col h-[100dvh] w-full max-w-md mx-auto relative overflow-hidden bg-black">
-            
-            {/* Onde o conteúdo rola (Início, Search, Library) */}
-            <main className="flex-1 overflow-y-auto p-4 pb-48 no-scrollbar">
-              {children}
-            </main>
-            
-            {/* PLAYER E NAV: Fixos no fundo absoluto do contentor */}
-            <div className="absolute bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black via-black/95 to-transparent">
-              <Player />
-              <Navigation />
-            </div>
-
-          </div>
-        </XalanifyProvider>
+      <head>
+        {/* Nova tag recomendada pelo Chrome/iOS */}
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="theme-color" content="#000000" />
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+      </head>
+      <body className="bg-black text-white antialiased selection:bg-purple-500/30">
+        {children}
       </body>
     </html>
   );
