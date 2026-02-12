@@ -1,10 +1,20 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { XalanifyProvider } from "@/context/XalanifyContext";
 
 export const metadata: Metadata = {
   title: "Xalanify",
   description: "Xalana's Music Experience",
   manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -15,14 +25,14 @@ export default function RootLayout({
   return (
     <html lang="pt">
       <head>
-        {/* Nova tag recomendada pelo Chrome/iOS */}
+        {/* Correção para o aviso do console sobre apple-mobile-web-app-capable */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="theme-color" content="#000000" />
-        <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
       <body className="bg-black text-white antialiased selection:bg-purple-500/30">
-        {children}
+        <XalanifyProvider>
+          {children}
+        </XalanifyProvider>
       </body>
     </html>
   );
