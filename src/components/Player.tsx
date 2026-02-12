@@ -4,12 +4,15 @@ import { Play, Pause, X, Heart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-// @ts-ignore
-import ReactPlayer from "react-player/lazy";
-// Import dinâmico para evitar o erro "Module not found" no servidor
-const ReactPlayer = dynamic(() => import("react-player/lazy"), { ssr: false });
+
+// IMPORTANTE: Removemos a linha "import ReactPlayer from 'react-player/lazy'" daqui!
+const ReactPlayer = dynamic(() => import("react-player/lazy"), { 
+  ssr: false,
+  loading: () => <div className="w-0 h-0" /> 
+});
 
 export default function Player() {
+  // ... resto do código igual ao anterior
   const { currentTrack, isPlaying, setIsPlaying, setCurrentTrack, toggleLike, likedTracks } = useXalanify();
   const [hasWindow, setHasWindow] = useState(false);
 
