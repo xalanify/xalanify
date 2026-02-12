@@ -14,61 +14,44 @@ export default function Player() {
 
   useEffect(() => { setIsClient(true); }, []);
 
+  // Se não houver música, não mostra nada (mas não deve desaparecer SE houver música)
   if (!currentTrack) return null;
+  
   const isLiked = likedTracks?.some((t: any) => t.id === currentTrack.id);
+  // Usa o youtubeId se existir, senão tenta o ID normal (para casos de debug)
   const videoUrl = currentTrack.youtubeId ? `https://www.youtube.com/watch?v=${currentTrack.youtubeId}` : null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-8">
+    // Z-INDEX 100 para garantir que fica por cima de tudo
+    <div className="fixed bottom-0 left-0 right-0 z-[100] p-4 pb-8 pointer-events-none">
+      <div className="pointer-events-auto">
+      
+      {/* PAINEL ADMIN FLUTUANTE (Só aparece se for admin e clicar na musica) */}
       <AnimatePresence>
         {isAdmin && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mx-2 mb-4 p-5 bg-black border border-white/10 rounded-[2.5rem] shadow-2xl"
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="mx-2 mb-3 p-4 bg-black/90 border border-yellow-500/30 rounded-[2rem] backdrop-blur-md shadow-2xl"
           >
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-2">
-                <Terminal size={14} className="text-yellow-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-white">Console Admin</span>
-              </div>
-              <Activity size={14} className="text-green-500 animate-pulse" />
+            <div className="flex items-center gap-2 text-[10px] font-mono text-yellow-500 mb-2 border-b border-white/10 pb-2">
+              <Terminal size={12} /> <span>STATUS DE REPRODUÇÃO</span>
             </div>
-
-            <div className="space-y-2 font-mono text-[9px]">
-              <div className="flex justify-between border-b border-white/5 pb-1">
-                <span className="text-zinc-500">TRACK_TITLE:</span>
-                <span className="text-white truncate max-w-[150px]">{currentTrack.title}</span>
-              </div>
-              <div className="flex justify-between border-b border-white/5 pb-1">
-                <span className="text-zinc-500">YOUTUBE_ID:</span>
-                <span className={currentTrack.youtubeId ? "text-green-400" : "text-red-500"}>
-                  {currentTrack.youtubeId || "UNDEFINED (Empty Result)"}
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-white/5 pb-1">
-                <span className="text-zinc-500">API_KEY_LOADED:</span>
-                <span className="text-green-500">YES</span>
-              </div>
+            <div className="space-y-1 font-mono text-[9px] text-zinc-400">
+               <p>Música: <span className="text-white">{currentTrack.title}</span></p>
+               <p>ID YouTube: <span className={currentTrack.youtubeId ? "text-green-400" : "text-red-500"}>{currentTrack.youtubeId || "NÃO ENCONTRADO"}</span></p>
+               <p>Stream: {videoUrl || "Sem URL"}</p>
             </div>
-
-            {!currentTrack.youtubeId && (
-              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-3">
-                <AlertTriangle size={16} className="text-red-500 flex-shrink-0" />
-                <p className="text-[9px] text-red-200 leading-relaxed">
-                  <strong>Atenção:</strong> A API retornou 0 resultados. Isto acontece quando a cota diária do Google (10.000 unidades) é atingida. Tente criar uma nova chave de API no Google Cloud.
-                </p>
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>
 
       <motion.div 
-        initial={{ y: 100 }} 
-        animate={{ y: 0 }} 
-        className="bg-zinc-900/90 backdrop-blur-3xl border border-white/10 p-3 rounded-[2.8rem] flex items-center justify-between shadow-2xl"
+        initial={{ y: 100 }} animate={{ y: 0 }}
+        className="bg-[#101010] border border-white/10 p-3 rounded-[2.5rem] flex items-center justify-between shadow-2xl relative overflow-hidden"
       >
+        {/* Background Blur Effect */}
+        <div className="absolute inset-0 bg-white/5 backdrop-blur-md z-0" />
+
         {isClient && videoUrl && (
           <div className="hidden">
             <ReactPlayer 
@@ -76,33 +59,34 @@ export default function Player() {
               playing={isPlaying}
               volume={1}
               playsinline
+              onError={(e: any) => setErrorMsg("Erro no Stream")}
               onReady={() => setErrorMsg(null)}
-              onError={() => setErrorMsg("Playback Blocked")}
             />
           </div>
         )}
 
-        <div className="flex items-center gap-3 max-w-[60%] pl-1">
-          <img src={currentTrack.thumbnail} className="w-12 h-12 rounded-[1.2rem] object-cover" />
+        <div className="flex items-center gap-3 max-w-[65%] z-10 relative pl-1">
+          <img src={currentTrack.thumbnail} className="w-12 h-12 rounded-[1.2rem] object-cover shadow-lg border border-white/5" alt="" />
           <div className="truncate">
             <p className="text-[14px] font-bold text-white truncate leading-tight">{currentTrack.title}</p>
             <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mt-0.5">{currentTrack.artist}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 pr-1">
-          <button onClick={() => toggleLike(currentTrack)} className="active:scale-125 transition-all">
-            <Heart size={22} style={{ color: isLiked ? themeColor : '#3f3f46' }} fill={isLiked ? themeColor : "none"} />
+        <div className="flex items-center gap-3 pr-1 z-10 relative">
+          <button onClick={() => toggleLike(currentTrack)} className="active:scale-90 transition-transform">
+            <Heart size={22} style={{ color: isLiked ? themeColor : '#52525b' }} fill={isLiked ? themeColor : "none"} />
           </button>
           <button 
             onClick={() => setIsPlaying(!isPlaying)} 
-            className="w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-all shadow-lg" 
+            className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all text-white"
             style={{ backgroundColor: themeColor }}
           >
-            {isPlaying ? <Pause size={22} fill="white" color="white" /> : <Play size={22} fill="white" color="white" className="ml-1" />}
+            {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
           </button>
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }
