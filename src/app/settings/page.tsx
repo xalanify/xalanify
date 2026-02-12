@@ -1,48 +1,49 @@
 "use client";
-const VERSION = "0.01.1";
+import { useState, useEffect } from "react";
+
+const VERSION = "0.01.2";
 const UPDATE_LOGS = [
-  { 
-    version: "0.01.1", 
-    date: "Hoje",
-    changes: [
-      "Motor Híbrido: Spotify (Dados) + YouTube (Áudio)", 
-      "Player Flutuante com animações Framer Motion", 
-      "Sistema de Login via LocalStorage",
-      "Segurança: Implementação de Variáveis de Ambiente (.env)"
-    ] 
-  },
-  { 
-    version: "0.01.0", 
-    date: "Fev 2024",
-    changes: ["Lançamento Inicial", "UI Minimalista Dark Mode", "Navegação Inferior", "Base PWA"] 
-  },
+  { version: "0.01.2", date: "Hoje", changes: ["Player Real com Áudio", "Biblioteca de Favoritos", "Seletor de Temas Dinâmico", "Persistência LocalStorage"] },
+  { version: "0.01.1", date: "Ontem", changes: ["Motor Híbrido Spotify/YT", "Player Visual", "Sistema de Login"] },
+  { version: "0.01.0", date: "Fev 2026", changes: ["Lançamento Base PWA"] },
 ];
 
-export default function SettingsPage() {
+export default function Settings() {
+  const [theme, setTheme] = useState("default");
+
+  const changeTheme = (newTheme: string) => {
+    setTheme(newTheme);
+    document.documentElement.setAttribute("data-theme", newTheme);
+    localStorage.setItem("xalanify_theme", newTheme);
+  };
+
   return (
     <div className="space-y-8 pb-10">
       <h1 className="text-3xl font-bold">Definições</h1>
-      
-      <div className="bg-surface p-5 rounded-3xl border border-white/5">
-        <h2 className="text-primary font-bold mb-4">Notas de Atualização</h2>
-        <div className="space-y-6">
+
+      <section className="bg-surface p-5 rounded-3xl">
+        <h2 className="font-bold mb-4">Personalização</h2>
+        <div className="flex gap-4">
+          <button onClick={() => changeTheme('default')} className="w-10 h-10 rounded-full bg-primary border-2 border-white" title="Roxo" />
+          <button onClick={() => changeTheme('yellowish')} className="w-10 h-10 rounded-full bg-yellow-500 border-2 border-white/10" title="Amarelado" />
+        </div>
+      </section>
+
+      <section className="bg-surface p-5 rounded-3xl">
+        <h2 className="text-primary font-bold mb-4">Logs de Sistema</h2>
+        <div className="space-y-4">
           {UPDATE_LOGS.map((log) => (
-            <div key={log.version} className="relative pl-6 border-l border-primary/30">
-              <div className="absolute w-2 h-2 bg-primary rounded-full -left-[4.5px] top-1.5" />
-              <p className="text-sm font-bold text-white">Versão {log.version} <span className="text-[10px] text-gray-500 ml-2">{log.date}</span></p>
-              <ul className="mt-2 space-y-1">
-                {log.changes.map((change, i) => (
-                  <li key={i} className="text-xs text-gray-400">• {change}</li>
-                ))}
+            <div key={log.version} className="border-l border-white/10 pl-4">
+              <p className="text-xs font-bold">v{log.version} - {log.date}</p>
+              <ul className="text-[10px] text-gray-500">
+                {log.changes.map((c, i) => <li key={i}>• {c}</li>)}
               </ul>
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="p-4 text-center text-gray-600 text-xs">
-        Criado por <span className="text-white font-medium">Xalana</span>
-      </div>
+      </section>
+      
+      <p className="text-center text-[10px] text-gray-700">Criado por Xalana</p>
     </div>
   );
 }
