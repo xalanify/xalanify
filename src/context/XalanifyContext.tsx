@@ -7,13 +7,7 @@ interface Track {
   artist: string;
   thumbnail: string;
   youtubeId?: string;
-  isLocalTest?: boolean;
-}
-
-interface Playlist {
-  id: string;
-  name: string;
-  tracks: Track[];
+  isLocal?: boolean; // Define se é um ficheiro na pasta public
 }
 
 interface XalanifyContextType {
@@ -24,13 +18,11 @@ interface XalanifyContextType {
   user: string | null;
   isAdmin: boolean;
   login: (name: string) => void;
-  updateUserName: (newName: string) => void; // NOVO: Mudar nome
+  updateUserName: (newName: string) => void;
   themeColor: string;
   setThemeColor: (color: string) => void;
   likedTracks: Track[];
   toggleLike: (track: Track) => void;
-  playlists: Playlist[];
-  createPlaylist: (name: string) => void;
   clearAdminCache: () => void;
 }
 
@@ -43,7 +35,6 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [themeColor, setThemeColor] = useState("#a855f7");
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem("xalanify_user");
@@ -51,21 +42,18 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       setUser(savedUser);
       setIsAdmin(savedUser === "@admin1");
     }
-    const savedColor = localStorage.getItem("xalanify_theme");
-    if (savedColor) setThemeColor(savedColor);
   }, []);
 
   const login = (name: string) => {
     setUser(name);
-    const adminStatus = name === "@admin1";
-    setIsAdmin(adminStatus);
+    setIsAdmin(name === "@admin1");
     localStorage.setItem("xalanify_user", name);
   };
 
   const updateUserName = (newName: string) => {
     setUser(newName);
-    localStorage.setItem("xalanify_user", newName);
     setIsAdmin(newName === "@admin1");
+    localStorage.setItem("xalanify_user", newName);
   };
 
   const clearAdminCache = () => {
@@ -74,19 +62,16 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleLike = (track: Track) => {
-    const isLiked = likedTracks.some(t => t.id === track.id);
-    setLikedTracks(isLiked ? likedTracks.filter(t => t.id !== track.id) : [...likedTracks, track]);
-  };
-
-  const createPlaylist = (name: string) => {
-    setPlaylists([...playlists, { id: Date.now().toString(), name, tracks: [] }]);
+    setLikedTracks(prev => 
+      prev.some(t => t.id === track.id) ? prev.filter(t => t.id !== track.id) : [...prev, track]
+    );
   };
 
   return (
     <XalanifyContext.Provider value={{ 
       currentTrack, setCurrentTrack, isPlaying, setIsPlaying, 
       user, isAdmin, login, updateUserName, themeColor, setThemeColor, 
-      likedTracks, toggleLike, playlists, createPlaylist, clearAdminCache 
+      likedTracks, toggleLike, clearAdminCache 
     }}>
       {children}
     </XalanifyContext.Provider>
@@ -95,6 +80,6 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
 
 export const useXalanify = () => {
   const context = useContext(XalanifyContext);
-  if (!context) throw new Error("useXalanify error");
+  if (!context) throw new Error("useXalanify context missing");
   return context;
 };
