@@ -3,22 +3,25 @@
 @tailwind utilities;
 
 :root {
-  --primary: #a855f7; /* Roxo padrão do musi */
+  --background: #09080b;
+  --foreground: #ffffff;
+  /* A cor primária virá do Contexto, mas definimos um fallback */
+  --primary: #ec4899; 
 }
 
 body {
-  background-color: #000000;
-  color: #ffffff;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
-  -webkit-tap-highlight-color: transparent;
 }
 
-/* Esconde a scrollbar para parecer uma App nativa */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+/* Scrollbar invisível mas funcional */
+::-webkit-scrollbar {
+  width: 0px;
+}
 
-.glass {
-  background: rgba(18, 18, 20, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+.musi-card {
+  @apply bg-[#16151a] border border-white/5 rounded-[24px];
 }
