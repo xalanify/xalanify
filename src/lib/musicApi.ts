@@ -1,4 +1,5 @@
 // src/lib/musicApi.ts
+
 export interface Track {
   id: string;
   title: string;
@@ -35,15 +36,15 @@ export async function searchMusic(query: string): Promise<Track[]> {
   }));
 }
 
-// ESTA FUNÇÃO É O QUE FALTAVA: Converte o nome da música num ID do YouTube
+// ESTA É A FUNÇÃO QUE FALTAVA PARA O ÁUDIO FUNCIONAR
 export async function getYoutubeId(trackName: string, artistName: string): Promise<string> {
   try {
-    const query = encodeURIComponent(`${trackName} ${artistName} audio`);
+    const query = encodeURIComponent(`${trackName} ${artistName} official audio`);
     const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&maxResults=1&type=video&key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}`);
     const data = await res.json();
     return data.items[0]?.id?.videoId || "";
   } catch (error) {
-    console.error("Erro ao converter para YouTube:", error);
+    console.error("Erro YouTube API:", error);
     return "";
   }
 }

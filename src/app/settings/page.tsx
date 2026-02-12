@@ -7,15 +7,25 @@ export default function Settings() {
   const { user, themeColor, setThemeColor, login } = useXalanify();
   const [view, setView] = useState("menu");
 
-  const changelog = [
-    { version: "0.18.0", status: "latest", logs: ["Correção Crítica: O áudio agora é buscado no YouTube via metadados Spotify.", "Visual: Adicionado Loaders individuais por música.", "Sobre: Créditos Xalana restaurados."] },
-    { version: "0.17.0", logs: ["Implementação de logs acumulados."] },
-    { version: "0.16.0", logs: ["Refatoração do Player."] },
-    { version: "0.15.0", logs: ["Sistema de volume forçado."] },
-    { version: "0.14.0", logs: ["Criação da página de definições."] },
-    { version: "0.13.0", logs: ["Início do suporte a YouTube."] },
-    { version: "0.12.0", logs: ["Lançamento da Interface Musi-Style."] }
-  ];
+  // Dentro do array changelog no ficheiro Settings:
+const changelog = [
+  { 
+    version: "0.19.0 (Atual)", 
+    status: "latest", 
+    logs: [
+      "Integração Real YouTube-Spotify: O áudio agora é extraído via YouTube Data API v3.",
+      "Correção de AbortError: O player agora só inicia com um link válido.",
+      "Loading State: Adicionado indicador visual de busca de áudio."
+    ] 
+  },
+  { version: "0.18.0", logs: ["Ajuste de estilos e logo Xalana."] },
+  { version: "0.17.0", logs: ["Implementação de histórico acumulado."] },
+  { version: "0.16.0", logs: ["Refatoração do componente Player."] },
+  { version: "0.15.0", logs: ["Motor de áudio agressivo."] },
+  { version: "0.14.0", logs: ["Criação do menu Definições."] },
+  { version: "0.13.0", logs: ["Suporte inicial YouTube."] },
+  { version: "0.12.0", logs: ["Lançamento Musi Interface."] }
+];
 
   if (view === "about") return (
     <div className="space-y-6 text-center animate-in zoom-in-95 duration-300">
