@@ -7,6 +7,7 @@ interface Track {
   artist: string;
   thumbnail: string;
   youtubeId?: string;
+  isLocalTest?: boolean;
 }
 
 interface Playlist {
@@ -23,18 +24,18 @@ interface XalanifyContextType {
   user: string | null;
   isAdmin: boolean;
   login: (name: string) => void;
+  updateUserName: (newName: string) => void; // NOVO: Mudar nome
   themeColor: string;
   setThemeColor: (color: string) => void;
   likedTracks: Track[];
   toggleLike: (track: Track) => void;
   playlists: Playlist[];
   createPlaylist: (name: string) => void;
-  clearAdminCache: () => void; // NOVO: Para o modo Desenvolvedor
+  clearAdminCache: () => void;
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
 
-// CORREÇÃO AQUI: React.ReactNode em vez de IDNode
 export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -50,6 +51,8 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       setUser(savedUser);
       setIsAdmin(savedUser === "@admin1");
     }
+    const savedColor = localStorage.getItem("xalanify_theme");
+    if (savedColor) setThemeColor(savedColor);
   }, []);
 
   const login = (name: string) => {
@@ -59,28 +62,30 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("xalanify_user", name);
   };
 
+  const updateUserName = (newName: string) => {
+    setUser(newName);
+    localStorage.setItem("xalanify_user", newName);
+    setIsAdmin(newName === "@admin1");
+  };
+
   const clearAdminCache = () => {
-    if (!isAdmin) return;
     localStorage.clear();
     window.location.reload();
   };
 
   const toggleLike = (track: Track) => {
-    const newLikes = likedTracks.some(t => t.id === track.id)
-      ? likedTracks.filter(t => t.id !== track.id)
-      : [...likedTracks, track];
-    setLikedTracks(newLikes);
+    const isLiked = likedTracks.some(t => t.id === track.id);
+    setLikedTracks(isLiked ? likedTracks.filter(t => t.id !== track.id) : [...likedTracks, track]);
   };
 
   const createPlaylist = (name: string) => {
-    const newPlaylist = { id: Date.now().toString(), name, tracks: [] };
-    setPlaylists([...playlists, newPlaylist]);
+    setPlaylists([...playlists, { id: Date.now().toString(), name, tracks: [] }]);
   };
 
   return (
     <XalanifyContext.Provider value={{ 
       currentTrack, setCurrentTrack, isPlaying, setIsPlaying, 
-      user, isAdmin, login, themeColor, setThemeColor, 
+      user, isAdmin, login, updateUserName, themeColor, setThemeColor, 
       likedTracks, toggleLike, playlists, createPlaylist, clearAdminCache 
     }}>
       {children}

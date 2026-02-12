@@ -1,69 +1,62 @@
 "use client";
 import { useXalanify } from "@/context/XalanifyContext";
-import { Plus, Music, Heart, Disc, Play } from "lucide-react"; // FIX: Adicionado 'Play' aqui
+import { Play, FlaskConical } from "lucide-react";
 
 export default function Library() {
-  const { likedTracks, setCurrentTrack, setIsPlaying, themeColor, playlists, createPlaylist } = useXalanify();
+  const { likedTracks, isAdmin, setCurrentTrack, setIsPlaying, themeColor } = useXalanify();
+
+  const playTestAudio = () => {
+    setCurrentTrack({
+      id: "admin-test",
+      title: "Audio Test (Local)",
+      artist: "Admin Lab",
+      thumbnail: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=300",
+      isLocalTest: true
+    });
+    setIsPlaying(true);
+  };
 
   return (
-    <div className="space-y-10 pb-32 pt-12 px-6 flex flex-col items-center w-full">
-      <header className="w-full max-w-md flex justify-between items-center">
-        <div className="text-left">
-          <h1 className="text-3xl font-black tracking-tighter">Coleção</h1>
-          <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-bold">O teu universo musical</p>
-        </div>
-        <button 
-          onClick={() => { const n = prompt("Nome da Playlist:"); if(n) createPlaylist(n); }}
-          className="p-4 rounded-full bg-white/5 hover:bg-white/10 active:scale-90 transition-all border border-white/5"
-        >
-          <Plus size={20} style={{ color: themeColor }} />
-        </button>
-      </header>
+    <div className="p-6 space-y-8 pb-40">
+      <h1 className="text-4xl font-black italic">A Tua Biblioteca</h1>
 
-      {/* Grid de Playlists Centralizado */}
-      <div className="w-full max-w-md grid grid-cols-2 gap-4">
-        <div className="aspect-square rounded-[2.5rem] bg-zinc-900 border border-white/5 p-6 flex flex-col items-center justify-center text-center group hover:bg-zinc-800 transition-all cursor-pointer">
-          <Heart size={32} style={{ color: themeColor }} fill="currentColor" className="mb-3 group-hover:scale-110 transition-transform" />
-          <p className="font-bold text-sm">Favoritas</p>
-          <p className="text-[9px] text-zinc-500 uppercase font-black mt-1">{likedTracks?.length || 0} faixas</p>
-        </div>
-        
-        {playlists.map(pl => (
-          <div key={pl.id} className="aspect-square rounded-[2.5rem] bg-zinc-900 border border-white/5 p-6 flex flex-col items-center justify-center text-center hover:bg-zinc-800 transition-all cursor-pointer">
-             <Disc size={32} className="text-zinc-700 mb-3" />
-             <p className="font-bold text-sm truncate w-full">{pl.name}</p>
-             <p className="text-[9px] text-zinc-500 uppercase font-black mt-1">Playlist</p>
+      {isAdmin && (
+        <section className="space-y-4">
+          <h2 className="text-[10px] font-black uppercase text-yellow-500 tracking-widest flex items-center gap-2">
+            <FlaskConical size={14}/> Admin Labs
+          </h2>
+          <div 
+            onClick={playTestAudio}
+            className="p-6 bg-yellow-500/10 border border-yellow-500/20 rounded-[2.2rem] flex items-center justify-between group cursor-pointer"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-yellow-500 rounded-2xl flex items-center justify-center text-black">
+                <Play fill="currentColor"/>
+              </div>
+              <div>
+                <p className="font-bold">Testar Som Direto</p>
+                <p className="text-[10px] opacity-60 uppercase font-black">Validar se o browser emite áudio</p>
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
+        </section>
+      )}
 
-      {/* Lista de Recentes Centralizada */}
-      <div className="w-full max-w-md space-y-4">
-        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] text-center">Recentemente Curtidas</p>
-        {!likedTracks || likedTracks.length === 0 ? (
-          <div className="py-12 text-center border border-dashed border-white/10 rounded-[2.5rem] flex flex-col items-center gap-2">
-            <Music size={24} className="text-zinc-800" />
-            <p className="text-zinc-600 text-[10px] uppercase font-bold tracking-widest">A tua lista está vazia</p>
+      <section className="space-y-4">
+        <h2 className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Músicas Favoritas</h2>
+        {likedTracks.length === 0 ? (
+          <div className="p-10 border border-white/5 rounded-[2.5rem] text-center">
+            <p className="text-zinc-500 text-sm">Ainda não tens favoritos.</p>
           </div>
         ) : (
-          likedTracks.map((track) => (
-            <div 
-              key={track.id}
-              onClick={() => { setCurrentTrack(track); setIsPlaying(true); }}
-              className="flex items-center gap-4 p-3 bg-zinc-900/40 border border-white/5 rounded-[1.8rem] active:scale-95 transition-all group"
-            >
-              <img src={track.thumbnail} className="w-12 h-12 rounded-2xl object-cover shadow-lg" alt="" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-bold truncate leading-tight">{track.title}</p>
-                <p className="text-[10px] text-zinc-500 uppercase font-black truncate mt-1 tracking-wider">{track.artist}</p>
-              </div>
-              <div className="p-2 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 transition-all">
-                <Play size={16} style={{ color: themeColor }} fill="currentColor" />
-              </div>
+          likedTracks.map(track => (
+            <div key={track.id} className="flex items-center gap-4 p-2 bg-zinc-900/40 rounded-2xl">
+              <img src={track.thumbnail} className="w-12 h-12 rounded-xl" />
+              <p className="font-bold flex-1">{track.title}</p>
             </div>
           ))
         )}
-      </div>
+      </section>
     </div>
   );
 }
