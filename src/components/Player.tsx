@@ -2,7 +2,7 @@
 import { useXalanify } from "@/context/XalanifyContext";
 import { Play, Pause, Heart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 
 const ReactPlayer = dynamic(() => import("react-player"), { ssr: false }) as any;
@@ -10,12 +10,18 @@ const ReactPlayer = dynamic(() => import("react-player"), { ssr: false }) as any
 export default function Player() {
   const { currentTrack, isPlaying, setIsPlaying, toggleLike, likedTracks, themeColor } = useXalanify();
   const [isClient, setIsClient] = useState(false);
+  const playerRef = useRef<any>(null);
 
   useEffect(() => { setIsClient(true); }, []);
+  
+  // Reset do Play ao trocar de música
+  useEffect(() => {
+    if (currentTrack) setIsPlaying(true);
+  }, [currentTrack?.id]);
+
   if (!currentTrack) return null;
 
   const isLiked = likedTracks?.some((t: any) => t.id === currentTrack.id);
-  // O ID do YouTube pode vir como .id ou .youtubeId dependendo da API
   const videoId = currentTrack.youtubeId || currentTrack.id;
 
   return (
@@ -27,14 +33,17 @@ export default function Player() {
         {isClient && (
           <div className="hidden">
             <ReactPlayer 
+              ref={playerRef}
               url={`https://www.youtube.com/watch?v=${videoId}`}
               playing={isPlaying}
               volume={1}
-              width="0"
-              height="0"
-              config={{ youtube: { playerVars: { autoplay: 1 } } }}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
+              playsinline
+              config={{
+                youtube: {
+                  playerVars: { autoplay: 1, controls: 0, origin: window.location.origin }
+                }
+              }}
+              onError={(e: any) => console.log("Erro no Player:", e)}
             />
           </div>
         )}
