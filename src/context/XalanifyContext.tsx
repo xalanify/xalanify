@@ -8,8 +8,12 @@ interface XalanifyContextType {
   setCurrentTrack: (track: any) => void;
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
-  likedTracks: any[]; // Adicionado
-  toggleLike: (track: any) => void; // Adicionado
+  likedTracks: any[];
+  toggleLike: (track: any) => void;
+  playlists: any[];
+  createPlaylist: (name: string) => void;
+  themeColor: string;
+  setThemeColor: (color: string) => void;
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
@@ -19,13 +23,21 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [likedTracks, setLikedTracks] = useState<any[]>([]);
+  const [playlists, setPlaylists] = useState<any[]>([]);
+  const [themeColor, setThemeColor] = useState("#a855f7");
 
   useEffect(() => {
     const savedUser = localStorage.getItem("xalanify_user");
     if (savedUser) setUser(savedUser);
-
+    
     const savedLikes = localStorage.getItem("xalanify_likes");
     if (savedLikes) setLikedTracks(JSON.parse(savedLikes));
+
+    const savedPlaylists = localStorage.getItem("xalanify_playlists");
+    if (savedPlaylists) setPlaylists(JSON.parse(savedPlaylists));
+
+    const savedColor = localStorage.getItem("xalanify_theme");
+    if (savedColor) setThemeColor(savedColor);
   }, []);
 
   const login = (username: string) => {
@@ -35,22 +47,25 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
 
   const toggleLike = (track: any) => {
     const exists = likedTracks.find(t => t.id === track.id);
-    let newLikes;
-    if (exists) {
-      newLikes = likedTracks.filter(t => t.id !== track.id);
-    } else {
-      newLikes = [...likedTracks, track];
-    }
+    const newLikes = exists ? likedTracks.filter(t => t.id !== track.id) : [...likedTracks, track];
     setLikedTracks(newLikes);
     localStorage.setItem("xalanify_likes", JSON.stringify(newLikes));
   };
 
+  const createPlaylist = (name: string) => {
+    const newPlaylists = [...playlists, { id: Date.now(), name, tracks: [] }];
+    setPlaylists(newPlaylists);
+    localStorage.setItem("xalanify_playlists", JSON.stringify(newPlaylists));
+  };
+
   return (
     <XalanifyContext.Provider value={{ 
-      user, login, currentTrack, setCurrentTrack, 
-      isPlaying, setIsPlaying, likedTracks, toggleLike 
+      user, login, currentTrack, setCurrentTrack, isPlaying, setIsPlaying, 
+      likedTracks, toggleLike, playlists, createPlaylist, themeColor, setThemeColor 
     }}>
-      {children}
+      <div style={{ "--primary": themeColor } as React.CSSProperties} className="min-h-screen bg-black text-white">
+        {children}
+      </div>
     </XalanifyContext.Provider>
   );
 }

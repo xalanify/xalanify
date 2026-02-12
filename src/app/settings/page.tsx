@@ -1,50 +1,56 @@
 "use client";
-import { useState, useEffect } from "react";
-
-const VERSION = "0.01.2g";
-const UPDATE_LOGS = [
-    { version: "0.01.2g", date: "Hoje", changes: ["Fix Crítico: Resolvido erro de mismatch de tipos no componente de áudio (ReactPlayer).", "Stability: Implementada verificação de segurança para listas de favoritos vazias.", "Build: Otimização do carregamento dinâmico para compatibilidade total com a Vercel."] },
-  { version: "0.01.2", date: "Hoje", changes: ["Player Real com Áudio", "Biblioteca de Favoritos", "Seletor de Temas Dinâmico", "Persistência LocalStorage"] },
-  { version: "0.01.1", date: "Ontem", changes: ["Motor Híbrido Spotify/YT", "Player Visual", "Sistema de Login"] },
-  { version: "0.01.0", date: "Fev 2026", changes: ["Lançamento Base PWA"] },
-];
+import { useXalanify } from "@/context/XalanifyContext";
+import { User, Palette, Info, LogOut, History } from "lucide-react";
 
 export default function Settings() {
-  const [theme, setTheme] = useState("default");
+  const { user, themeColor, setThemeColor, likedTracks, playlists } = useXalanify();
 
-  const changeTheme = (newTheme: string) => {
-    setTheme(newTheme);
-    document.documentElement.setAttribute("data-theme", newTheme);
-    localStorage.setItem("xalanify_theme", newTheme);
-  };
+  const updates = [
+    { v: "v1.0.2", desc: "Design Premium (musi style), Sistema de Cores e Playlists." },
+    { v: "v1.0.1", desc: "Correção de erros de compilação e motor de áudio YouTube." },
+    { v: "v1.0.0", desc: "Lançamento oficial da Beta com busca e favoritos." }
+  ];
 
   return (
-    <div className="space-y-8 pb-10">
-      <h1 className="text-3xl font-bold">Definições</h1>
+    <div className="space-y-8 pb-32 p-4 animate-in fade-in duration-500">
+      <h1 className="text-3xl font-bold">Settings</h1>
 
-      <section className="bg-surface p-5 rounded-3xl">
-        <h2 className="font-bold mb-4">Personalização</h2>
-        <div className="flex gap-4">
-          <button onClick={() => changeTheme('default')} className="w-10 h-10 rounded-full bg-primary border-2 border-white" title="Roxo" />
-          <button onClick={() => changeTheme('yellowish')} className="w-10 h-10 rounded-full bg-yellow-500 border-2 border-white/10" title="Amarelado" />
+      <section className="bg-[#18181b] p-4 rounded-2xl flex items-center gap-4 border border-white/5">
+        <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center border border-white/10 text-2xl font-bold">
+          {user?.[0] || <User />}
+        </div>
+        <div>
+          <h2 className="text-xl font-bold">{user || "Visitante"}</h2>
+          <p className="text-xs text-gray-500">{likedTracks.length} likes · {playlists.length} playlists</p>
         </div>
       </section>
 
-      <section className="bg-surface p-5 rounded-3xl">
-        <h2 className="text-primary font-bold mb-4">Logs de Sistema</h2>
-        <div className="space-y-4">
-          {UPDATE_LOGS.map((log) => (
-            <div key={log.version} className="border-l border-white/10 pl-4">
-              <p className="text-xs font-bold">v{log.version} - {log.date}</p>
-              <ul className="text-[10px] text-gray-500">
-                {log.changes.map((c, i) => <li key={i}>• {c}</li>)}
-              </ul>
+      <section className="space-y-4">
+        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2"><Palette size={12} /> Theme Color</p>
+        <div className="grid grid-cols-4 gap-3">
+          {["#a855f7", "#f59e0b", "#f43f5e", "#14b8a6", "#3b82f6", "#f97316", "#22c55e", "#ec4899"].map((color) => (
+            <button key={color} onClick={() => setThemeColor(color)} className="p-3 bg-[#18181b] rounded-2xl border border-white/5 flex flex-col items-center gap-1 active:scale-95 transition-all">
+              <div className="w-8 h-8 rounded-full" style={{ backgroundColor: color }} />
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2"><History size={12} /> Logs de Sistema</p>
+        <div className="bg-[#18181b] rounded-2xl border border-white/5 divide-y divide-white/5">
+          {updates.map((upd) => (
+            <div key={upd.v} className="p-4">
+              <p className="text-sm font-bold text-[var(--primary)]">{upd.v}</p>
+              <p className="text-xs text-gray-400 mt-1">{upd.desc}</p>
             </div>
           ))}
         </div>
       </section>
-      
-      <p className="text-center text-[10px] text-gray-700">Criado por Xalana</p>
+
+      <button className="w-full p-4 bg-red-500/10 text-red-500 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
+        <LogOut size={18} /> Log Out
+      </button>
     </div>
   );
 }
