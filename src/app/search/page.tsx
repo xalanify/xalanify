@@ -2,13 +2,13 @@
 import { useState } from "react";
 import { Search as SearchIcon, Play, Loader2 } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
-import { searchMusic, getYoutubeId } from "@/lib/musicApi"; // IMPORTANTE: Adicionado getYoutubeId
+import { searchMusic, getYoutubeId } from "@/lib/musicApi"; 
 
 export default function Search() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isfetchingAudio, setIsFetchingAudio] = useState<string | null>(null);
+  const [fetchingId, setFetchingId] = useState<string | null>(null);
   
   const { setCurrentTrack, setIsPlaying, themeColor } = useXalanify();
 
@@ -27,27 +27,26 @@ export default function Search() {
   };
 
   const playTrack = async (track: any) => {
-    // 1. Sinaliza que estamos a carregar o áudio para esta música específica
-    setIsFetchingAudio(track.id);
-    
+    setFetchingId(track.id);
     try {
-      // 2. BUSCA REAL: Vai ao YouTube buscar o ID (o que gera o JSON verde)
+      // 1. Faz a pesquisa real no YouTube (o que gera o JSON verde que viste)
       const ytId = await getYoutubeId(track.title, track.artist);
       
       if (ytId) {
-        // 3. Só agora enviamos para o Player com o ID garantido
+        // 2. Só atualiza o player quando temos o ID em mãos
         setCurrentTrack({ ...track, youtubeId: ytId });
-        setIsPlaying(true);
+        // 3. Pequeno delay técnico para o componente Player processar a nova URL
+        setTimeout(() => setIsPlaying(true), 150);
       }
-    } catch (error) {
-      console.error("Erro ao obter áudio do YouTube:", error);
+    } catch (err) {
+      console.error("Erro ao sincronizar áudio:", err);
     } finally {
-      setIsFetchingAudio(null);
+      setFetchingId(null);
     }
   };
 
   return (
-    <div className="space-y-8 pt-12 px-4 flex flex-col items-center w-full">
+    <div className="space-y-8 pt-12 px-4 flex flex-col items-center w-full min-h-screen">
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-black tracking-tighter italic">EXPLORAR</h2>
         <p className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">Xalanify Engine</p>
@@ -64,7 +63,7 @@ export default function Search() {
         <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
       </form>
 
-      <div className="w-full max-w-md space-y-2 pb-32">
+      <div className="w-full max-w-md space-y-2 pb-40">
         {loading && (
           <div className="flex justify-center p-12">
             <Loader2 className="animate-spin" style={{color: themeColor}} size={32} />
@@ -79,9 +78,9 @@ export default function Search() {
           >
             <div className="relative shrink-0">
               <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-lg" alt="" />
-              {isfetchingAudio === track.id && (
+              {fetchingId === track.id && (
                 <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
-                  <Loader2 className="animate-spin text-white" size={18} />
+                  <Loader2 className="animate-spin text-white" size={16} />
                 </div>
               )}
             </div>
