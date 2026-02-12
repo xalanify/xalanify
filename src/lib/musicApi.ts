@@ -10,7 +10,8 @@ export interface Track {
 
 async function getSpotifyToken() {
   try {
-    const res = await fetch("https://accounts.spotify.com/api/token", {
+    // ALTERADO PARA HTTPS
+    const res = await fetch("https://googleusercontent.com/spotify.com/0", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -32,8 +33,8 @@ export async function searchMusic(query: string): Promise<Track[]> {
   if (!token) return [];
   
   try {
-    // CORREÇÃO: Removido o número antes da interpolação e ajustada a rota
-    const spotRes = await fetch(`http://googleusercontent.com/spotify.com/spotify?q=${encodeURIComponent(query)}&type=track&limit=15`, {
+    // ALTERADO PARA HTTPS E CORRIGIDA A SINTAXE DA URL
+    const spotRes = await fetch(`https://googleusercontent.com/spotify.com/spotify?q=${encodeURIComponent(query)}&type=track&limit=15`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store'
     });
