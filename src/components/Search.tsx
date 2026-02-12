@@ -27,41 +27,36 @@ export default function Search() {
 
   const playTrack = async (track: any) => {
     setIsFetching(track.id);
+    setIsPlaying(false); // Pausa anterior
+    
     try {
-      // 1. Vai buscar o ID do YouTube (o que deu "verde" no seu teste)
       const ytId = await getYoutubeId(track.title, track.artist);
-      
       if (ytId) {
-        // 2. ATUALIZAÇÃO CRÍTICA: Passamos o objeto completo com o ID
-        const trackWithId = { ...track, youtubeId: ytId };
-        setCurrentTrack(trackWithId);
-        setIsPlaying(true);
-      } else {
-        alert("Não foi possível localizar o áudio.");
+        setCurrentTrack({ ...track, youtubeId: ytId });
+        // Delay para o browser processar o novo link
+        setTimeout(() => {
+          setIsPlaying(true);
+        }, 300);
       }
-    } catch (err) {
-      console.error("Erro ao processar clique:", err);
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsFetching(null);
     }
   };
 
   return (
-    <div className="space-y-8 pt-12 px-4 flex flex-col items-center w-full min-h-screen">
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-black tracking-tighter">Explorar</h2>
-        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Encontra a tua batida</p>
-      </div>
-
-      <form onSubmit={handleSearch} className="relative w-full max-w-md">
+    <div className="space-y-6 flex flex-col items-center">
+      <form onSubmit={handleSearch} className="relative w-full max-w-md px-1">
         <input
           type="text"
-          placeholder="Artistas ou músicas..."
-          className="w-full bg-[#1c1c1e] text-white py-4 pl-12 pr-4 rounded-[2rem] outline-none border border-white/5 focus:border-white/20 transition-all text-center placeholder:text-zinc-600"
+          placeholder="Pesquisar no Xalanify..."
+          className="w-full bg-[#1c1c1e] text-white py-3 pl-11 pr-4 rounded-2xl outline-none focus:ring-2 placeholder:text-zinc-500 transition-all"
+          style={{ boxShadow: `0 0 0 2px ${themeColor}20` } as any}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
       </form>
 
       <div className="w-full max-w-md space-y-2 pb-40">
@@ -91,7 +86,9 @@ export default function Search() {
               <p className="text-[11px] text-zinc-500 truncate mt-1 uppercase font-black tracking-wider">{track.artist}</p>
             </div>
             
-            <Play size={18} style={{ color: themeColor }} fill="currentColor" className="mr-2" />
+            <div className="p-2">
+               <Play size={20} style={{ color: themeColor }} fill="currentColor" className="opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
           </div>
         ))}
       </div>

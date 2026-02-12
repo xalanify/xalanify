@@ -26,12 +26,12 @@ export default function Player() {
               <span className="text-yellow-500 uppercase">Debug Audio</span>
               <span className={hasError ? "text-red-500" : "text-green-500"}>{playerStatus}</span>
             </div>
-            <p>ID ATIVO: {currentTrack.youtubeId}</p>
+            <p>ID: {currentTrack.youtubeId}</p>
           </div>
         )}
 
-        {/* O TRUQUE: Player com 1px, transparente, mas NÃO oculto com 'hidden' */}
-        <div className="absolute left-0 top-0 opacity-0 pointer-events-none overflow-hidden w-[1px] h-[1px]">
+        {/* CONTAINER INVISÍVEL MAS EXISTENTE PARA O BROWSER */}
+        <div className="absolute opacity-0 pointer-events-none w-[1px] h-[1px] overflow-hidden">
           {videoUrl && (
             <ReactPlayer
               ref={playerRef}
@@ -39,16 +39,12 @@ export default function Player() {
               url={videoUrl}
               playing={isPlaying}
               volume={1}
-              playsinline={true} 
-              onStart={() => {
-                setPlayerStatus("PLAYING_STARTED");
-                setHasError(false);
-              }}
-              onReady={() => setPlayerStatus("READY_TO_PLAY")}
+              playsinline={true}
+              onReady={() => setPlayerStatus("READY")}
+              onStart={() => setPlayerStatus("PLAYING")}
               onError={(e: any) => {
-                setPlayerStatus("ERROR_REPRODUCAO");
+                setPlayerStatus("ERROR");
                 setHasError(true);
-                console.error("Player Error:", e);
               }}
               config={{
                 youtube: {

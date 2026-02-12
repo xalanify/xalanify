@@ -32,8 +32,8 @@ export async function searchMusic(query: string): Promise<Track[]> {
   if (!token) return [];
   
   try {
-    // Nota: Verifique se o endpoint abaixo está correto no seu ambiente (ex: api.spotify.com)
-    const spotRes = await fetch(`https://api.spotify.com/v1/search?q=$$${encodeURIComponent(query)}&type=track&limit=15`, {
+    // CORREÇÃO: Removido o número antes da interpolação e ajustada a rota
+    const spotRes = await fetch(`http://googleusercontent.com/spotify.com/spotify?q=${encodeURIComponent(query)}&type=track&limit=15`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store'
     });
@@ -53,10 +53,7 @@ export async function searchMusic(query: string): Promise<Track[]> {
 
 export async function getYoutubeId(trackName: string, artist: string): Promise<string | null> {
   const API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-  if (!API_KEY) {
-    console.error("DEBUG: Falta NEXT_PUBLIC_YOUTUBE_API_KEY nas variáveis de ambiente.");
-    return null;
-  }
+  if (!API_KEY) return null;
 
   const searchTerm = `${trackName} ${artist} official audio`;
   const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&type=video&maxResults=1&key=${API_KEY}`;
@@ -65,22 +62,12 @@ export async function getYoutubeId(trackName: string, artist: string): Promise<s
     const res = await fetch(url, { cache: 'no-store' });
     const data = await res.json();
     
-    if (data.error) {
-      console.error("DEBUG API YOUTUBE ERRO:", data.error.message);
-      return null;
+    if (data.items && data.items.length > 0) {
+      return data.items[0].id.videoId;
     }
-
-    const videoId = data.items?.[0]?.id?.videoId;
-    
-    if (videoId) {
-      console.log("DEBUG: ID extraído com sucesso ->", videoId);
-      return videoId;
-    }
-
-    console.warn("DEBUG: Nenhum vídeo encontrado para:", searchTerm);
     return null;
   } catch (error) {
-    console.error("ERRO FETCH YOUTUBE:", error);
+    console.error("Erro ao buscar no YouTube:", error);
     return null;
   }
 }
