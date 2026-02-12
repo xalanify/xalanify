@@ -1,5 +1,4 @@
 // src/lib/musicApi.ts
-
 export interface Track {
   id: string;
   title: string;
@@ -23,33 +22,28 @@ async function getSpotifyToken() {
 
 export async function searchMusic(query: string): Promise<Track[]> {
   const token = await getSpotifyToken();
-  
-  const spotRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`, {
+  const spotRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=15`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   const spotData = await spotRes.json();
 
-  // MUDANÇA AQUI: Mapeamos e preparamos o objeto
-  const tracks = spotData.tracks.items.map((t: any) => ({
+  return spotData.tracks.items.map((t: any) => ({
     id: t.id,
     title: t.name,
     artist: t.artists[0].name,
     thumbnail: t.album.images[0].url,
-    // Criamos uma sugestão de busca para o Youtube
-    youtubeSearchQuery: `${t.name} ${t.artists[0].name}`
   }));
-
-  return tracks;
 }
 
-// ADICIONADO: Função para converter metadados em ID real do YouTube
-export async function getYoutubeId(searchQuery: string): Promise<string> {
+// ESTA FUNÇÃO É O QUE FALTAVA: Converte o nome da música num ID do YouTube
+export async function getYoutubeId(trackName: string, artistName: string): Promise<string> {
   try {
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchQuery)}&maxResults=1&type=video&key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}`);
+    const query = encodeURIComponent(`${trackName} ${artistName} audio`);
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&maxResults=1&type=video&key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}`);
     const data = await res.json();
     return data.items[0]?.id?.videoId || "";
   } catch (error) {
-    console.error("Erro ao buscar ID do YouTube", error);
+    console.error("Erro ao converter para YouTube:", error);
     return "";
   }
 }
