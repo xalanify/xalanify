@@ -7,22 +7,65 @@ export default function Settings() {
   const { user, themeColor, setThemeColor, login, isAdmin, clearAdminCache } = useXalanify();
   const [view, setView] = useState("menu");
 
-  const changelog = [
-    { 
-      version: "0.23.0 (Atual)", 
-      status: "latest", 
-      logs: [
-        "Fix: Corrigido tipo React.ReactNode (erro de compilação).",
-        "Admin: Adicionado botão 'Limpar Cache Total' para desenvolvedores.",
-        "PWA: Otimização de meta tags para ecrã inteiro em dispositivos móveis."
-      ] 
-    },
-    { version: "0.22.0", logs: ["Ajuste de busca assíncrona para áudio."] },
-    { version: "0.21.0", logs: ["Ajuste de tipos no Context."] },
-    { version: "0.20.0", logs: ["Modo Admin @admin1 e PWA."] },
-    { version: "0.12.0", logs: ["Interface Base."] }
-  ];
+ 
+ const changelog = [
+  { 
+    version: "0.25.0 (Atual)", 
+    status: "latest", 
+    logs: [
+      "Fix: Restauradas exportações de searchMusic e getYoutubeId.",
+      "Admin: Novo Painel de Controlo dedicado nas Definições.",
+      "Debug: Verificação de variáveis de ambiente em tempo real para Admins."
+    ] 
+  },
+  { version: "0.24.0", logs: ["Command Center visual no Player."] },
+  { version: "0.23.0", logs: ["Correção de tipos ReactNode."] },
+  { version: "0.22.0", logs: ["Otimização da ponte Spotify-YouTube."] },
+  { version: "0.12.0", logs: ["Lançamento da UI Musi."] }
+];
+  
+// Adiciona esta nova view dentro do componente Settings
+if (view === "admin_panel" && isAdmin) return (
+  <div className="space-y-6 animate-in zoom-in-95 duration-300">
+    <button onClick={() => setView("menu")} className="text-[10px] font-black text-zinc-500 uppercase">← Voltar</button>
+    <h2 className="text-2xl font-black">Admin Command Center</h2>
+    
+    <div className="grid gap-3">
+      <div className="p-5 bg-zinc-900 border border-white/5 rounded-[2rem]">
+        <p className="text-[10px] text-zinc-500 uppercase mb-2 font-black">Serviços Externos</p>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm">YouTube API Key</span>
+            <span className={process.env.NEXT_PUBLIC_YOUTUBE_API_KEY ? "text-green-500 text-xs" : "text-red-500 text-xs"}>
+              {process.env.NEXT_PUBLIC_YOUTUBE_API_KEY ? "CONFIGURADA ✅" : "FALTANDO ❌"}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm">Spotify ID</span>
+            <span className={process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID ? "text-green-500 text-xs" : "text-red-500 text-xs"}>
+              {process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID ? "CONFIGURADO ✅" : "FALTANDO ❌"}
+            </span>
+          </div>
+        </div>
+      </div>
 
+      <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full p-5 bg-red-500/10 border border-red-500/20 rounded-[2rem] text-red-500 font-bold text-sm">
+        Limpar Base de Dados (Local)
+      </button>
+    </div>
+  </div>
+);
+
+// E no menu principal das Definições, adiciona o acesso:
+{isAdmin && (
+  <button onClick={() => setView("admin_panel")} className="w-full flex items-center justify-between p-5 bg-zinc-900 border border-white/10 rounded-[2rem] text-left border-dashed border-yellow-500/50">
+    <div className="flex items-center gap-4 text-yellow-500">
+      <ShieldCheck size={20} />
+      <div><p className="text-sm font-bold">Painel de Controlo</p><p className="text-[10px] uppercase">Acesso Developer</p></div>
+    </div>
+    <ChevronRight size={18} />
+  </button>
+)}
   if (view === "history") return (
     <div className="space-y-4 pb-20 animate-in slide-in-from-right duration-300">
       <button onClick={() => setView("menu")} className="text-[10px] font-black text-zinc-500 uppercase">← Voltar</button>

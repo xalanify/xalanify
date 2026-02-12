@@ -19,17 +19,31 @@ export default function Player() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 p-2 pb-6">
-      {isAdmin && (
-        <div className="mx-2 mb-2 p-3 bg-black/90 border border-green-500/50 rounded-2xl font-mono text-[10px] text-green-400 shadow-2xl">
-          <div className="flex items-center justify-between mb-1 border-b border-green-500/20 pb-1">
-            <div className="flex items-center gap-2"><Terminal size={12}/> <span>DEBUG MODE</span></div>
-            <Activity size={12} className="animate-pulse" />
-          </div>
-          <p>YT_ID: {currentTrack.youtubeId || "NOT_FOUND"}</p>
-          <p>ERROR: {playerError || "NONE"}</p>
-          <p>URL: {`youtube.com/watch?v=${currentTrack.youtubeId}`}</p>
-        </div>
-      )}
+      // Dentro do return do Player.tsx, abaixo do componente ReactPlayer
+{isAdmin && (
+  <div className="absolute -top-32 left-4 right-4 bg-black/90 border border-white/10 p-4 rounded-3xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4">
+    <div className="flex justify-between items-center mb-2">
+      <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Admin Control Center</span>
+      <div className="flex gap-2">
+        <div className={`w-2 h-2 rounded-full ${currentTrack?.youtubeId ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
+      </div>
+    </div>
+    
+    <div className="space-y-1 text-[10px] font-mono">
+      <p className="flex justify-between"><span className="text-zinc-500">YT_ID:</span> <span className="text-white">{currentTrack?.youtubeId || "NOT_FOUND"}</span></p>
+      <p className="flex justify-between"><span className="text-zinc-500">SOURCE:</span> <span className="text-blue-400">Spotify + YT Search</span></p>
+      <p className="flex justify-between"><span className="text-zinc-500">ENV_KEY:</span> <span>{process.env.NEXT_PUBLIC_YOUTUBE_API_KEY ? "✅ LOADED" : "❌ MISSING"}</span></p>
+    </div>
+
+    {!currentTrack?.youtubeId && (
+      <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded-xl">
+        <p className="text-[9px] text-red-400 leading-tight">
+          <strong>Erro:</strong> Se o YT_ID está undefined, verifica se ativaste a "YouTube Data API v3" no console.cloud.google.com e se a chave está no teu .env.local
+        </p>
+      </div>
+    )}
+  </div>
+)}
 
       <motion.div initial={{ y: 100 }} animate={{ y: 0 }} className="bg-zinc-900/95 backdrop-blur-xl border border-white/10 p-3 rounded-[2.5rem] flex items-center justify-between shadow-2xl">
         {isClient && currentTrack.youtubeId && (
