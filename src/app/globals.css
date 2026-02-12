@@ -3,18 +3,22 @@
 @tailwind utilities;
 
 :root {
-  --background: 10 9 8;
-  --primary: 94 53 177; /* Roxo */
-  --secondary: 78 52 46; /* Castanho */
-}
-
-/* Tema Amarelado */
-[data-theme='yellowish'] {
-  --primary: 234 179 8;
-  --secondary: 66 50 14;
+  --primary: #a855f7; /* Roxo padrão do musi */
 }
 
 body {
-  background: rgb(var(--background));
-  color: white;
+  background-color: #000000;
+  color: #ffffff;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Esconde a scrollbar para parecer uma App nativa */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.glass {
+  background: rgba(18, 18, 20, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
