@@ -1,35 +1,41 @@
 "use client";
 import { useXalanify } from "@/context/XalanifyContext";
 import { useState } from "react";
-import { ChevronRight, User, Palette, Cpu, Info, Clock, Check } from "lucide-react";
+import { ChevronLeft, User, Palette, Cpu, Clock, Check, LogOut } from "lucide-react";
 
 export default function Settings() {
-  const { user, updateUserName, themeColor, setThemeColor, audioEngine, setAudioEngine } = useXalanify();
+  const { user, login, themeColor, setThemeColor, audioEngine, setAudioEngine } = useXalanify();
   const [activeTab, setActiveTab] = useState<string | null>(null);
 
-  const colors = ["#a855f7", "#3b82f6", "#10b981", "#f43f5e", "#eab308"];
+  const colors = ["#a855f7", "#3b82f6", "#10b981", "#f43f5e", "#eab308", "#ffffff"];
 
-  const sections = [
-    { id: 'user', name: 'Perfil', icon: User, desc: user },
-    { id: 'theme', name: 'Aparência', icon: Palette, desc: 'Cor do tema' },
-    { id: 'engine', name: 'Motor de Áudio', icon: Cpu, desc: audioEngine.toUpperCase() },
-    { id: 'history', name: 'Versões', icon: Clock, desc: 'v0.85.0' },
-    { id: 'about', name: 'Sobre', icon: Info, desc: 'Xalanify v1' },
-  ];
-
-  if (activeTab === 'theme') return (
+  if (activeTab === 'profile') return (
     <div className="p-6 space-y-6">
-      <button onClick={() => setActiveTab(null)} className="text-xs font-black uppercase text-zinc-500">← Voltar</button>
-      <h2 className="text-3xl font-black">Cor do Tema</h2>
-      <div className="grid grid-cols-3 gap-4 pt-4">
-        {colors.map(c => (
+      <button onClick={() => setActiveTab(null)} className="flex items-center gap-2 text-zinc-500 font-bold text-xs uppercase"><ChevronLeft size={16}/> Voltar</button>
+      <h2 className="text-3xl font-black">Perfil</h2>
+      <input 
+        defaultValue={user || ""} 
+        onBlur={(e) => login(e.target.value)}
+        className="w-full bg-zinc-900 p-4 rounded-2xl border border-white/5 outline-none focus:border-white/20"
+      />
+      <button onClick={() => window.location.reload()} className="w-full p-4 bg-red-500/10 text-red-500 rounded-2xl font-bold flex items-center justify-center gap-2">
+        <LogOut size={18}/> Sair da Conta
+      </button>
+    </div>
+  );
+
+  if (activeTab === 'engine') return (
+    <div className="p-6 space-y-6">
+      <button onClick={() => setActiveTab(null)} className="flex items-center gap-2 text-zinc-500 font-bold text-xs uppercase"><ChevronLeft size={16}/> Voltar</button>
+      <h2 className="text-3xl font-black">Motor</h2>
+      <div className="space-y-3">
+        {['youtube', 'direct'].map((e) => (
           <button 
-            key={c} 
-            onClick={() => setThemeColor(c)}
-            className="h-16 rounded-3xl border-2 transition-all flex items-center justify-center"
-            style={{ backgroundColor: c, borderColor: themeColor === c ? 'white' : 'transparent' }}
+            key={e} onClick={() => setAudioEngine(e as any)}
+            className={`w-full p-5 rounded-3xl border flex justify-between items-center ${audioEngine === e ? 'bg-white/10 border-white/20' : 'border-transparent bg-zinc-900/40'}`}
           >
-            {themeColor === c && <Check className="text-white" />}
+            <span className="font-bold uppercase text-xs tracking-widest">{e === 'youtube' ? 'YouTube (Estável)' : 'Direct (Musify)'}</span>
+            {audioEngine === e && <Check size={18} style={{ color: themeColor }} />}
           </button>
         ))}
       </div>
@@ -37,30 +43,26 @@ export default function Settings() {
   );
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-6 space-y-4">
       <h1 className="text-4xl font-black italic mb-10">Definições</h1>
-      <div className="space-y-3">
-        {sections.map(s => (
-          <button 
-            key={s.id}
-            onClick={() => setActiveTab(s.id)}
-            className="w-full flex items-center justify-between p-5 bg-zinc-900/40 border border-white/5 rounded-[2rem] hover:bg-white/5 transition-all"
-          >
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-2xl bg-white/5 text-zinc-400"><s.icon size={20} /></div>
-              <div className="text-left">
-                <p className="text-sm font-bold">{s.name}</p>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-widest">{s.desc}</p>
-              </div>
-            </div>
-            <ChevronRight size={18} className="text-zinc-600" />
-          </button>
-        ))}
-      </div>
       
-      <div className="pt-10 text-center">
-        <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.5em]">Xalanify 2026</p>
-        <p className="text-[9px] text-zinc-700 mt-1">Made with Precision</p>
+      <button onClick={() => setActiveTab('profile')} className="w-full flex items-center justify-between p-5 bg-zinc-900/40 rounded-[2rem] border border-white/5">
+        <div className="flex items-center gap-4"><User className="text-zinc-500"/><span className="font-bold">Perfil</span></div>
+        <span className="text-xs text-zinc-500">{user}</span>
+      </button>
+
+      <button onClick={() => setActiveTab('engine')} className="w-full flex items-center justify-between p-5 bg-zinc-900/40 rounded-[2rem] border border-white/5">
+        <div className="flex items-center gap-4"><Cpu className="text-zinc-500"/><span className="font-bold">Motor</span></div>
+        <span className="text-xs text-zinc-500 uppercase">{audioEngine}</span>
+      </button>
+
+      <div className="p-5 bg-zinc-900/40 rounded-[2rem] border border-white/5 space-y-4">
+        <div className="flex items-center gap-4 mb-2"><Palette className="text-zinc-500"/><span className="font-bold">Tema</span></div>
+        <div className="flex justify-between gap-2">
+          {colors.map(c => (
+            <button key={c} onClick={() => setThemeColor(c)} className="w-8 h-8 rounded-full border-2" style={{ backgroundColor: c, borderColor: themeColor === c ? 'white' : 'transparent' }} />
+          ))}
+        </div>
       </div>
     </div>
   );
