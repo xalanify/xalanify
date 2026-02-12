@@ -1,38 +1,32 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
-  --primary: #a855f7; /* Roxo Musi */
+  --primary: #a855f7;
   --bg-main: #000000;
   --bg-secondary: #121212;
 }
 
+/* No Tailwind v4, usamos CSS puro para o body em vez de @apply no base */
 body {
-  background-color: var(--bg-main);
+  background-color: black;
   color: white;
-  /* Impede o "bounce" do scroll no iOS e remove scroll da janela principal */
   overscroll-behavior: none;
-  overflow: hidden; 
+  overflow: hidden;
   height: 100vh;
 }
 
-/* Utilitários para esconder scrollbar mas manter scroll */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-@layer base {
-  body {
-    @apply bg-black text-white;
-    /* Isso impede que a página inteira role, apenas o conteúdo dentro do main rola */
-    overflow: hidden; 
-  }
-}
-
-.musi-card {
-  @apply bg-[#121212] border border-white/5 rounded-3xl shadow-xl;
-}
-
-/* Esconder a barra de scroll feia */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Card estilo Musi */
+.musi-card {
+  background-color: #121212;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 1.5rem;
 }
