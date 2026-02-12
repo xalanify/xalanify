@@ -37,24 +37,28 @@ export default function Search() {
     setIsPlaying(false); 
     
     try {
-      // MUDANÇA AQUI: Usamos getDirectAudio em vez de getYoutubeId
+      console.log("Iniciando extração de áudio...");
       const audioUrl = await getDirectAudio(track.title, track.artist);
       
       if (audioUrl) {
-        setCurrentTrack({ 
-          ...track, 
-          audioUrl: audioUrl, // Definimos a URL direta do ficheiro de áudio
-          isLocal: false 
-        });
+        // Criamos o objeto final para o Contexto
+        const trackToPlay = {
+          ...track,
+          audioUrl: audioUrl, // Aqui está a chave!
+          isLocal: false
+        };
         
+        setCurrentTrack(trackToPlay);
+        
+        // Dá tempo ao elemento <audio> para atualizar o 'src'
         setTimeout(() => {
           setIsPlaying(true);
-        }, 400);
+        }, 300);
       } else {
-        alert("Não foi possível encontrar o áudio desta música.");
+        alert("O servidor de música está ocupado. Tente novamente em instantes.");
       }
     } catch (error) {
-      console.error("Erro ao carregar áudio:", error);
+      console.error("Erro fatal na reprodução:", error);
     } finally {
       setLoadingTrackId(null);
     }

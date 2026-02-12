@@ -1,5 +1,12 @@
 import { Track } from "@/context/XalanifyContext";
 
+// Lista de instâncias públicas para backup
+const PIPED_INSTANCES = [
+  "https://pipedapi.kavin.rocks",
+  "https://pipedapi.drgns.space",
+  "https://api.piped.victr.me"
+];
+
 export async function searchMusic(query: string): Promise<Track[]> {
   try {
     const res = await fetch(`/api/spotify?q=${encodeURIComponent(query)}`);
@@ -16,20 +23,31 @@ export async function searchMusic(query: string): Promise<Track[]> {
 }
 
 export async function getDirectAudio(trackName: string, artist: string): Promise<string | null> {
-  try {
-    const searchUrl = `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(trackName + " " + artist)}&filter=music_songs`;
-    const searchRes = await fetch(searchUrl);
-    const searchData = await searchRes.json();
-    
-    const videoId = searchData.items?.[0]?.url?.split("v=")[1];
-    if (!videoId) return null;
+  const searchTerm = `${trackName} ${artist}`;
+  
+  for (const instance of PIPED_INSTANCES) {
+    try {
+      // 1. Pesquisa o vídeo
+      const searchRes = await fetch(`${instance}/search?q=${encodeURIComponent(searchTerm)}&filter=music_songs`);
+      const searchData = await searchRes.json();
+      
+      const videoId = searchData.items?.[0]?.url?.split("v=")[1];
+      if (!videoId) continue;
 
-    const streamRes = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`);
-    const streamData = await streamRes.json();
-    
-    const audioStream = streamData.audioStreams.sort((a: any, b: any) => b.bitrate - a.bitrate)[0];
-    return audioStream?.url || null;
-  } catch (error) {
-    return null;
+      // 2. Obtém os streams
+      const streamRes = await fetch(`${instance}/streams/${videoId}`);
+      const streamData = await streamRes.json();
+      
+      // Filtra o áudio com melhor qualidade (m4a costuma ser o mais compatível)
+      const audioStream = streamData.audioStreams
+        .filter((s: any) => s.format === "M4A" || s.extension === "m4a")
+        .sort((a: any, b: any) => b.bitrate - a.bitrate)[0] || streamData.audioStreams[0];
+
+      if (audioStream?.url) return audioStream.url;
+    } catch (e) {
+      console.warn(`Instância ${instance} falhou, a tentar próxima...`);
+      continue;
+    }
   }
+  return null;
 }

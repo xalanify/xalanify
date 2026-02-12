@@ -35,12 +35,12 @@ export default function Player() {
         )}
 
         <audio 
-          ref={audioRef} 
-          src={currentTrack.isLocal ? "/test.mp3" : currentTrack.audioUrl} 
-          onLoadStart={() => setLoading(true)}
-          onCanPlay={() => setLoading(false)}
-          onEnded={() => setIsPlaying(false)}
-        />
+  ref={audioRef} 
+  src={currentTrack.audioUrl} // Verifica se esta prop está a chegar aqui
+  onPlay={() => console.log("A tocar:", currentTrack.title)}
+  onError={(e) => console.error("Erro no elemento áudio:", e)}
+  onEnded={() => setIsPlaying(false)}
+/>
 
         <div className="bg-zinc-900/95 border border-white/10 p-2.5 rounded-[2.2rem] flex items-center justify-between shadow-2xl backdrop-blur-2xl">
           <div className="flex items-center gap-3 pl-1 truncate max-w-[70%]">
