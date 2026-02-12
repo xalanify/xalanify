@@ -14,18 +14,18 @@ export default function Navigation() {
   ];
 
   return (
-    // w-full e bg-black/90 garantem que ocupa a largura toda e tem fundo
-    <nav className="w-full bg-[#121212]/95 backdrop-blur-md border-t border-white/10 px-6 py-4 flex justify-between items-center pb-6">
+    <nav className="w-full bg-[#121212]/95 backdrop-blur-xl border-t border-white/10 px-6 pt-3 pb-6 flex justify-between items-center">
       {items.map((item) => {
         const isActive = pathname === item.path;
         return (
-          <Link key={item.path} href={item.path} className="flex flex-col items-center gap-1 min-w-[60px]">
+          <Link key={item.path} href={item.path} className="flex flex-col items-center gap-1 min-w-[64px] active:scale-90 transition-transform">
             <item.icon 
               size={24} 
-              className={isActive ? "text-[#a855f7]" : "text-gray-500"} 
+              className={isActive ? "text-[#a855f7]" : "text-zinc-500"} 
               strokeWidth={isActive ? 2.5 : 2}
+              fill={isActive ? "rgba(168, 85, 247, 0.2)" : "none"}
             />
-            <span className={`text-[10px] ${isActive ? "text-[#a855f7] font-bold" : "text-gray-500"}`}>
+            <span className={`text-[10px] font-medium ${isActive ? "text-[#a855f7]" : "text-zinc-500"}`}>
               {item.name}
             </span>
           </Link>

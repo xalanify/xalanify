@@ -3,19 +3,20 @@
 @tailwind utilities;
 
 :root {
-  --primary: #a855f7;
+  --primary: #a855f7; /* Roxo Musi */
+  --bg-main: #000000;
+  --bg-secondary: #121212;
 }
 
 body {
-  background-color: #000000; /* Fundo Preto Absoluto */
-  color: #ffffff;
+  background-color: var(--bg-main);
+  color: white;
+  /* Impede o "bounce" do scroll no iOS e remove scroll da janela principal */
+  overscroll-behavior: none;
+  overflow: hidden; 
+  height: 100vh;
 }
 
-/* Esconder barra de scroll mas manter funcionalidade */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none; 
-  scrollbar-width: none; 
-}
+/* Utilitários para esconder scrollbar mas manter scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
