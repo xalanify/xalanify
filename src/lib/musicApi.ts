@@ -1,53 +1,31 @@
-import { Track } from "@/context/XalanifyContext";
-
-// Lista de instâncias públicas para backup
-const PIPED_INSTANCES = [
-  "https://pipedapi.kavin.rocks",
-  "https://pipedapi.drgns.space",
-  "https://api.piped.victr.me"
-];
-
-export async function searchMusic(query: string): Promise<Track[]> {
-  try {
-    const res = await fetch(`/api/spotify?q=${encodeURIComponent(query)}`);
-    const data = await res.json();
-    return data.tracks.items.map((t: any) => ({
-      id: t.id,
-      title: t.name,
-      artist: t.artists[0].name,
-      thumbnail: t.album.images[0]?.url || "",
-    }));
-  } catch (error) {
-    return [];
-  }
+export async function searchMusic(query: string) {
+  const res = await fetch(`/api/spotify?q=${encodeURIComponent(query)}`);
+  const data = await res.json();
+  return data.tracks.items.map((t: any) => ({
+    id: t.id,
+    title: t.name,
+    artist: t.artists[0].name,
+    thumbnail: t.album.images[0]?.url || "",
+  }));
 }
 
-export async function getDirectAudio(trackName: string, artist: string): Promise<string | null> {
-  const searchTerm = `${trackName} ${artist}`;
-  
-  for (const instance of PIPED_INSTANCES) {
-    try {
-      // 1. Pesquisa o vídeo
-      const searchRes = await fetch(`${instance}/search?q=${encodeURIComponent(searchTerm)}&filter=music_songs`);
-      const searchData = await searchRes.json();
-      
-      const videoId = searchData.items?.[0]?.url?.split("v=")[1];
-      if (!videoId) continue;
+export async function getYoutubeId(title: string, artist: string): Promise<string | null> {
+  const API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(title + " " + artist)}&type=video&maxResults=1&key=${API_KEY}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.items?.[0]?.id?.videoId || null;
+  } catch { return null; }
+}
 
-      // 2. Obtém os streams
-      const streamRes = await fetch(`${instance}/streams/${videoId}`);
-      const streamData = await streamRes.json();
-      
-      // Filtra o áudio com melhor qualidade (m4a costuma ser o mais compatível)
-      const audioStream = streamData.audioStreams
-        .filter((s: any) => s.format === "M4A" || s.extension === "m4a")
-        .sort((a: any, b: any) => b.bitrate - a.bitrate)[0] || streamData.audioStreams[0];
-
-      if (audioStream?.url) return audioStream.url;
-    } catch (e) {
-      console.warn(`Instância ${instance} falhou, a tentar próxima...`);
-      continue;
-    }
-  }
-  return null;
+export async function getDirectAudio(title: string, artist: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(title + " " + artist)}&filter=music_songs`);
+    const data = await res.json();
+    const vId = data.items?.[0]?.url?.split("v=")[1];
+    const stream = await fetch(`https://pipedapi.kavin.rocks/streams/${vId}`);
+    const sData = await stream.json();
+    return sData.audioStreams[0]?.url || null;
+  } catch { return null; }
 }
