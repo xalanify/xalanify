@@ -5,7 +5,6 @@
 :root {
   --background: #09080b;
   --foreground: #ffffff;
-  /* A cor primária virá do Contexto, mas definimos um fallback */
   --primary: #ec4899; 
 }
 
@@ -17,11 +16,13 @@ body {
   overflow-x: hidden;
 }
 
-/* Scrollbar invisível mas funcional */
-::-webkit-scrollbar {
-  width: 0px;
+/* Removido o @apply que causava erro e substituído por CSS puro */
+.musi-card {
+  background-color: #16151a;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 24px;
 }
 
-.musi-card {
-  @apply bg-[#16151a] border border-white/5 rounded-[24px];
+::-webkit-scrollbar {
+  width: 0px;
 }
