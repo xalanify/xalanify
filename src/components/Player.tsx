@@ -1,7 +1,7 @@
 "use client";
 import { useXalanify } from "@/context/XalanifyContext";
 import { Play, Pause, AlertCircle } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 
 const ReactPlayer = dynamic(() => import("react-player"), { ssr: false }) as any;
@@ -23,15 +23,15 @@ export default function Player() {
         {isAdmin && (
           <div className="mb-2 p-2 bg-black/90 border border-white/10 rounded-xl font-mono text-[8px] text-zinc-400">
             <div className="flex justify-between border-b border-white/5 pb-1 mb-1">
-              <span className="text-yellow-500 uppercase">Debug Menu</span>
+              <span className="text-yellow-500 uppercase">Debug Audio</span>
               <span className={hasError ? "text-red-500" : "text-green-500"}>{playerStatus}</span>
             </div>
-            <p>URL: {videoUrl}</p>
+            <p>ID ATIVO: {currentTrack.youtubeId}</p>
           </div>
         )}
 
-        {/* CONTAINER DO PLAYER: Agora tecnicamente visível para o browser não bloquear o som */}
-        <div className="absolute opacity-0 pointer-events-none w-1 h-1 overflow-hidden">
+        {/* O TRUQUE: Player com 1px, transparente, mas NÃO oculto com 'hidden' */}
+        <div className="absolute left-0 top-0 opacity-0 pointer-events-none overflow-hidden w-[1px] h-[1px]">
           {videoUrl && (
             <ReactPlayer
               ref={playerRef}
@@ -39,7 +39,7 @@ export default function Player() {
               url={videoUrl}
               playing={isPlaying}
               volume={1}
-              playsinline={true}
+              playsinline={true} 
               onStart={() => {
                 setPlayerStatus("PLAYING_STARTED");
                 setHasError(false);
@@ -48,6 +48,7 @@ export default function Player() {
               onError={(e: any) => {
                 setPlayerStatus("ERROR_REPRODUCAO");
                 setHasError(true);
+                console.error("Player Error:", e);
               }}
               config={{
                 youtube: {
@@ -55,7 +56,7 @@ export default function Player() {
                     autoplay: 1, 
                     controls: 0, 
                     modestbranding: 1,
-                    origin: typeof window !== 'undefined' ? window.location.origin : '' 
+                    origin: typeof window !== 'undefined' ? window.location.origin : ''
                   }
                 }
               }}

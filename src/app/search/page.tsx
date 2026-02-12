@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Search as SearchIcon, Play, Loader2 } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
-import { searchMusic, getYoutubeId } from "@/lib/musicApi"; // Importe o getYoutubeId
+import { searchMusic, getYoutubeId } from "@/lib/musicApi"; 
 
 export default function Search() {
   const [query, setQuery] = useState("");
@@ -24,27 +24,27 @@ export default function Search() {
     }
   };
 
- const playTrack = async (track: any) => {
-    // 1. Para o que estiver a dar antes de mudar
+  const playTrack = async (track: any) => {
+    // 1. Reset temporário para preparar o player
     setIsPlaying(false);
     
     try {
-      // 2. Chama a API para converter Spotify -> YouTube
+      // 2. Espera pelo ID do YouTube
       const ytId = await getYoutubeId(track.title, track.artist);
       
       if (ytId) {
-        // 3. Atualiza o contexto com o ID novo
+        // 3. Define a track com o ID real de áudio
         setCurrentTrack({ ...track, youtubeId: ytId });
         
-        // 4. Pequeno delay (importante!) para o Player carregar a URL nova antes do Play
+        // 4. Delay para o ReactPlayer montar a nova URL antes de dar Play
         setTimeout(() => {
           setIsPlaying(true);
         }, 300);
       } else {
-        alert("Áudio não disponível para esta faixa.");
+        alert("Não foi possível encontrar áudio.");
       }
     } catch (error) {
-      console.error("Erro ao dar play:", error);
+      console.error("Erro ao carregar áudio:", error);
     }
   };
 
