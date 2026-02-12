@@ -7,7 +7,7 @@ interface Track {
   artist: string;
   thumbnail: string;
   youtubeId?: string;
-  isLocal?: boolean; // Define se é um ficheiro na pasta public
+  isLocal?: boolean;
 }
 
 interface XalanifyContextType {
@@ -18,7 +18,7 @@ interface XalanifyContextType {
   user: string | null;
   isAdmin: boolean;
   login: (name: string) => void;
-  updateUserName: (newName: string) => void;
+  updateUserName: (newName: string) => void; 
   themeColor: string;
   setThemeColor: (color: string) => void;
   likedTracks: Track[];
@@ -56,15 +56,15 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("xalanify_user", newName);
   };
 
-  const clearAdminCache = () => {
-    localStorage.clear();
-    window.location.reload();
-  };
-
   const toggleLike = (track: Track) => {
     setLikedTracks(prev => 
       prev.some(t => t.id === track.id) ? prev.filter(t => t.id !== track.id) : [...prev, track]
     );
+  };
+
+  const clearAdminCache = () => {
+    localStorage.clear();
+    window.location.reload();
   };
 
   return (
@@ -80,6 +80,6 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
 
 export const useXalanify = () => {
   const context = useContext(XalanifyContext);
-  if (!context) throw new Error("useXalanify context missing");
+  if (!context) throw new Error("useXalanify missing");
   return context;
 };

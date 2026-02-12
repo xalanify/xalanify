@@ -1,6 +1,11 @@
-declare module 'react-player/lazy' {
-    import { ReactPlayerProps } from 'react-player';
+declare module 'react-player' {
     import { Component } from 'react';
-    class ReactPlayer extends Component<ReactPlayerProps> {}
-    export default ReactPlayer;
+    import { ReactPlayerProps } from 'react-player/types/lib';
+    export default class ReactPlayer extends Component<ReactPlayerProps> {}
+}
+
+declare module 'react-player/youtube' {
+    import { Component } from 'react';
+    import { ReactPlayerProps } from 'react-player/types/lib';
+    export default class ReactPlayer extends Component<ReactPlayerProps> {}
 }
