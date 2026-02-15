@@ -1,61 +1,50 @@
 "use client";
-import { MoreVertical, Heart, ListPlus, Plus } from "lucide-react";
+import { MoreVertical, Heart, ListPlus, ShieldAlert, Code } from "lucide-react";
 import { useXalanify, Track } from "@/context/XalanifyContext";
 import { useState } from "react";
 
 export default function TrackOptions({ track }: { track: Track }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [view, setView] = useState<'main' | 'playlists'>('main');
-  
-  const { toggleLike, likedTracks, themeColor, playlists, createPlaylist, addTrackToPlaylist, user } = useXalanify();
+  const { toggleLike, likedTracks, themeColor, isAdmin } = useXalanify();
   const isLiked = likedTracks.some(t => t.id === track.id);
 
   return (
     <div className="relative">
-      <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="p-2 text-zinc-400 hover:text-white transition-colors">
+      <button onClick={() => setIsOpen(!isOpen)} className="p-2 opacity-40 hover:opacity-100 transition-opacity">
         <MoreVertical size={20}/>
       </button>
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-[100]" onClick={() => { setIsOpen(false); setView('main'); }} />
-          <div className="absolute right-0 top-10 w-48 bg-zinc-900 border border-white/10 rounded-2xl backdrop-blur-xl z-[101] overflow-hidden p-1 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            
-            {view === 'main' ? (
-              <>
-                <button 
-                  onClick={() => { if(!user) return alert("Faz login!"); toggleLike(track); setIsOpen(false); }} 
-                  className="w-full flex items-center gap-3 p-3 hover:bg-white/10 rounded-xl text-left transition-colors"
-                >
-                  <Heart size={16} fill={isLiked ? themeColor : "none"} style={{ color: isLiked ? themeColor : "white" }}/>
-                  <span className="text-xs font-bold">{isLiked ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}</span>
-                </button>
-                <button onClick={() => setView('playlists')} className="w-full flex items-center gap-3 p-3 hover:bg-white/10 rounded-xl text-left transition-colors">
-                  <ListPlus size={16} />
-                  <span className="text-xs font-bold">Adicionar à Playlist</span>
-                </button>
-              </>
-            ) : (
-              <div className="space-y-1">
-                <p className="text-[9px] uppercase font-black text-zinc-500 px-3 py-2 tracking-widest">Minhas Playlists</p>
-                <div className="max-h-40 overflow-y-auto no-scrollbar">
-                  {playlists.length === 0 && <p className="p-3 text-[10px] text-zinc-600 font-bold">Nenhuma playlist</p>}
-                  {playlists.map(p => (
-                    <button 
-                      key={p.id} 
-                      onClick={() => { addTrackToPlaylist(p.id, track); setIsOpen(false); setView('main'); }} 
-                      className="w-full p-3 text-xs font-bold text-left hover:bg-white/10 truncate transition-colors"
-                    >
-                      {p.name}
-                    </button>
-                  ))}
+          <div className="fixed inset-0 z-[150]" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 top-10 w-64 bg-zinc-900 border border-white/10 rounded-[2rem] p-2 backdrop-blur-2xl z-[151] shadow-2xl">
+            <button onClick={() => { toggleLike(track); setIsOpen(false); }} className="w-full flex items-center gap-3 p-4 hover:bg-white/5 rounded-2xl">
+              <Heart size={18} fill={isLiked ? themeColor : "none"} style={{ color: isLiked ? themeColor : "white" }}/>
+              <span className="text-xs font-bold">Gostar</span>
+            </button>
+            <button className="w-full flex items-center gap-3 p-4 hover:bg-white/5 rounded-2xl">
+              <ListPlus size={18}/>
+              <span className="text-xs font-bold">Playlist</span>
+            </button>
+
+            {isAdmin && (
+              <div className="m-2 p-4 bg-black/40 rounded-2xl border border-red-500/10">
+                <div className="flex items-center gap-2 text-red-500 mb-3 uppercase text-[9px] font-black tracking-widest">
+                  <ShieldAlert size={12}/> Admin Inspector
                 </div>
-                <button 
-                  onClick={() => { const n = prompt("Nome da nova playlist:"); if(n) createPlaylist(n, [track]); setIsOpen(false); }} 
-                  className="w-full p-3 border-t border-white/5 text-[10px] font-black uppercase flex items-center gap-2 justify-center hover:bg-white/5 transition-colors"
-                >
-                  <Plus size={14}/> -Nova Playlist
-                </button>
+                <div className="space-y-2">
+                  <div className="flex flex-col overflow-hidden">
+                    <span className="text-[7px] text-zinc-500 font-bold uppercase">ID</span>
+                    <span className="text-[9px] font-mono text-zinc-300 truncate">{track.id}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[7px] text-zinc-500 font-bold uppercase">YT ID</span>
+                    <span className="text-[9px] font-mono text-zinc-300">{track.youtubeId || "N/A"}</span>
+                  </div>
+                  <button onClick={() => console.log(track)} className="w-full flex items-center justify-center gap-2 mt-2 p-2 bg-white/5 rounded-lg">
+                    <Code size={10}/><span className="text-[8px] font-bold uppercase">Console Log</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>

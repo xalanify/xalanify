@@ -5,8 +5,17 @@ html, body {
   color: white;
   margin: 0;
   padding: 0;
-  overflow: hidden; /* Trava o scroll global */
+  overflow: hidden; /* Trava o scroll do body */
   height: 100dvh;
+  width: 100vw;
+}
+
+/* Content wrapper com scroll inteligente */
+.main-content {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .custom-scroll::-webkit-scrollbar {
@@ -18,9 +27,4 @@ html, body {
 .custom-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
-}
-
-/* O conteúdo só faz scroll se ultrapassar a altura disponível */
-.min-h-screen-content {
-  min-height: calc(100dvh - 80px);
 }
