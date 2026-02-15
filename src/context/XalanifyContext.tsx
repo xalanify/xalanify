@@ -2,6 +2,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
+import { Loader2 } from "lucide-react";
+import Auth from "@/components/Auth"; // Importa o componente que criamos acima
 
 export interface Track {
   id: string; 
@@ -57,6 +59,7 @@ const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined
 
 export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true); // Estado para o loading inicial
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [themeColor, setThemeColor] = useState("#a855f7");
@@ -70,18 +73,22 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [persistentQuery, setPersistentQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Track[]>([]);
 
-  // Monitorar Sessão
   useEffect(() => {
+    // Verificar sessão ao carregar a página
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setAuthLoading(false);
     });
+
+    // Escutar mudanças no estado (Login/Logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setAuthLoading(false);
     });
+
     return () => subscription.unsubscribe();
   }, []);
 
-  // Sincronizar dados quando o User logar
   useEffect(() => {
     if (user) loadUserData();
   }, [user]);
@@ -95,7 +102,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleLike = async (track: Track) => {
-    if (!user) return alert("Faz login para curtir músicas!");
+    if (!user) return;
     const isLiked = likedTracks.some(t => t.id === track.id);
     if (isLiked) {
       setLikedTracks(prev => prev.filter(t => t.id !== track.id));
@@ -150,10 +157,21 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       searchResults, setSearchResults, playNext, playPrevious, logout: () => supabase.auth.signOut(),
       isAdmin: user?.email?.includes("admin") ?? false
     }}>
-      <div className="min-h-screen w-full bg-black text-white flex flex-col transition-all duration-700" 
-           style={{ background: `linear-gradient(to bottom, black 60%, ${themeColor}25 100%)` }}>
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-32">{children}</div>
-      </div>
+      {authLoading ? (
+        // Ecrã de Splash enquanto verifica a sessão
+        <div className="fixed inset-0 bg-black flex items-center justify-center">
+          <Loader2 className="animate-spin text-purple-500" size={32} />
+        </div>
+      ) : !user ? (
+        // Se não houver utilizador, mostra obrigatoriamente o componente Auth
+        <Auth />
+      ) : (
+        // Se houver utilizador, mostra a App
+        <div className="min-h-screen w-full bg-black text-white flex flex-col transition-all duration-700" 
+             style={{ background: `linear-gradient(to bottom, black 60%, ${themeColor}25 100%)` }}>
+          <div className="flex-1 overflow-y-auto no-scrollbar pb-32">{children}</div>
+        </div>
+      )}
     </XalanifyContext.Provider>
   );
 }
