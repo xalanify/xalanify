@@ -12,7 +12,7 @@ export default function Player() {
   const { 
     currentTrack, setCurrentTrack, isPlaying, setIsPlaying, themeColor, 
     isExpanded, setIsExpanded, progress, setProgress, 
-    duration, setDuration, playNext, playPrevious, audioEngine 
+    duration, setDuration, playNext, playPrevious, audioEngine, toggleLike, likedTracks
   } = useXalanify();
   
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -20,7 +20,6 @@ export default function Player() {
   const [isSeeking, setIsSeeking] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Lógica para carregar áudio automaticamente ao trocar via setas
   useEffect(() => {
     if (currentTrack && !currentTrack.audioUrl && !currentTrack.youtubeId) {
       loadTrackData();
@@ -33,91 +32,89 @@ export default function Player() {
     if (!currentTrack) return;
     setLoading(true);
     try {
-      let url, ytId;
+      const updated = { ...currentTrack };
       if (audioEngine === 'direct') {
-        url = await getDirectAudio(currentTrack.title, currentTrack.artist);
+        updated.audioUrl = await getDirectAudio(updated.title, updated.artist) || "";
+      } else {
+        updated.youtubeId = await getYoutubeId(updated.title, updated.artist) || "";
       }
-      if (!url) {
-        ytId = await getYoutubeId(currentTrack.title, currentTrack.artist);
-      }
-      setCurrentTrack({ ...currentTrack, audioUrl: url || undefined, youtubeId: ytId || undefined });
+      setCurrentTrack(updated);
+      setIsPlaying(true);
     } catch (e) { console.error(e); }
     setLoading(false);
   };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
-    setProgress(time);
-    if (audioRef.current) audioRef.current.currentTime = time;
-    if (playerRef.current) playerRef.current.seekTo(time);
-  };
-
   if (!currentTrack) return null;
 
-  const formatTime = (s: number) => {
-    const min = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-  };
+  const isLiked = likedTracks.some(t => t.id === currentTrack.id);
 
   return (
     <>
       {!isExpanded && (
-        <div onClick={() => setIsExpanded(true)} className="fixed bottom-[85px] left-4 right-4 z-50 bg-zinc-900/95 border border-white/10 p-2 rounded-[2rem] flex items-center justify-between backdrop-blur-xl shadow-2xl">
-          <div className="flex items-center gap-3 pl-1 truncate">
-            <img src={currentTrack.thumbnail} className="w-12 h-12 rounded-2xl object-cover" />
-            <div className="truncate text-left">
-              <p className="text-sm font-bold truncate">{currentTrack.title}</p>
-              <p className="text-[10px] text-zinc-500 font-black uppercase tracking-tighter">{currentTrack.artist}</p>
+        <div onClick={() => setIsExpanded(true)} className="fixed bottom-[85px] left-4 right-4 z-50 bg-zinc-900/95 border border-white/10 p-2 rounded-[2rem] flex items-center justify-between backdrop-blur-xl animate-in slide-in-from-bottom-4 shadow-2xl">
+          <div className="flex items-center gap-3 flex-1 truncate p-1">
+            <img src={currentTrack.thumbnail} className="w-11 h-11 rounded-2xl object-cover shadow-lg" alt="" />
+            <div className="truncate">
+              <p className="text-[13px] font-bold truncate">{currentTrack.title}</p>
+              <p className="text-[9px] text-zinc-500 font-black uppercase tracking-tighter">{currentTrack.artist}</p>
             </div>
           </div>
-          <button onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }} className="w-12 h-12 rounded-full flex items-center justify-center text-black" style={{ backgroundColor: themeColor }}>
-            {loading ? <Loader2 className="animate-spin" size={20}/> : (isPlaying ? <Pause size={20} fill="currentColor"/> : <Play size={20} fill="currentColor" className="ml-1"/>)}
-          </button>
+          <div className="flex items-center gap-2 pr-2">
+            <button onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5">
+              {loading ? <Loader2 size={18} className="animate-spin" /> : (isPlaying ? <Pause size={20} fill="white" /> : <Play size={20} fill="white" className="ml-1" />)}
+            </button>
+          </div>
         </div>
       )}
 
       {isExpanded && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col p-8 animate-in slide-in-from-bottom duration-500">
-          <div className="absolute inset-0 opacity-40 blur-[100px]" style={{ background: `radial-gradient(circle, ${themeColor} 0%, transparent 70%)` }} />
-          <button onClick={() => setIsExpanded(false)} className="relative z-10 w-12 h-12 bg-white/5 rounded-full flex items-center justify-center border border-white/10 mb-8"><ChevronDown size={28} /></button>
-
-          <div className="relative z-10 flex-1 flex flex-col justify-center space-y-8">
-            <img src={currentTrack.thumbnail} className="w-full aspect-square object-cover rounded-[3rem] shadow-2xl" />
-            <div className="flex items-center justify-between">
-              <div className="max-w-[80%] text-left">
-                <h2 className="text-3xl font-black tracking-tighter">{currentTrack.title}</h2>
-                <p className="text-zinc-500 font-bold uppercase text-sm">{currentTrack.artist}</p>
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in slide-in-from-bottom duration-500">
+          <div className="absolute inset-0 opacity-20 blur-[100px]" style={{ backgroundColor: themeColor }} />
+          
+          <div className="relative flex-1 flex flex-col p-8 pt-12">
+            <button onClick={() => setIsExpanded(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mb-8"><ChevronDown size={28}/></button>
+            
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="w-full aspect-square max-w-[320px] rounded-[3rem] overflow-hidden shadow-2xl mb-10 border border-white/10">
+                <img src={currentTrack.thumbnail} className="w-full h-full object-cover" alt="" />
               </div>
-              <TrackOptions track={currentTrack} />
+              
+              <div className="w-full text-left space-y-1">
+                <h2 className="text-3xl font-black italic truncate">{currentTrack.title}</h2>
+                <p className="text-sm font-black text-zinc-500 uppercase tracking-widest italic">{currentTrack.artist}</p>
+              </div>
             </div>
 
-            {/* BARRA DE PROGRESSO ARRASTÁVEL */}
-            <div className="space-y-2 group">
-              <div className="relative h-1.5 w-full bg-white/10 rounded-full">
-                <div className="absolute h-full rounded-full" style={{ backgroundColor: themeColor, width: `${(progress / duration) * 100}%` }} />
+            <div className="w-full space-y-8 pb-12">
+              <div className="space-y-2">
                 <input 
-                  type="range" min={0} max={duration || 0} step="0.1" value={progress}
-                  onChange={handleSeek} onMouseDown={() => setIsSeeking(true)} onMouseUp={() => setIsSeeking(false)}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  type="range" min={0} max={duration || 100} value={progress}
+                  onChange={(e) => { setIsSeeking(true); setProgress(Number(e.target.value)); }}
+                  onMouseUp={() => { setIsSeeking(false); if(audioRef.current) audioRef.current.currentTime = progress; }}
+                  className="w-full accent-white h-1 bg-white/10 rounded-full appearance-none"
                 />
+                <div className="flex justify-between text-[10px] font-black text-zinc-500">
+                  <span>{new Date(progress * 1000).toISOString().substr(14, 5)}</span>
+                  <span>{new Date(duration * 1000).toISOString().substr(14, 5)}</span>
+                </div>
               </div>
-              <div className="flex justify-between text-[10px] font-black text-zinc-500">
-                <span>{formatTime(progress)}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
 
-            <div className="flex items-center justify-between px-4">
-              <Shuffle size={20} className="text-zinc-600" />
-              <div className="flex items-center gap-8">
-                <button onClick={playPrevious} className="active:scale-90 transition-all"><SkipBack size={32} fill="white" /></button>
-                <button onClick={() => setIsPlaying(!isPlaying)} className="w-20 h-20 rounded-full flex items-center justify-center text-black shadow-2xl" style={{ backgroundColor: themeColor }}>
-                  {loading ? <Loader2 className="animate-spin" size={36}/> : (isPlaying ? <Pause size={36} fill="currentColor"/> : <Play size={36} fill="currentColor" className="ml-1"/>)}
-                </button>
-                <button onClick={playNext} className="active:scale-90 transition-all"><SkipForward size={32} fill="white" /></button>
+              <div className="flex items-center justify-between">
+                <Shuffle size={20} className="text-zinc-600" />
+                <div className="flex items-center gap-8">
+                  <button onClick={playPrevious} className="active:scale-75 transition-all"><SkipBack size={32} fill="white" /></button>
+                  <button onClick={() => setIsPlaying(!isPlaying)} className="w-20 h-20 rounded-full flex items-center justify-center text-black shadow-2xl active:scale-90 transition-all" style={{ backgroundColor: themeColor }}>
+                    {loading ? <Loader2 className="animate-spin" size={36}/> : (isPlaying ? <Pause size={36} fill="currentColor"/> : <Play size={36} fill="currentColor" className="ml-1"/>)}
+                  </button>
+                  <button onClick={playNext} className="active:scale-75 transition-all"><SkipForward size={32} fill="white" /></button>
+                </div>
+                <Repeat size={20} className="text-zinc-600" />
               </div>
-              <Repeat size={20} className="text-zinc-600" />
+
+              <div className="flex justify-center gap-12 pt-4">
+                <button onClick={() => toggleLike(currentTrack)}><Heart size={24} fill={isLiked ? themeColor : "none"} style={{ color: isLiked ? themeColor : "zinc-500" }} /></button>
+                <TrackOptions track={currentTrack} />
+              </div>
             </div>
           </div>
         </div>
@@ -134,9 +131,9 @@ export default function Player() {
         {(currentTrack.audioUrl || currentTrack.isLocal) && (
           <audio 
             ref={audioRef} src={currentTrack.isLocal ? "/test.mp3" : currentTrack.audioUrl} 
-            onTimeUpdate={(e: any) => !isSeeking && setProgress(e.target.currentTime)} 
-            onLoadedMetadata={(e: any) => setDuration(e.target.duration)} onEnded={playNext}
-            autoPlay={isPlaying}
+            onTimeUpdate={(e: any) => !isSeeking && setProgress(e.currentTarget.currentTime)} 
+            onLoadedMetadata={(e: any) => setDuration(e.currentTarget.duration)}
+            onEnded={playNext}
           />
         )}
       </div>

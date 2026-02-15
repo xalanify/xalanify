@@ -1,124 +1,158 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { User } from "@supabase/supabase-js";
 
 export interface Track {
-  id: string; title: string; artist: string; thumbnail: string;
-  youtubeId?: string; audioUrl?: string; isLocal?: boolean;
+  id: string; 
+  title: string; 
+  artist: string; 
+  thumbnail: string;
+  youtubeId?: string; 
+  audioUrl?: string; 
+  isLocal?: boolean;
 }
 
-export interface Playlist { id: string; name: string; tracks: Track[]; image?: string; isExternal?: boolean; }
+export interface Playlist { 
+  id: string; 
+  name: string; 
+  tracks: Track[]; 
+  image?: string; 
+}
 
 interface XalanifyContextType {
-  currentTrack: Track | null; setCurrentTrack: (t: Track | null) => void;
-  isPlaying: boolean; setIsPlaying: (p: boolean) => void;
-  user: string; login: (name: string) => void;
-  themeColor: string; setThemeColor: (c: string) => void;
-  likedTracks: Track[]; toggleLike: (t: Track) => void;
+  user: User | null;
+  currentTrack: Track | null; 
+  setCurrentTrack: (t: Track | null) => void;
+  isPlaying: boolean; 
+  setIsPlaying: (p: boolean) => void;
+  themeColor: string; 
+  setThemeColor: (c: string) => void;
+  likedTracks: Track[]; 
+  toggleLike: (t: Track) => void;
   playlists: Playlist[]; 
   createPlaylist: (name: string, tracks?: Track[], image?: string) => void;
   addTrackToPlaylist: (pId: string, t: Track) => void;
-  isExpanded: boolean; setIsExpanded: (v: boolean) => void;
-  audioEngine: 'youtube' | 'direct'; setAudioEngine: (e: 'youtube' | 'direct') => void;
-  // Persistência da Pesquisa
-  searchHistory: string[]; addSearchTerm: (term: string) => void;
-  persistentResults: any[]; setPersistentResults: (r: any[]) => void;
-  persistentQuery: string; setPersistentQuery: (q: string) => void;
-  
-  isAdmin: boolean;
-  progress: number; setProgress: (v: number) => void;
-  duration: number; setDuration: (v: number) => void;
+  isExpanded: boolean; 
+  setIsExpanded: (v: boolean) => void;
+  audioEngine: 'youtube' | 'direct'; 
+  setAudioEngine: (e: 'youtube' | 'direct') => void;
+  progress: number; 
+  setProgress: (v: number) => void;
+  duration: number; 
+  setDuration: (v: number) => void;
+  persistentResults: Track[]; 
+  setPersistentResults: (r: Track[]) => void;
+  persistentQuery: string; 
+  setPersistentQuery: (q: string) => void;
+  searchResults: Track[];
+  setSearchResults: (t: Track[]) => void;
   playNext: () => void;
   playPrevious: () => void;
+  logout: () => void;
+  isAdmin: boolean;
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
 
-export const VERSION = "0.7.0";
-
 export function XalanifyProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  
-  // Estados Persistentes da Pesquisa
-  const [persistentResults, setPersistentResults] = useState<any[]>([]);
-  const [persistentQuery, setPersistentQuery] = useState("");
-
-  const [user, setUser] = useState("Utilizador");
   const [themeColor, setThemeColor] = useState("#a855f7");
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [audioEngine, setAudioEngine] = useState<'youtube' | 'direct'>('direct');
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
-  const [showPatch, setShowPatch] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [persistentResults, setPersistentResults] = useState<Track[]>([]);
+  const [persistentQuery, setPersistentQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Track[]>([]);
 
+  // Monitorar Sessão
   useEffect(() => {
-    const savedUser = localStorage.getItem("xalanify_user");
-    const savedColor = localStorage.getItem("xalanify_theme");
-    const savedPlaylists = localStorage.getItem("xalanify_playlists");
-    const lastV = localStorage.getItem("xalanify_version");
-
-    if (savedUser) setUser(savedUser);
-    if (savedColor) setThemeColor(savedColor);
-    if (savedPlaylists) setPlaylists(JSON.parse(savedPlaylists));
-    if (lastV !== VERSION) setShowPatch(true);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
-  const savePlaylists = (newP: Playlist[]) => {
-    setPlaylists(newP);
-    localStorage.setItem("xalanify_playlists", JSON.stringify(newP));
+  // Sincronizar dados quando o User logar
+  useEffect(() => {
+    if (user) loadUserData();
+  }, [user]);
+
+  const loadUserData = async () => {
+    const { data: likes } = await supabase.from('liked_tracks').select('track_data').eq('user_id', user?.id);
+    if (likes) setLikedTracks(likes.map(l => l.track_data));
+
+    const { data: pList } = await supabase.from('playlists').select('*').eq('user_id', user?.id);
+    if (pList) setPlaylists(pList.map(p => ({ id: p.id, name: p.name, tracks: p.tracks_json, image: p.image_url })));
+  };
+
+  const toggleLike = async (track: Track) => {
+    if (!user) return alert("Faz login para curtir músicas!");
+    const isLiked = likedTracks.some(t => t.id === track.id);
+    if (isLiked) {
+      setLikedTracks(prev => prev.filter(t => t.id !== track.id));
+      await supabase.from('liked_tracks').delete().eq('track_id', track.id).eq('user_id', user.id);
+    } else {
+      setLikedTracks(prev => [track, ...prev]);
+      await supabase.from('liked_tracks').insert({ user_id: user.id, track_id: track.id, track_data: track });
+    }
+  };
+
+  const createPlaylist = async (name: string, tracks: Track[] = [], image?: string) => {
+    if (!user) return;
+    const { data } = await supabase.from('playlists').insert({
+      user_id: user.id, name, tracks_json: tracks, image_url: image
+    }).select().single();
+    if (data) setPlaylists(prev => [...prev, { id: data.id, name, tracks, image }]);
+  };
+
+  const addTrackToPlaylist = async (pId: string, track: Track) => {
+    if (!user) return;
+    const playlist = playlists.find(p => p.id === pId);
+    if (playlist) {
+      const updatedTracks = [...playlist.tracks, track];
+      await supabase.from('playlists').update({ tracks_json: updatedTracks }).eq('id', pId);
+      setPlaylists(playlists.map(p => p.id === pId ? { ...p, tracks: updatedTracks } : p));
+    }
   };
 
   const playNext = () => {
-    const idx = persistentResults.findIndex(t => t.id === currentTrack?.id);
-    if (idx !== -1 && idx < persistentResults.length - 1) {
+    const idx = searchResults.findIndex(t => t.id === currentTrack?.id);
+    if (idx !== -1 && idx < searchResults.length - 1) {
       setProgress(0);
-      setCurrentTrack(persistentResults[idx + 1]);
+      setCurrentTrack(searchResults[idx + 1]);
     }
   };
 
   const playPrevious = () => {
-    const idx = persistentResults.findIndex(t => t.id === currentTrack?.id);
+    const idx = searchResults.findIndex(t => t.id === currentTrack?.id);
     if (idx > 0) {
       setProgress(0);
-      setCurrentTrack(persistentResults[idx - 1]);
+      setCurrentTrack(searchResults[idx - 1]);
     }
   };
 
   return (
     <XalanifyContext.Provider value={{
-      currentTrack, setCurrentTrack, isPlaying, setIsPlaying,
-      user, login: (n) => { setUser(n); localStorage.setItem("xalanify_user", n); },
-      themeColor, setThemeColor: (c) => { setThemeColor(c); localStorage.setItem("xalanify_theme", c); },
-      likedTracks, toggleLike: (t) => setLikedTracks(prev => prev.some(i => i.id === t.id) ? prev.filter(i => i.id !== t.id) : [t, ...prev]),
-      playlists, 
-      createPlaylist: (name, tracks = [], image) => {
-        const newP = [...playlists, { id: Date.now().toString(), name, tracks, image }];
-        savePlaylists(newP);
-      },
-      addTrackToPlaylist: (pId, t) => {
-        const newP = playlists.map(p => p.id === pId ? { ...p, tracks: [...p.tracks, t] } : p);
-        savePlaylists(newP);
-      },
-      isExpanded, setIsExpanded, audioEngine, setAudioEngine, 
-      searchHistory, addSearchTerm: (t) => setSearchHistory([t, ...searchHistory.filter(x => x !== t)].slice(0, 10)),
+      user, currentTrack, setCurrentTrack, isPlaying, setIsPlaying,
+      themeColor, setThemeColor, likedTracks, toggleLike,
+      playlists, createPlaylist, addTrackToPlaylist, isExpanded, setIsExpanded,
+      audioEngine, setAudioEngine, progress, setProgress, duration, setDuration,
       persistentResults, setPersistentResults, persistentQuery, setPersistentQuery,
-      isAdmin: user.startsWith("@admin"), progress, setProgress, duration, setDuration,
-      playNext, playPrevious
+      searchResults, setSearchResults, playNext, playPrevious, logout: () => supabase.auth.signOut(),
+      isAdmin: user?.email?.includes("admin") ?? false
     }}>
-      <div className="min-h-screen w-full bg-black text-white flex flex-col transition-all duration-700" style={{ background: `linear-gradient(to bottom, black 60%, ${themeColor}25 100%)` }}>
+      <div className="min-h-screen w-full bg-black text-white flex flex-col transition-all duration-700" 
+           style={{ background: `linear-gradient(to bottom, black 60%, ${themeColor}25 100%)` }}>
         <div className="flex-1 overflow-y-auto no-scrollbar pb-32">{children}</div>
-        {showPatch && (
-           <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 backdrop-blur-xl p-8">
-            <div className="bg-zinc-900 border border-white/10 rounded-[3rem] p-8 max-w-sm w-full text-center space-y-6">
-              <h2 className="text-4xl font-black italic" style={{ color: themeColor }}>v{VERSION}</h2>
-              <p className="text-zinc-400 text-xs font-bold">Pesquisa persistente e Playlists de artistas agora ativos.</p>
-              <button onClick={() => { setShowPatch(false); localStorage.setItem("xalanify_version", VERSION); }} className="w-full py-4 rounded-2xl font-black" style={{ backgroundColor: themeColor, color: 'black' }}>Entrar</button>
-            </div>
-          </div>
-        )}
       </div>
     </XalanifyContext.Provider>
   );

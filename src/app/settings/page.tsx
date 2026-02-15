@@ -1,60 +1,105 @@
 "use client";
 import { useXalanify } from "@/context/XalanifyContext";
 import { useState } from "react";
-import { User, Check, Edit2, Palette, ShieldAlert, Trash2 } from "lucide-react"; // CORRIGIDO
+import { User as UserIcon, Palette, ShieldAlert, Trash2, Cpu, LogOut, Mail } from "lucide-react";
 
 export default function Settings() {
-  const { user, login, themeColor, setThemeColor, isAdmin } = useXalanify();
-  const [isEditing, setIsEditing] = useState(false);
-  const [tempName, setTempName] = useState(user);
+  const { 
+    user, 
+    logout, 
+    themeColor, 
+    setThemeColor, 
+    isAdmin, 
+    audioEngine, 
+    setAudioEngine 
+  } = useXalanify();
 
   const colors = ["#a855f7", "#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#ec4899", "#ffffff"];
-
-  const saveName = () => {
-    login(tempName);
-    setIsEditing(false);
-  };
 
   return (
     <div className="p-6 space-y-8 animate-in fade-in">
       <h1 className="text-4xl font-black italic">Definições</h1>
 
+      {/* 1. PERFIL DO UTILIZADOR (SUPABASE) */}
       <section className="space-y-2">
-        <p className="text-[10px] font-black uppercase text-zinc-500 px-2 tracking-widest">Perfil</p>
-        <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-[2.5rem] flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-zinc-400"><User size={24}/></div>
-            {isEditing ? (
-              <input value={tempName} onChange={(e) => setTempName(e.target.value)} className="bg-transparent border-b border-white/20 text-xl font-black outline-none w-40" autoFocus />
-            ) : (
-              <div>
-                <p className="text-xs text-zinc-500 font-bold">Nome de Utilizador</p>
-                <p className="text-xl font-black">{user}</p>
-              </div>
-            )}
+        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest px-2">Conta</p>
+        <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-[2.5rem] flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 truncate">
+            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center flex-shrink-0">
+              <UserIcon size={24} className="text-zinc-400" />
+            </div>
+            <div className="truncate">
+              <p className="text-sm font-bold truncate">
+                {user ? user.email : "Visitante"}
+              </p>
+              <p className="text-[10px] text-zinc-500 font-black uppercase tracking-tighter">
+                {user ? "Utilizador Autenticado" : "Sem sessão iniciada"}
+              </p>
+            </div>
           </div>
-          <button onClick={() => isEditing ? saveName() : setIsEditing(true)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center" style={{ color: themeColor }}>
-            {isEditing ? <Check size={20}/> : <Edit2 size={18}/>}
-          </button>
+          
+          {user && (
+            <button 
+              onClick={logout}
+              className="p-3 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500/20 transition-colors"
+              title="Sair"
+            >
+              <LogOut size={20} />
+            </button>
+          )}
         </div>
       </section>
 
+      {/* 2. APARÊNCIA */}
       <section className="space-y-2">
         <p className="text-[10px] font-black uppercase text-zinc-500 px-2 tracking-widest">Aparência</p>
         <div className="p-6 bg-zinc-900/60 border border-white/5 rounded-[2.5rem] space-y-4">
-          <div className="flex items-center gap-2"><Palette size={16} className="text-zinc-500"/><span className="font-bold text-sm">Cor do Tema</span></div>
-          <div className="flex justify-between">
+          <div className="flex items-center gap-2">
+            <Palette size={16} className="text-zinc-500"/>
+            <span className="font-bold text-sm">Cor do Tema</span>
+          </div>
+          <div className="flex justify-between items-center bg-black/20 p-2 rounded-full px-4">
             {colors.map(c => (
-              <button key={c} onClick={() => setThemeColor(c)} className={`w-8 h-8 rounded-full transition-all ${themeColor === c ? 'scale-125 ring-2 ring-white' : 'opacity-40 hover:opacity-100'}`} style={{ backgroundColor: c }} />
+              <button 
+                key={c} 
+                onClick={() => setThemeColor(c)} 
+                className={`w-7 h-7 rounded-full transition-all ${themeColor === c ? 'scale-125 ring-2 ring-white shadow-lg' : 'opacity-40 hover:opacity-100'}`} 
+                style={{ backgroundColor: c }} 
+              />
             ))}
           </div>
         </div>
       </section>
 
+      {/* 3. MOTOR DE ÁUDIO */}
+      <section className="space-y-2">
+        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest px-2">Sistema</p>
+        <button 
+          onClick={() => setAudioEngine(audioEngine === 'youtube' ? 'direct' : 'youtube')} 
+          className="w-full flex items-center justify-between p-6 bg-zinc-900/60 border border-white/5 rounded-[2.5rem] hover:bg-zinc-900/80 transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <Cpu size={20} className="text-zinc-500"/>
+            <span className="font-bold text-sm">Motor de Áudio</span>
+          </div>
+          <span className="text-[9px] font-black uppercase px-3 py-1 rounded-full bg-white/5 border border-white/10" style={{ color: themeColor }}>
+            {audioEngine}
+          </span>
+        </button>
+      </section>
+
+      {/* 4. ADMIN AREA */}
       {isAdmin && (
         <section className="mt-10 p-6 bg-red-900/10 border border-red-500/20 rounded-[2.5rem] space-y-4">
-          <div className="flex items-center justify-center gap-2 text-red-500 font-black uppercase text-[10px] tracking-widest"><ShieldAlert size={14}/> Área de Administração</div>
-          <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full py-4 bg-red-500 text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-2"><Trash2 size={16}/> Limpar Dados e Sair</button>
+          <div className="flex items-center justify-center gap-2 text-red-500 font-black uppercase text-[10px] tracking-widest">
+            <ShieldAlert size={14}/> Área de Programador
+          </div>
+          <button 
+            onClick={() => { localStorage.clear(); window.location.reload(); }}
+            className="w-full py-4 bg-red-500/20 text-red-500 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-red-500/30 transition-all"
+          >
+            <Trash2 size={14}/> Limpar Cache Local
+          </button>
         </section>
       )}
     </div>
