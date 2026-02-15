@@ -1,83 +1,107 @@
 "use client";
 import { useState } from "react";
-import { Search as SearchIcon, Play, Loader2, CheckCircle } from "lucide-react";
+import { Search as SearchIcon, Play, Loader2, Music } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
-import { searchMusic, getYoutubeId, getDirectAudio } from "@/lib/musicApi"; 
+import { searchMusic, getYoutubeId } from "@/lib/musicApi"; 
+import TrackOptions from "./TrackOptions";
 
 export default function Search() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState<string | null>(null);
-  const { setCurrentTrack, setIsPlaying, themeColor, currentTrack, audioEngine } = useXalanify();
+  const [isFetchingId, setIsFetchingId] = useState<string | null>(null);
+  
+  const { 
+    setSearchResults, 
+    searchResults,
+    setCurrentTrack, 
+    setIsPlaying, 
+    themeColor, 
+    currentTrack 
+  } = useXalanify();
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
     setLoading(true);
     const tracks = await searchMusic(query); 
-    setResults(tracks);
+    setSearchResults(tracks);
     setLoading(false);
   };
 
   const playTrack = async (track: any) => {
-    setIsFetching(track.id);
+    if (isFetchingId) return;
+    setIsFetchingId(track.id);
     setIsPlaying(false);
     
     try {
-      if (audioEngine === 'youtube') {
-        const ytId = await getYoutubeId(track.title, track.artist);
-        if (ytId) {
-          setCurrentTrack({ ...track, youtubeId: ytId, audioUrl: undefined });
-        }
-      } else {
-        const audioUrl = await getDirectAudio(track.title, track.artist);
-        if (audioUrl) {
-          setCurrentTrack({ ...track, audioUrl: audioUrl, youtubeId: undefined });
-        } else {
-          alert("Erro no motor Direct. Tente o motor YouTube nas definições.");
-        }
+      // Busca sempre o ID do YouTube agora
+      const ytId = await getYoutubeId(track.title, track.artist);
+      if (ytId) {
+        setCurrentTrack({ ...track, youtubeId: ytId });
+        setTimeout(() => setIsPlaying(true), 400);
       }
-      
-      setTimeout(() => setIsPlaying(true), 500);
-    } catch (error) {
-      console.error("Erro ao carregar:", error);
+    } catch (err) {
+      console.error("Erro ao obter áudio:", err);
     } finally {
-      setIsFetching(null);
+      setIsFetchingId(null);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSearch} className="relative">
+    <div className="p-6 pb-40">
+      <h1 className="text-4xl font-black italic mb-6">Procurar</h1>
+      
+      <form onSubmit={handleSearch} className="relative mb-8">
         <input 
-          value={query} 
+          type="text" 
+          value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Pesquisar..." 
-          className="w-full bg-zinc-900 border border-white/5 p-4 pl-12 rounded-2xl outline-none"
+          placeholder="Artistas ou músicas..." 
+          className="w-full bg-zinc-900 border border-white/5 p-5 pl-14 rounded-[2rem] outline-none focus:border-white/20 transition-all font-bold text-sm"
         />
-        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
+        <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
       </form>
 
-      <div className="space-y-2">
-        {loading && <Loader2 className="animate-spin mx-auto text-zinc-500" />}
-        {results.map((track) => (
-          <div key={track.id} onClick={() => playTrack(track)} className="flex items-center gap-4 p-3 hover:bg-white/5 rounded-2xl cursor-pointer">
-            <div className="relative">
-              <img src={track.thumbnail} className="w-14 h-14 rounded-xl object-cover" alt="" />
-              {isFetching === track.id && (
-                <div className="absolute inset-0 bg-black/60 rounded-xl flex items-center justify-center">
-                  <Loader2 className="animate-spin text-white" size={20} />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-[14px] font-bold truncate">{track.title}</p>
-              <p className="text-[10px] text-zinc-500 uppercase font-black">{track.artist}</p>
-            </div>
-            {currentTrack?.id === track.id ? <CheckCircle size={20} style={{ color: themeColor }} /> : <Play size={20} style={{ color: themeColor }} />}
+      <div className="space-y-3">
+        {loading ? (
+          <div className="flex flex-col items-center py-20 gap-4 opacity-20">
+            <Loader2 className="animate-spin" size={32} />
+            <p className="text-[10px] font-black uppercase tracking-widest">A procurar no arquivo...</p>
           </div>
-        ))}
+        ) : searchResults.length > 0 ? (
+          searchResults.map((track) => (
+            <div 
+              key={track.id} 
+              className="flex items-center justify-between p-3 hover:bg-white/5 rounded-[2.2rem] transition-all group"
+            >
+              <div onClick={() => playTrack(track)} className="flex items-center gap-4 flex-1 cursor-pointer overflow-hidden">
+                <div className="relative flex-shrink-0">
+                  <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-lg" alt="" />
+                  {isFetchingId === track.id && (
+                    <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
+                      <Loader2 className="animate-spin text-white" size={20} />
+                    </div>
+                  )}
+                </div>
+                <div className="truncate">
+                  <p className="text-sm font-bold truncate" style={{ color: currentTrack?.id === track.id ? themeColor : 'white' }}>
+                    {track.title}
+                  </p>
+                  <p className="text-[10px] text-zinc-500 font-black uppercase tracking-tighter mt-0.5">{track.artist}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                 <TrackOptions track={track} />
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-20 opacity-20">
+            <Music size={48} className="mx-auto mb-4" />
+            <p className="text-[10px] font-black uppercase tracking-[0.3em]">Explora a música</p>
+          </div>
+        )}
       </div>
     </div>
   );

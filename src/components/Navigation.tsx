@@ -7,7 +7,7 @@ export default function Navigation() {
   const pathname = usePathname();
   
   const items = [
-    { name: "Início", path: "/", icon: Home },
+   
     { name: "Pesquisa", path: "/search", icon: Search },
     { name: "Biblioteca", path: "/library", icon: Library },
     { name: "Definições", path: "/settings", icon: Settings },

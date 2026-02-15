@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
-import Auth from "@/components/Auth"; // Importa o componente que criamos acima
+import Auth from "@/components/Auth";
 
 export interface Track {
   id: string; 
@@ -23,11 +23,26 @@ export interface Playlist {
 }
 
 interface XalanifyContextType {
+  // Autenticação e Admin
   user: User | null;
+  isAdmin: boolean;
+  logout: () => void;
+  
+  // Player
   currentTrack: Track | null; 
   setCurrentTrack: (t: Track | null) => void;
   isPlaying: boolean; 
   setIsPlaying: (p: boolean) => void;
+  progress: number; 
+  setProgress: (v: number) => void;
+  duration: number; 
+  setDuration: (v: number) => void;
+  isExpanded: boolean; 
+  setIsExpanded: (v: boolean) => void;
+  playNext: () => void;
+  playPrevious: () => void;
+
+  // Personalização e Dados
   themeColor: string; 
   setThemeColor: (c: string) => void;
   likedTracks: Track[]; 
@@ -35,52 +50,47 @@ interface XalanifyContextType {
   playlists: Playlist[]; 
   createPlaylist: (name: string, tracks?: Track[], image?: string) => void;
   addTrackToPlaylist: (pId: string, t: Track) => void;
-  isExpanded: boolean; 
-  setIsExpanded: (v: boolean) => void;
-  audioEngine: 'youtube' | 'direct'; 
-  setAudioEngine: (e: 'youtube' | 'direct') => void;
-  progress: number; 
-  setProgress: (v: number) => void;
-  duration: number; 
-  setDuration: (v: number) => void;
-  persistentResults: Track[]; 
-  setPersistentResults: (r: Track[]) => void;
-  persistentQuery: string; 
-  setPersistentQuery: (q: string) => void;
+  
+  // Pesquisa Persistente
   searchResults: Track[];
   setSearchResults: (t: Track[]) => void;
-  playNext: () => void;
-  playPrevious: () => void;
-  logout: () => void;
-  isAdmin: boolean;
+  persistentQuery: string;
+  setPersistentQuery: (q: string) => void;
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
 
 export function XalanifyProvider({ children }: { children: React.ReactNode }) {
+  // ESTADOS DE AUTH
   const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true); // Estado para o loading inicial
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // ESTADOS DO PLAYER
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // ESTADOS DE PERSONALIZAÇÃO E DADOS
   const [themeColor, setThemeColor] = useState("#a855f7");
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [audioEngine, setAudioEngine] = useState<'youtube' | 'direct'>('direct');
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [persistentResults, setPersistentResults] = useState<Track[]>([]);
-  const [persistentQuery, setPersistentQuery] = useState("");
+  
+  // ESTADOS DE PESQUISA
   const [searchResults, setSearchResults] = useState<Track[]>([]);
+  const [persistentQuery, setPersistentQuery] = useState("");
+
+  // Lógica de Admin: adminx@adminx.com com pass adminx
+  const isAdmin = user?.email === "adminx@adminx.com";
 
   useEffect(() => {
-    // Verificar sessão ao carregar a página
+    // Subscrever ao estado de autenticação do Supabase
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
     });
 
-    // Escutar mudanças no estado (Login/Logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
@@ -89,16 +99,28 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Carregar dados do Supabase quando o user loga
   useEffect(() => {
-    if (user) loadUserData();
+    if (user) {
+      loadUserData();
+    }
   }, [user]);
 
   const loadUserData = async () => {
-    const { data: likes } = await supabase.from('liked_tracks').select('track_data').eq('user_id', user?.id);
-    if (likes) setLikedTracks(likes.map(l => l.track_data));
+    try {
+      const { data: likes } = await supabase.from('liked_tracks').select('track_data').eq('user_id', user?.id);
+      if (likes) setLikedTracks(likes.map(l => l.track_data));
 
-    const { data: pList } = await supabase.from('playlists').select('*').eq('user_id', user?.id);
-    if (pList) setPlaylists(pList.map(p => ({ id: p.id, name: p.name, tracks: p.tracks_json, image: p.image_url })));
+      const { data: pList } = await supabase.from('playlists').select('*').eq('user_id', user?.id);
+      if (pList) setPlaylists(pList.map(p => ({ 
+        id: p.id, 
+        name: p.name, 
+        tracks: p.tracks_json || [], 
+        image: p.image_url 
+      })));
+    } catch (err) {
+      console.error("Erro ao carregar dados:", err);
+    }
   };
 
   const toggleLike = async (track: Track) => {
@@ -109,16 +131,26 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       await supabase.from('liked_tracks').delete().eq('track_id', track.id).eq('user_id', user.id);
     } else {
       setLikedTracks(prev => [track, ...prev]);
-      await supabase.from('liked_tracks').insert({ user_id: user.id, track_id: track.id, track_data: track });
+      await supabase.from('liked_tracks').insert({ 
+        user_id: user.id, 
+        track_id: track.id, 
+        track_data: track 
+      });
     }
   };
 
   const createPlaylist = async (name: string, tracks: Track[] = [], image?: string) => {
     if (!user) return;
-    const { data } = await supabase.from('playlists').insert({
-      user_id: user.id, name, tracks_json: tracks, image_url: image
+    const { data, error } = await supabase.from('playlists').insert({
+      user_id: user.id,
+      name,
+      tracks_json: tracks,
+      image_url: image
     }).select().single();
-    if (data) setPlaylists(prev => [...prev, { id: data.id, name, tracks, image }]);
+
+    if (data) {
+      setPlaylists(prev => [...prev, { id: data.id, name, tracks, image }]);
+    }
   };
 
   const addTrackToPlaylist = async (pId: string, track: Track) => {
@@ -126,8 +158,13 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     const playlist = playlists.find(p => p.id === pId);
     if (playlist) {
       const updatedTracks = [...playlist.tracks, track];
-      await supabase.from('playlists').update({ tracks_json: updatedTracks }).eq('id', pId);
-      setPlaylists(playlists.map(p => p.id === pId ? { ...p, tracks: updatedTracks } : p));
+      const { error } = await supabase.from('playlists').update({ 
+        tracks_json: updatedTracks 
+      }).eq('id', pId);
+      
+      if (!error) {
+        setPlaylists(playlists.map(p => p.id === pId ? { ...p, tracks: updatedTracks } : p));
+      }
     }
   };
 
@@ -149,27 +186,29 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <XalanifyContext.Provider value={{
-      user, currentTrack, setCurrentTrack, isPlaying, setIsPlaying,
-      themeColor, setThemeColor, likedTracks, toggleLike,
-      playlists, createPlaylist, addTrackToPlaylist, isExpanded, setIsExpanded,
-      audioEngine, setAudioEngine, progress, setProgress, duration, setDuration,
-      persistentResults, setPersistentResults, persistentQuery, setPersistentQuery,
-      searchResults, setSearchResults, playNext, playPrevious, logout: () => supabase.auth.signOut(),
-      isAdmin: user?.email?.includes("admin") ?? false
+      user, isAdmin, logout: () => supabase.auth.signOut(),
+      currentTrack, setCurrentTrack, isPlaying, setIsPlaying,
+      progress, setProgress, duration, setDuration, isExpanded, setIsExpanded,
+      playNext, playPrevious, themeColor, setThemeColor,
+      likedTracks, toggleLike, playlists, createPlaylist, addTrackToPlaylist,
+      searchResults, setSearchResults, persistentQuery, setPersistentQuery
     }}>
       {authLoading ? (
-        // Ecrã de Splash enquanto verifica a sessão
         <div className="fixed inset-0 bg-black flex items-center justify-center">
           <Loader2 className="animate-spin text-purple-500" size={32} />
         </div>
       ) : !user ? (
-        // Se não houver utilizador, mostra obrigatoriamente o componente Auth
         <Auth />
       ) : (
-        // Se houver utilizador, mostra a App
-        <div className="min-h-screen w-full bg-black text-white flex flex-col transition-all duration-700" 
-             style={{ background: `linear-gradient(to bottom, black 60%, ${themeColor}25 100%)` }}>
-          <div className="flex-1 overflow-y-auto no-scrollbar pb-32">{children}</div>
+        /* ESTRUTURA COM SCROLL CORRIGIDO */
+        <div 
+          className="h-screen w-full bg-black text-white flex flex-col overflow-hidden transition-all duration-700"
+          style={{ background: `linear-gradient(to bottom, black 75%, ${themeColor}20 100%)` }}
+        >
+          {/* O children (as páginas) agora ficam dentro deste container que permite scroll */}
+          <div className="flex-1 overflow-y-auto custom-scroll pb-40">
+            {children}
+          </div>
         </div>
       )}
     </XalanifyContext.Provider>
@@ -178,6 +217,6 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
 
 export const useXalanify = () => {
   const context = useContext(XalanifyContext);
-  if (!context) throw new Error("useXalanify error");
+  if (!context) throw new Error("useXalanify deve ser usado dentro de um Provider");
   return context;
 };

@@ -1,31 +1,47 @@
 export async function searchMusic(query: string) {
-  const res = await fetch(`/api/spotify?q=${encodeURIComponent(query)}`);
-  const data = await res.json();
-  return data.tracks.items.map((t: any) => ({
-    id: t.id,
-    title: t.name,
-    artist: t.artists[0].name,
-    thumbnail: t.album.images[0]?.url || "",
-  }));
+  try {
+    // Aumentamos o limite para 25 para trazer mais variedade (colaborações, remixes, etc)
+    const res = await fetch(
+      `https://spotify-downloader9.p.rapidapi.com/api/search?q=${encodeURIComponent(query)}&type=multi&limit=25`, 
+      {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-key': process.env.NEXT_PUBLIC_RAPIDAPI_KEY || '',
+          'x-rapidapi-host': 'spotify-downloader9.p.rapidapi.com'
+        }
+      }
+    );
+    const data = await res.json();
+    
+    // Mapeamos os resultados garantindo que capturamos uma lista vasta
+    return data.data.map((item: any) => ({
+      id: item.id,
+      title: item.title,
+      artist: item.artist,
+      thumbnail: item.thumbnail,
+      youtubeId: item.youtubeId || null, // Se a API já trouxer, usamos
+    }));
+  } catch (error) {
+    console.error("Erro na busca:", error);
+    return [];
+  }
 }
 
-export async function getYoutubeId(title: string, artist: string): Promise<string | null> {
-  const API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(title + " " + artist)}&type=video&maxResults=1&key=${API_KEY}`;
+export async function getYoutubeId(title: string, artist: string) {
   try {
-    const res = await fetch(url);
+    const res = await fetch(
+      `https://spotify-downloader9.p.rapidapi.com/api/getYoutubeId?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`,
+      {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-key': process.env.NEXT_PUBLIC_RAPIDAPI_KEY || '',
+          'x-rapidapi-host': 'spotify-downloader9.p.rapidapi.com'
+        }
+      }
+    );
     const data = await res.json();
-    return data.items?.[0]?.id?.videoId || null;
-  } catch { return null; }
-}
-
-export async function getDirectAudio(title: string, artist: string): Promise<string | null> {
-  try {
-    const res = await fetch(`https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(title + " " + artist)}&filter=music_songs`);
-    const data = await res.json();
-    const vId = data.items?.[0]?.url?.split("v=")[1];
-    const stream = await fetch(`https://pipedapi.kavin.rocks/streams/${vId}`);
-    const sData = await stream.json();
-    return sData.audioStreams[0]?.url || null;
-  } catch { return null; }
+    return data.data; // Retorna o ID do vídeo do YouTube
+  } catch (error) {
+    return null;
+  }
 }
