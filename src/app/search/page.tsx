@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Search as SearchIcon, Play, Loader2, CheckCircle } from "lucide-react";
+import { Search as SearchIcon, Loader2, CheckCircle, Play } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
 import { searchMusic, getDirectAudio, getYoutubeId } from "@/lib/musicApi"; 
 import TrackOptions from "@/components/TrackOptions";
@@ -16,28 +16,46 @@ export default function Search() {
     e.preventDefault();
     if (!query.trim()) return;
     setLoading(true);
-    const tracks = await searchMusic(query); 
-    setResults(tracks);
+    try {
+      const tracks = await searchMusic(query); 
+      setResults(tracks);
+    } catch (err) {
+      console.error("Erro na busca:", err);
+    }
     setLoading(false);
   };
 
   const playTrack = async (track: any) => {
     if (loadingId) return;
     setLoadingId(track.id);
-    setIsPlaying(false);
+    setIsPlaying(false); // Para o som atual antes de trocar
+    
     try {
-      let trackToPlay = { ...track, isLocal: false };
+      // Limpamos referências antigas para evitar conflitos
+      let trackToPlay = { ...track, isLocal: false, audioUrl: undefined, youtubeId: undefined };
+
       if (audioEngine === 'direct') {
         const url = await getDirectAudio(track.title, track.artist);
-        trackToPlay.audioUrl = url || undefined;
+        if (url) {
+          trackToPlay.audioUrl = url;
+        } else {
+          // Fallback para youtube se o direct falhar
+          const id = await getYoutubeId(track.title, track.artist);
+          trackToPlay.youtubeId = id || undefined;
+        }
       } else {
         const id = await getYoutubeId(track.title, track.artist);
         trackToPlay.youtubeId = id || undefined;
       }
+
       setCurrentTrack(trackToPlay);
-      setTimeout(() => setIsPlaying(true), 400);
-    } catch (e) { alert("Falha ao carregar áudio."); }
-    setLoadingId(null);
+      // Pequeno delay para o componente Player reconhecer a nova URL/ID
+      setTimeout(() => setIsPlaying(true), 500);
+    } catch (e) { 
+      alert("Falha ao carregar áudio."); 
+    } finally {
+      setLoadingId(null);
+    }
   };
 
   return (
@@ -59,7 +77,7 @@ export default function Search() {
           <div key={track.id} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-[1.8rem] transition-all group">
             <div onClick={() => playTrack(track)} className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer">
               <div className="relative flex-shrink-0">
-                <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-md" />
+                <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-md" alt="" />
                 {loadingId === track.id && (
                   <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
                     <Loader2 className="animate-spin text-white" size={18} />
@@ -72,9 +90,12 @@ export default function Search() {
               </div>
             </div>
             
-            {/* ÁREA DE BOTÕES - COM ESPAÇAMENTO */}
             <div className="flex items-center gap-2 pl-2">
-              {currentTrack?.id === track.id && <CheckCircle size={16} style={{ color: themeColor }} />}
+              {currentTrack?.id === track.id ? (
+                <CheckCircle size={16} style={{ color: themeColor }} />
+              ) : (
+                <Play size={16} className="text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity" />
+              )}
               <TrackOptions track={track} />
             </div>
           </div>

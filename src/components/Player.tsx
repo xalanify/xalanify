@@ -13,8 +13,11 @@ export default function Player() {
 
   useEffect(() => {
     if (audioRef.current) {
-      if (isPlaying) audioRef.current.play().catch(() => {});
-      else audioRef.current.pause();
+      if (isPlaying) {
+        audioRef.current.play().catch((err) => console.log("Erro ao tocar áudio:", err));
+      } else {
+        audioRef.current.pause();
+      }
     }
   }, [isPlaying, currentTrack]);
 
@@ -48,7 +51,6 @@ export default function Player() {
       {/* PLAYER FULL SCREEN */}
       {isExpanded && (
         <div className="fixed inset-0 z-[100] bg-black animate-in slide-in-from-bottom duration-500 overflow-hidden">
-          {/* Fundo Desfocado Dinâmico */}
           <div className="absolute inset-0 opacity-40 blur-[100px]" style={{ background: `radial-gradient(circle, ${themeColor} 0%, transparent 70%)` }} />
           
           <div className="relative h-full flex flex-col p-8 justify-between">
@@ -67,22 +69,19 @@ export default function Player() {
                 <TrackOptions track={currentTrack} />
               </div>
 
-              {/* BARRA DE PROGRESSO (ESTÉTICA) */}
               <div className="space-y-2">
                 <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full animate-pulse" style={{ backgroundColor: themeColor, width: '35%' }} />
+                  <div className="h-full" style={{ backgroundColor: themeColor, width: isPlaying ? '100%' : '35%', transition: 'width 30s linear' }} />
                 </div>
                 <div className="flex justify-between text-[10px] font-black text-zinc-600">
-                  <span>1:24</span>
-                  <span>3:45</span>
+                  <span>{isPlaying ? "A reproduzir..." : "Pausado"}</span>
                 </div>
               </div>
 
-              {/* CONTROLOS PRINCIPAIS */}
               <div className="flex items-center justify-between px-4">
                 <Shuffle size={20} className="text-zinc-600" />
                 <div className="flex items-center gap-8">
-                  <button className="rotate-180"><Play size={32} fill="white" /></button>
+                  <button className="rotate-180" onClick={() => {}}><Play size={32} fill="white" /></button>
                   <button 
                     onClick={() => setIsPlaying(!isPlaying)}
                     className="w-20 h-20 rounded-full flex items-center justify-center text-black shadow-2xl"
@@ -90,7 +89,7 @@ export default function Player() {
                   >
                     {isPlaying ? <Pause size={36} fill="currentColor"/> : <Play size={36} fill="currentColor" className="ml-1"/>}
                   </button>
-                  <button><Play size={32} fill="white" /></button>
+                  <button onClick={() => {}}><Play size={32} fill="white" /></button>
                 </div>
                 <Repeat size={20} className="text-zinc-600" />
               </div>
@@ -104,17 +103,27 @@ export default function Player() {
         </div>
       )}
 
-      {/* MOTORES INVISÍVEIS */}
+      {/* MOTORES INVISÍVEIS - CORREÇÃO AQUI */}
       <div className="hidden">
-        {currentTrack.youtubeId && !currentTrack.audioUrl && (
+        {currentTrack.youtubeId && (
           <ReactPlayer 
             url={`https://www.youtube.com/watch?v=${currentTrack.youtubeId}`} 
             playing={isPlaying} 
+            controls={false}
+            width="0"
+            height="0"
+            config={{ youtube: { playerVars: { autoplay: 1 } } }}
             onEnded={() => setIsPlaying(false)}
+            onError={(e: any) => console.log("Erro no ReactPlayer", e)}
           />
         )}
         {(currentTrack.audioUrl || currentTrack.isLocal) && (
-          <audio ref={audioRef} src={currentTrack.isLocal ? "/test.mp3" : currentTrack.audioUrl} onEnded={() => setIsPlaying(false)} />
+          <audio 
+            ref={audioRef} 
+            src={currentTrack.isLocal ? "/test.mp3" : currentTrack.audioUrl} 
+            onEnded={() => setIsPlaying(false)} 
+            autoPlay={isPlaying}
+          />
         )}
       </div>
     </>
