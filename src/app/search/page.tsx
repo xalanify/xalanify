@@ -26,33 +26,39 @@ export default function Search() {
   };
 
   const playTrack = async (track: any) => {
-    if (loadingId) return;
+    if (loadingId) return; // Evita cliques múltiplos
     setLoadingId(track.id);
-    setIsPlaying(false); // Para o som atual antes de trocar
+    
+    // 1. Parar o que estiver a tocar
+    setIsPlaying(false);
     
     try {
-      // Limpamos referências antigas para evitar conflitos
-      let trackToPlay = { ...track, isLocal: false, audioUrl: undefined, youtubeId: undefined };
+      // 2. Preparar o novo objeto de música (limpo)
+      let trackData = { ...track, youtubeId: undefined, audioUrl: undefined };
 
+      // 3. Obter a fonte correta com base nas definições
       if (audioEngine === 'direct') {
         const url = await getDirectAudio(track.title, track.artist);
         if (url) {
-          trackToPlay.audioUrl = url;
+          trackData.audioUrl = url;
         } else {
-          // Fallback para youtube se o direct falhar
-          const id = await getYoutubeId(track.title, track.artist);
-          trackToPlay.youtubeId = id || undefined;
+          // Fallback para YouTube se o Direct falhar
+          const ytId = await getYoutubeId(track.title, track.artist);
+          trackData.youtubeId = ytId || undefined;
         }
       } else {
-        const id = await getYoutubeId(track.title, track.artist);
-        trackToPlay.youtubeId = id || undefined;
+        const ytId = await getYoutubeId(track.title, track.artist);
+        trackData.youtubeId = ytId || undefined;
       }
 
-      setCurrentTrack(trackToPlay);
-      // Pequeno delay para o componente Player reconhecer a nova URL/ID
-      setTimeout(() => setIsPlaying(true), 500);
-    } catch (e) { 
-      alert("Falha ao carregar áudio."); 
+      // 4. Atualizar o contexto e dar play com um pequeno delay para estabilidade
+      setCurrentTrack(trackData);
+      setTimeout(() => {
+        setIsPlaying(true);
+      }, 300);
+
+    } catch (error) {
+      console.error("Erro ao processar música:", error);
     } finally {
       setLoadingId(null);
     }
@@ -62,20 +68,26 @@ export default function Search() {
     <div className="p-4 space-y-6 pb-40">
       <form onSubmit={handleSearch} className="relative mt-4">
         <input
-          value={query} onChange={(e) => setQuery(e.target.value)}
-          placeholder="Artistas, músicas..."
-          className="w-full bg-zinc-900/50 border border-white/10 p-4 pl-12 rounded-2xl outline-none focus:ring-2"
-          style={{ boxShadow: `0 0 0 2px ${themeColor}20` } as any}
+          value={query} 
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Artistas, músicas ou álbuns..."
+          className="w-full bg-zinc-900/50 border border-white/10 p-4 pl-12 rounded-2xl outline-none focus:ring-2 transition-all"
+          style={{ borderColor: `${themeColor}40` } as any}
         />
         <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
       </form>
 
-      {loading && <Loader2 className="animate-spin mx-auto mt-10 text-zinc-500" />}
+      {loading && (
+        <div className="flex flex-col items-center gap-2 mt-10">
+          <Loader2 className="animate-spin text-zinc-500" />
+          <p className="text-[10px] font-bold text-zinc-600 uppercase">A procurar no Spotify...</p>
+        </div>
+      )}
 
       <div className="space-y-2">
         {results.map((track) => (
           <div key={track.id} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-[1.8rem] transition-all group">
-            <div onClick={() => playTrack(track)} className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer">
+            <div onClick={() => playTrack(track)} className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer text-left">
               <div className="relative flex-shrink-0">
                 <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-md" alt="" />
                 {loadingId === track.id && (
@@ -92,7 +104,7 @@ export default function Search() {
             
             <div className="flex items-center gap-2 pl-2">
               {currentTrack?.id === track.id ? (
-                <CheckCircle size={16} style={{ color: themeColor }} />
+                <CheckCircle size={16} style={{ color: themeColor }} className="animate-pulse" />
               ) : (
                 <Play size={16} className="text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity" />
               )}
