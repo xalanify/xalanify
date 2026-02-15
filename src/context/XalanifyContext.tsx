@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
-import { Loader2, ShieldCheck, Users, Activity, Trash2, Gauge, Cpu, Zap } from "lucide-react";
+import { Loader2, ShieldCheck, Users, Activity, Trash2, Cpu, Zap, Gauge, ChevronRight, Globe } from "lucide-react";
 import Auth from "@/components/Auth";
 
 export interface Track {
@@ -12,11 +12,7 @@ export interface Track {
 
 export interface Playlist { id: string; name: string; tracks: Track[]; image?: string; }
 
-interface PerfMetrics {
-  loadTime: number;
-  memory: string;
-  latency: number;
-}
+interface PerfMetrics { loadTime: number; memory: string; latency: number; }
 
 interface XalanifyContextType {
   user: User | null; isAdmin: boolean; logs: string[]; addLog: (m: string) => void;
@@ -32,11 +28,9 @@ interface XalanifyContextType {
   addTrackToPlaylist: (pId: string, t: Track) => void;
   searchResults: Track[]; setSearchResults: (t: Track[]) => void;
   persistentQuery: string; setPersistentQuery: (q: string) => void;
-  playNext: () => void;
-  playPrevious: () => void;
+  playNext: () => void; playPrevious: () => void;
   logout: () => void;
-  perfMetrics: PerfMetrics;
-  setPerfMetrics: (m: Partial<PerfMetrics>) => void;
+  perfMetrics: PerfMetrics; setPerfMetrics: (m: Partial<PerfMetrics>) => void;
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
@@ -56,17 +50,11 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [searchResults, setSearchResults] = useState<Track[]>([]);
   const [persistentQuery, setPersistentQuery] = useState("");
-  
-  // Métricas para Admin
   const [perfMetrics, setPerfMetricsState] = useState<PerfMetrics>({ loadTime: 0, memory: "0MB", latency: 0 });
 
-  const setPerfMetrics = (m: Partial<PerfMetrics>) => setPerfMetricsState(prev => ({ ...prev, ...m }));
-
   const isAdmin = user?.email === "adminx@adminx.com";
-
-  const addLog = (m: string) => {
-    setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${m}`, ...prev].slice(0, 50));
-  };
+  const addLog = (m: string) => setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${m}`, ...prev].slice(0, 50));
+  const setPerfMetrics = (m: Partial<PerfMetrics>) => setPerfMetricsState(prev => ({ ...prev, ...m }));
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -75,28 +63,20 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     });
     supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
 
-    // Monitorizar Memória se disponível (Chrome/Edge)
     const memInterval = setInterval(() => {
       const mem = (performance as any).memory;
-      if (mem) {
-        setPerfMetrics({ memory: Math.round(mem.usedJSHeapSize / 1048576) + "MB" });
-      }
+      if (mem) setPerfMetrics({ memory: Math.round(mem.usedJSHeapSize / 1048576) + "MB" });
     }, 5000);
     return () => clearInterval(memInterval);
   }, []);
 
-  const toggleLike = (track: Track) => {
-    const isLiked = likedTracks.some(t => t.id === track.id);
-    if (isLiked) setLikedTracks(prev => prev.filter(t => t.id !== track.id));
-    else setLikedTracks(prev => [track, ...prev]);
-  };
+  useEffect(() => { if (user) loadUserData(); }, [user]);
 
-  const createPlaylist = (name: string) => {
-    setPlaylists([...playlists, { id: Math.random().toString(), name, tracks: [] }]);
-  };
-
-  const addTrackToPlaylist = (pId: string, track: Track) => {
-    setPlaylists(playlists.map(p => p.id === pId ? { ...p, tracks: [...p.tracks, track] } : p));
+  const loadUserData = async () => {
+    const { data: likes } = await supabase.from('liked_tracks').select('track_data').eq('user_id', user?.id);
+    if (likes) setLikedTracks(likes.map(l => l.track_data));
+    const { data: pList } = await supabase.from('playlists').select('*').eq('user_id', user?.id);
+    if (pList) setPlaylists(pList.map(p => ({ id: p.id, name: p.name, tracks: p.tracks_json || [], image: p.image_url })));
   };
 
   const playNext = () => {
@@ -113,10 +93,10 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     <XalanifyContext.Provider value={{
       user, isAdmin, logs, addLog, currentTrack, setCurrentTrack, isPlaying, setIsPlaying,
       progress, setProgress, duration, setDuration, isExpanded, setIsExpanded,
-      audioEngine, setAudioEngine, themeColor, setThemeColor, likedTracks, toggleLike,
-      playlists, createPlaylist, addTrackToPlaylist, searchResults, setSearchResults,
-      persistentQuery, setPersistentQuery, playNext, playPrevious, perfMetrics, setPerfMetrics,
-      logout: () => supabase.auth.signOut()
+      audioEngine, setAudioEngine, themeColor, setThemeColor, likedTracks, toggleLike: (t) => {},
+      playlists, createPlaylist: () => {}, addTrackToPlaylist: () => {}, 
+      searchResults, setSearchResults, persistentQuery, setPersistentQuery,
+      playNext, playPrevious, perfMetrics, setPerfMetrics, logout: () => supabase.auth.signOut()
     }}>
       {authLoading ? (
         <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-purple-500" /></div>
@@ -124,7 +104,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
         <Auth />
       ) : (
         <div className="h-screen w-full bg-black text-white flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto custom-scroll relative pb-40">
+          <div className="flex-1 custom-scroll relative pb-32">
             {children}
             {isAdmin && <AdminDebugMenu />}
           </div>
@@ -135,56 +115,84 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
 }
 
 function AdminDebugMenu() {
-  const { logs, themeColor, perfMetrics } = useXalanify();
+  const { logs, themeColor, perfMetrics, addLog } = useXalanify();
   const [show, setShow] = useState(false);
-  
+  const [view, setView] = useState<'main' | 'users'>('main');
+  const [dbUsers, setDbUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    setView('users');
+    addLog("Consultando base de dados de utilizadores...");
+    // Nota: Requer que tenhas uma tabela 'profiles' ou similar exposta
+    const { data, error } = await supabase.from('profiles').select('*').limit(20);
+    if (data) setDbUsers(data);
+    else addLog("Erro: Tabela 'profiles' não encontrada.");
+    setLoadingUsers(false);
+  };
+
   return (
     <div className="fixed top-6 right-6 z-[999]">
-      <button onClick={() => setShow(!show)} className="w-12 h-12 rounded-full bg-black border-2 flex items-center justify-center shadow-2xl transition-transform active:scale-90" style={{ borderColor: themeColor }}>
+      <button onClick={() => setShow(!show)} className="w-12 h-12 rounded-full bg-black border-2 flex items-center justify-center shadow-2xl active:scale-90 transition-all" style={{ borderColor: themeColor }}>
         <span className="text-[8px] font-black italic">DEBUG</span>
       </button>
 
       {show && (
-        <div className="absolute top-14 right-0 w-80 bg-zinc-950 border border-white/10 rounded-[2.5rem] p-6 backdrop-blur-3xl shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="absolute top-14 right-0 w-85 glass-panel rounded-[2.5rem] p-6 shadow-2xl animate-in zoom-in-95 duration-200 min-h-[400px] flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2 text-red-500">
-              <ShieldCheck size={18}/><span className="text-[10px] font-black uppercase tracking-widest">Admin Control</span>
+              <ShieldCheck size={18}/><span className="text-[10px] font-black uppercase tracking-widest">Admin Panel</span>
             </div>
-            <div className="flex gap-2">
-               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            </div>
+            {view === 'users' && (
+              <button onClick={() => setView('main')} className="text-[8px] font-bold bg-white/10 px-3 py-1 rounded-full">VOLTAR</button>
+            )}
           </div>
-          
-          <div className="space-y-4">
-            {/* MÉTRICAS DE PERFORMANCE */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-white/5 p-3 rounded-2xl flex flex-col items-center gap-1">
-                <Cpu size={14} className="text-blue-400" />
-                <span className="text-[8px] text-zinc-500 font-bold">MEM</span>
-                <span className="text-[10px] font-mono">{perfMetrics.memory}</span>
-              </div>
-              <div className="bg-white/5 p-3 rounded-2xl flex flex-col items-center gap-1">
-                <Zap size={14} className="text-yellow-400" />
-                <span className="text-[8px] text-zinc-500 font-bold">LOAD</span>
-                <span className="text-[10px] font-mono">{perfMetrics.loadTime}s</span>
-              </div>
-              <div className="bg-white/5 p-3 rounded-2xl flex flex-col items-center gap-1">
-                <Gauge size={14} className="text-purple-400" />
-                <span className="text-[8px] text-zinc-500 font-bold">API</span>
-                <span className="text-[10px] font-mono">{perfMetrics.latency}ms</span>
-              </div>
-            </div>
 
-            <div className="bg-black rounded-2xl p-4 border border-white/5">
-              <div className="flex items-center gap-2 mb-3 opacity-50"><Activity size={12}/><span className="text-[9px] font-black uppercase">Live Logs</span></div>
-              <div className="max-h-32 overflow-y-auto space-y-2 font-mono text-[9px] text-zinc-400 custom-scroll pr-2">
-                {logs.map((l, i) => <div key={i} className="border-l border-white/10 pl-2 py-0.5">{l}</div>)}
+          {view === 'main' ? (
+            <div className="space-y-5 flex-1">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-white/5 p-3 rounded-2xl flex flex-col items-center"><Cpu size={14} className="text-blue-400"/><span className="text-[9px] font-mono mt-1">{perfMetrics.memory}</span></div>
+                <div className="bg-white/5 p-3 rounded-2xl flex flex-col items-center"><Zap size={14} className="text-yellow-400"/><span className="text-[9px] font-mono mt-1">{perfMetrics.loadTime}s</span></div>
+                <div className="bg-white/5 p-3 rounded-2xl flex flex-col items-center"><Gauge size={14} className="text-purple-400"/><span className="text-[9px] font-mono mt-1">{perfMetrics.latency}ms</span></div>
+              </div>
+
+              <div className="bg-black/50 rounded-2xl p-4 border border-white/5">
+                <div className="flex items-center gap-2 mb-3 opacity-40"><Activity size={12}/><span className="text-[8px] font-bold uppercase">System Logs</span></div>
+                <div className="max-h-24 overflow-y-auto space-y-1 font-mono text-[9px] text-zinc-500 custom-scroll pr-2">
+                  {logs.map((l, i) => <div key={i} className="border-b border-white/5 pb-1">{l}</div>)}
+                </div>
+              </div>
+
+              <button onClick={fetchUsers} className="w-full p-4 bg-white/5 rounded-2xl flex items-center justify-between hover:bg-white/10 transition-all group">
+                <div className="flex items-center gap-3"><Users size={16} className="text-purple-500"/><span className="text-[10px] font-black uppercase">Database Users</span></div>
+                <ChevronRight size={14} className="opacity-20 group-hover:opacity-100 group-hover:translate-x-1 transition-all"/>
+              </button>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <div className="flex items-center gap-2 mb-4 px-2 opacity-50"><Globe size={12}/><span className="text-[8px] font-black uppercase">Registered Members</span></div>
+              <div className="flex-1 overflow-y-auto custom-scroll space-y-2 pr-2">
+                {loadingUsers ? (
+                  <div className="flex justify-center py-10"><Loader2 className="animate-spin opacity-20"/></div>
+                ) : dbUsers.length > 0 ? dbUsers.map((u, i) => (
+                  <div key={i} className="p-3 bg-white/5 rounded-xl flex items-center justify-between group">
+                    <div className="overflow-hidden">
+                      <p className="text-[10px] font-bold truncate">{u.email || 'Anónimo'}</p>
+                      <p className="text-[7px] font-mono text-zinc-600 truncate">{u.id}</p>
+                    </div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"/>
+                  </div>
+                )) : (
+                  <p className="text-[9px] text-center opacity-30 py-10 font-bold italic underline">Sem dados na tabela 'profiles'</p>
+                )}
               </div>
             </div>
-            
-            <button className="w-full flex items-center justify-between p-4 bg-white/5 rounded-[1.2rem] hover:bg-white/10 transition-all group">
-              <div className="flex items-center gap-3"><Users size={16} className="group-hover:text-purple-500"/><span className="text-[10px] font-black uppercase tracking-widest">Database Users</span></div>
-              <span className="bg-purple-500 text-white px-2 py-0.5 rounded-full text-[8px] font-bold">LIST</span>
+          )}
+          
+          <div className="mt-6 pt-4 border-t border-white/5">
+            <button className="w-full flex items-center justify-center gap-2 p-3 text-red-500/50 hover:text-red-500 transition-colors">
+              <Trash2 size={12}/><span className="text-[8px] font-black uppercase tracking-tighter">Clear All System Logs</span>
             </button>
           </div>
         </div>

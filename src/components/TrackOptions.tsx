@@ -17,7 +17,7 @@ export default function TrackOptions({ track }: { track: Track }) {
       {isOpen && (
         <>
           <div className="fixed inset-0 z-[150]" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-10 w-64 bg-zinc-900 border border-white/10 rounded-[2rem] p-2 backdrop-blur-2xl z-[151] shadow-2xl">
+          <div className="absolute right-0 top-10 w-64 glass-panel rounded-[2rem] p-2 z-[151] shadow-2xl">
             <button onClick={() => { toggleLike(track); setIsOpen(false); }} className="w-full flex items-center gap-3 p-4 hover:bg-white/5 rounded-2xl">
               <Heart size={18} fill={isLiked ? themeColor : "none"} style={{ color: isLiked ? themeColor : "white" }}/>
               <span className="text-xs font-bold">Gostar</span>
@@ -28,21 +28,15 @@ export default function TrackOptions({ track }: { track: Track }) {
             </button>
 
             {isAdmin && (
-              <div className="m-2 p-4 bg-black/40 rounded-2xl border border-red-500/10">
-                <div className="flex items-center gap-2 text-red-500 mb-3 uppercase text-[9px] font-black tracking-widest">
-                  <ShieldAlert size={12}/> Admin Inspector
+              <div className="m-2 p-4 bg-red-500/5 rounded-2xl border border-red-500/10">
+                <div className="flex items-center gap-2 text-red-500 mb-3 text-[9px] font-black uppercase tracking-widest">
+                  <ShieldAlert size={12}/> Inspector
                 </div>
-                <div className="space-y-2">
-                  <div className="flex flex-col overflow-hidden">
-                    <span className="text-[7px] text-zinc-500 font-bold uppercase">ID</span>
-                    <span className="text-[9px] font-mono text-zinc-300 truncate">{track.id}</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[7px] text-zinc-500 font-bold uppercase">YT ID</span>
-                    <span className="text-[9px] font-mono text-zinc-300">{track.youtubeId || "N/A"}</span>
-                  </div>
-                  <button onClick={() => console.log(track)} className="w-full flex items-center justify-center gap-2 mt-2 p-2 bg-white/5 rounded-lg">
-                    <Code size={10}/><span className="text-[8px] font-bold uppercase">Console Log</span>
+                <div className="space-y-2 text-[9px] font-mono text-zinc-500 overflow-hidden">
+                  <p className="truncate">ID: {track.id}</p>
+                  <p>YT: {track.youtubeId || "N/A"}</p>
+                  <button onClick={() => console.log(track)} className="mt-2 w-full p-2 bg-white/5 rounded-lg flex items-center justify-center gap-2 hover:bg-white/10">
+                    <Code size={10}/> LOG DATA
                   </button>
                 </div>
               </div>

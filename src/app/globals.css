@@ -5,16 +5,17 @@ html, body {
   color: white;
   margin: 0;
   padding: 0;
-  overflow: hidden; /* Trava o scroll do body */
+  overflow: hidden; /* Trava o scroll da janela */
   height: 100dvh;
   width: 100vw;
+  font-family: 'Inter', sans-serif;
 }
 
-/* Content wrapper com scroll inteligente */
-.main-content {
-  height: 100%;
+/* Container de scroll inteligente */
+.custom-scroll {
   overflow-y: auto;
   overflow-x: hidden;
+  height: 100%;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -27,4 +28,12 @@ html, body {
 .custom-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
+}
+
+/* Efeito de vidro para o Admin */
+.glass-panel {
+  background: rgba(10, 10, 10, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
