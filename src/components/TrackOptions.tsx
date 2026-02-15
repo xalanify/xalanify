@@ -54,7 +54,7 @@ export default function TrackOptions({ track }: { track: Track }) {
                   onClick={() => { const n = prompt("Nome da nova playlist:"); if(n) createPlaylist(n, [track]); setIsOpen(false); }} 
                   className="w-full p-3 border-t border-white/5 text-[10px] font-black uppercase flex items-center gap-2 justify-center hover:bg-white/5 transition-colors"
                 >
-                  <Plus size={14}/> Nova Playlist
+                  <Plus size={14}/> -Nova Playlist
                 </button>
               </div>
             )}
