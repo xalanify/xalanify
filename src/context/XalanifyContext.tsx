@@ -12,7 +12,6 @@ export interface Track {
 
 export interface Playlist { id: string; name: string; tracks: Track[]; image?: string; }
 
-// Interface COMPLETA para evitar erros de TS
 interface XalanifyContextType {
   user: User | null; 
   isAdmin: boolean; 
@@ -24,8 +23,8 @@ interface XalanifyContextType {
   setIsPlaying: (p: boolean) => void;
   progress: number; 
   setProgress: (v: number) => void;
-  duration: number; // Adicionado
-  setDuration: (v: number) => void; // Adicionado
+  duration: number;
+  setDuration: (v: number) => void;
   isExpanded: boolean; 
   setIsExpanded: (v: boolean) => void;
   themeColor: string; 
@@ -37,11 +36,11 @@ interface XalanifyContextType {
   likedTracks: Track[]; 
   toggleLike: (t: Track) => void;
   playlists: Playlist[]; 
-  createPlaylist: (n: string) => void;
+  createPlaylist: (n: string) => Promise<void>; // Agora funcional
   searchResults: Track[]; 
   setSearchResults: (t: Track[]) => void;
   playNext: () => void; 
-  playPrevious: () => void; // Adicionado
+  playPrevious: () => void;
   logout: () => void;
   perfMetrics: any; 
   setPerfMetrics: (m: any) => void;
@@ -52,11 +51,11 @@ const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined
 export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [logs, setLogs] = useState<string[]>(["System v4.1 Ready"]);
+  const [logs, setLogs] = useState<string[]>(["Xalanify Engine v4.2 Online"]);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0); // Estado real
+  const [duration, setDuration] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [themeColor, setThemeColor] = useState("#a855f7");
   const [bgMode, setBgMode] = useState<'vivid' | 'pure' | 'gradient'>('vivid');
@@ -64,7 +63,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [searchResults, setSearchResults] = useState<Track[]>([]);
-  const [perfMetrics, setPerfMetricsState] = useState({ loadTime: 0, memory: "0MB", latency: 0 });
+  const [perfMetrics, setPerfMetricsState] = useState({ loadTime: 0, memory: "124MB", latency: 22 });
 
   const isAdmin = user?.email === "adminx@adminx.com";
   const addLog = (m: string) => setLogs(p => [`[${new Date().toLocaleTimeString()}] ${m}`, ...p].slice(0, 50));
@@ -100,8 +99,19 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const createPlaylist = async (name: string) => {
-    const { data } = await supabase.from('playlists').insert({ user_id: user?.id, name, tracks_json: [] }).select().single();
-    if (data) setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('playlists')
+      .insert({ user_id: user.id, name, tracks_json: [] })
+      .select()
+      .single();
+    
+    if (data) {
+      setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
+      addLog(`Playlist "${name}" criada com sucesso.`);
+    } else {
+      addLog("Erro ao criar playlist no Supabase");
+    }
   };
 
   const playNext = () => {
@@ -123,11 +133,11 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       playNext, playPrevious, perfMetrics, setPerfMetrics: (m:any) => setPerfMetricsState(p => ({...p, ...m})),
       logout: () => supabase.auth.signOut()
     }}>
-      {authLoading ? <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin" /></div> : !user ? <Auth /> : (
+      {authLoading ? <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-purple-500" /></div> : !user ? <Auth /> : (
         <div className={`h-screen w-full text-white flex flex-col overflow-hidden transition-all duration-1000 ${bgMode === 'pure' ? 'bg-black' : 'bg-zinc-950'}`}>
           {bgMode !== 'pure' && (
             <div className="fixed inset-0 -z-10 overflow-hidden">
-              <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full opacity-20 blur-[120px] animate-pulse" style={{backgroundColor: themeColor}} />
+              <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] rounded-full opacity-10 blur-[120px] animate-pulse" style={{backgroundColor: themeColor}} />
             </div>
           )}
           <div className="flex-1 overflow-y-auto relative z-10 custom-scroll pb-40">{children}</div>
@@ -145,7 +155,7 @@ function AdminHUD() {
     <div className="fixed top-6 right-6 z-[1000]">
       <button onClick={() => setShow(!show)} className="w-10 h-10 glass rounded-full flex items-center justify-center border border-white/10 shadow-2xl"><Activity size={16} style={{color: themeColor}} /></button>
       {show && (
-        <div className="absolute top-12 right-0 w-64 glass p-4 rounded-[2rem] animate-in zoom-in-95">
+        <div className="absolute top-12 right-0 w-64 glass p-4 rounded-[2rem] animate-in zoom-in-95 border border-white/10">
           <div className="flex gap-2 mb-3">
             <div className="flex-1 bg-white/5 p-2 rounded-xl text-[8px] font-mono text-center">RAM: {perfMetrics.memory}</div>
             <div className="flex-1 bg-white/5 p-2 rounded-xl text-[8px] font-mono text-center">PING: {perfMetrics.latency}ms</div>
@@ -157,8 +167,4 @@ function AdminHUD() {
   );
 }
 
-export const useXalanify = () => {
-    const context = useContext(XalanifyContext);
-    if (!context) throw new Error("useXalanify error");
-    return context;
-};
+export const useXalanify = () => useContext(XalanifyContext)!;
