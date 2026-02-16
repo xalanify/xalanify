@@ -3,12 +3,10 @@ import "./globals.css";
 import { XalanifyProvider } from "@/context/XalanifyContext";
 import Navigation from "@/components/Navigation";
 import Player from "@/components/Player";
-import ExpandedPlayer from "@/components/ExpandedPlayer"; // NOVO
 
 export const metadata: Metadata = {
   title: "Xalanify",
-  description: "Music App",
-  manifest: "/manifest.json",
+  description: "Music App Premium",
 };
 
 export const viewport: Viewport = {
@@ -20,28 +18,22 @@ export const viewport: Viewport = {
   themeColor: "#000000",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="bg-black text-white antialiased overflow-hidden">
+      <body className="bg-black text-white antialiased overflow-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
         <XalanifyProvider>
           <main className="h-screen overflow-y-auto custom-scroll pb-40">
             {children}
           </main>
-          
-          {/* Interface de Reprodução */}
           <Player />
-          <ExpandedPlayer /> {/* Agora integrado sem conflitos */}
-          
-          {/* Navegação */}
           <Navigation />
         </XalanifyProvider>
       </body>
