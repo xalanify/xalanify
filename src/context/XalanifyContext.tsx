@@ -130,18 +130,42 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const toggleLike = async (track: Track) => {
-    const isLiked = likedTracks.some(t => t.id === track.id);
-    if (isLiked) {
-      setLikedTracks(p => p.filter(t => t.id !== track.id));
-      await supabase.from('liked_tracks').delete().match({ user_id: user?.id, 'track_data->id': track.id });
-      addLog("Removida dos favoritos");
-    } else {
-      setLikedTracks(p => [track, ...p]);
-      await supabase.from('liked_tracks').insert({ user_id: user?.id, track_data: track });
-      addLog("Adicionada aos favoritos");
+  // Dentro do XalanifyContext.tsx
+
+const toggleLike = async (track: Track) => {
+  if (!user) return;
+
+  const isLiked = likedTracks.some((t) => t.id === track.id);
+
+  if (isLiked) {
+    const { error } = await supabase
+      .from("liked_tracks")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("track_id", track.id); // Usando track_id como na tua DB
+
+    if (!error) {
+      setLikedTracks(prev => prev.filter(t => t.id !== track.id));
+      addLog(`Removido: ${track.title}`);
     }
-  };
+  } else {
+    const { error } = await supabase
+      .from("liked_tracks")
+      .insert({ 
+        user_id: user.id, 
+        track_id: track.id, // ID do Spotify
+        username: user.email?.split('@')[0], // Nome derivado do email
+        track_data: track // O JSON completo
+      });
+
+    if (!error) {
+      setLikedTracks(prev => [...prev, track]);
+      addLog(`Adicionado aos favoritos: ${track.title}`);
+    } else {
+      console.error("Erro Supabase Like:", error.message);
+    }
+  }
+};
 
   const playNext = () => {
     const idx = searchResults.findIndex(t => t.id === currentTrack?.id);
