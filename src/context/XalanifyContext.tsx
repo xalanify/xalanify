@@ -16,7 +16,6 @@ interface XalanifyContextType {
   setIsAdmin: (v: boolean) => void;
   logs: string[];
   addLog: (m: string) => void;
-  perfMetrics: { memory: string; latency: number };
   currentTrack: Track | null;
   setCurrentTrack: (t: Track | null) => void;
   isPlaying: boolean;
@@ -64,22 +63,17 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activeQueue, setActiveQueue] = useState<Track[]>([]);
-  const [perfMetrics, setPerfMetrics] = useState({ memory: '0MB', latency: 0 });
 
   const addLog = (m: string) => setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${m}`, ...prev].slice(0, 50));
 
   const setCurrentTrack = (track: Track | null) => {
     setIsPlaying(false);
     setProgress(0);
-    // Pequeno reset para forçar o ReactPlayer a recarregar a URL
-    setCurrentTrackState(null);
+    setCurrentTrackState(null); 
     setTimeout(() => {
       setCurrentTrackState(track);
-      if (track) {
-        addLog(`Reproduzir: ${track.title}`);
-        setIsPlaying(true);
-      }
-    }, 100);
+      if (track) setIsPlaying(true);
+    }, 250);
   };
 
   useEffect(() => {
@@ -115,57 +109,43 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const playPrevious = useCallback(() => {
     if (activeQueue.length === 0) return;
     const currentIndex = activeQueue.findIndex(t => t.id === currentTrack?.id);
-    if (currentIndex > 0) {
-      setCurrentTrack(activeQueue[currentIndex - 1]);
-    }
+    if (currentIndex > 0) setCurrentTrack(activeQueue[currentIndex - 1]);
   }, [currentTrack, activeQueue]);
 
   const toggleLike = async (track: Track) => {
     if (!user) return;
     const isLiked = likedTracks.some(t => t.id === track.id);
-    const username = user.user_metadata?.user_name || user.email?.split('@')[0] || "User";
+    const username = user.user_metadata?.user_name || "adminx";
 
     if (isLiked) {
       setLikedTracks(prev => prev.filter(t => t.id !== track.id));
       await supabase.from('liked_tracks').delete().eq('user_id', user.id).filter('track_data->>id', 'eq', track.id);
-      addLog("Removido das Favoritas");
     } else {
-      // Ponto 6: Evitar duplicados
       setLikedTracks(prev => [...prev, track]);
       await supabase.from('liked_tracks').insert([{ 
         user_id: user.id, 
-        track_data: track,
-        username: username 
+        username: username,
+        track_id: track.id,
+        track_data: track 
       }]);
-      addLog("Adicionado às Favoritas");
     }
   };
 
   const createPlaylist = async (name: string) => {
     if (!user) return;
-    const username = user.user_metadata?.user_name || user.email?.split('@')[0] || "User";
+    const username = user.user_metadata?.user_name || "adminx";
     const { data, error } = await supabase.from('playlists').insert([{ user_id: user.id, name, tracks_json: [], username }]).select().single();
     if (!error && data) setPlaylists(prev => [...prev, { id: data.id, name: data.name, tracks: [] }]);
   };
 
   const deletePlaylist = async (id: string) => {
     const { error } = await supabase.from('playlists').delete().eq('id', id);
-    if (!error) {
-      setPlaylists(prev => prev.filter(p => p.id !== id));
-      addLog("Playlist eliminada");
-    }
+    if (!error) setPlaylists(prev => prev.filter(p => p.id !== id));
   };
 
   const addTrackToPlaylist = async (pId: string, track: Track) => {
     const playlist = playlists.find(p => p.id === pId);
-    if (!playlist) return;
-    
-    // Ponto 6: Verificar duplicados na playlist
-    if (playlist.tracks.some(t => t.id === track.id)) {
-      addLog("Música já existe nesta playlist");
-      return;
-    }
-
+    if (!playlist || playlist.tracks.some(t => t.id === track.id)) return;
     const updatedTracks = [...playlist.tracks, track];
     const { error } = await supabase.from('playlists').update({ tracks_json: updatedTracks }).eq('id', pId);
     if (!error) setPlaylists(prev => prev.map(p => p.id === pId ? { ...p, tracks: updatedTracks } : p));
@@ -180,7 +160,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = {
-    user, isAdmin, setIsAdmin, logs, addLog, perfMetrics,
+    user, isAdmin, setIsAdmin, logs, addLog,
     currentTrack, setCurrentTrack, isPlaying, setIsPlaying,
     progress, setProgress, duration, setDuration,
     isExpanded, setIsExpanded, themeColor, setThemeColor,
@@ -195,9 +175,10 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     <XalanifyContext.Provider value={value}>
       {!user ? <Auth /> : (
         <div className={`h-screen text-white overflow-hidden relative transition-colors duration-1000 ${bgMode === 'pure' ? 'bg-black' : 'bg-[#050505]'}`}>
+           {bgMode === 'vivid' && <div className="fixed inset-0 opacity-20 blur-[120px] pointer-events-none" style={{ background: `radial-gradient(circle at 50% 50%, ${themeColor}, transparent)` }} />}
            <div className="fixed top-2 left-0 right-0 z-[1000] flex justify-center pointer-events-none">
              <span className="bg-red-600/20 text-red-500 text-[8px] font-black uppercase tracking-[0.4em] px-4 py-1 rounded-full border border-red-500/20 backdrop-blur-md">
-                v0.53.2 Beta - Em Desenvolvimento
+                v0.53.3 Beta - Em Desenvolvimento
              </span>
           </div>
           <div className="relative z-10 h-full overflow-hidden flex flex-col">{children}</div>

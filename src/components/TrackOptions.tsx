@@ -1,75 +1,61 @@
 "use client";
-import { MoreVertical, Heart, ListPlus, ShieldAlert, Code, Share, ChevronRight } from "lucide-react";
-import { useXalanify, Track } from "@/context/XalanifyContext";
+import { MoreHorizontal, Plus, Heart, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useXalanify, Track } from "@/context/XalanifyContext";
 
-export default function TrackOptions({ track }: { track: Track }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [showPlaylists, setShowPlaylists] = useState(false);
-  const { toggleLike, likedTracks, themeColor, isAdmin, playlists, addTrackToPlaylist } = useXalanify();
-  const isLiked = likedTracks.some(t => t.id === track.id);
+interface Props {
+  track?: Track;
+  playlistId?: string;
+  isFavoriteView?: boolean;
+  isPlaylistCard?: boolean;
+}
+
+export default function TrackOptions({ track, playlistId, isFavoriteView, isPlaylistCard }: Props) {
+  const [open, setOpen] = useState(false);
+  const { toggleLike, likedTracks, playlists, addTrackToPlaylist, removeTrackFromPlaylist, deletePlaylist } = useXalanify();
+  
+  const isLiked = track ? likedTracks.some(t => t.id === track.id) : false;
 
   return (
     <div className="relative">
-      <button 
-        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); setShowPlaylists(false); }} 
-        className="p-3 opacity-40 hover:opacity-100 transition-opacity active:scale-90"
-      >
-        <MoreVertical size={20}/>
+      <button onClick={(e) => { e.stopPropagation(); setOpen(!open); }} className="p-3 opacity-30 hover:opacity-100 transition-opacity">
+        <MoreHorizontal size={20} />
       </button>
 
-      {isOpen && (
+      {open && (
         <>
-          <div className="fixed inset-0 z-[150]" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-12 w-64 glass rounded-[2.5rem] p-2 z-[151] shadow-2xl animate-in zoom-in-95 duration-200 border border-white/10">
-            {!showPlaylists ? (
+          <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 bottom-full mb-2 w-56 glass rounded-[1.5rem] border border-white/10 shadow-2xl z-[101] p-2 animate-in zoom-in-95">
+            {isPlaylistCard ? (
+               <button 
+               onClick={() => { if(confirm("Eliminar playlist?")) deletePlaylist(playlistId!); setOpen(false); }} 
+               className="w-full p-3 flex items-center gap-3 hover:bg-red-500/10 text-red-500 rounded-xl transition-all"
+             >
+               <Trash2 size={16} />
+               <span className="text-xs font-bold">Eliminar Playlist</span>
+             </button>
+            ) : track && (
               <>
-                <button 
-                  onClick={() => { toggleLike(track); setIsOpen(false); }} 
-                  className="w-full flex items-center gap-3 p-4 hover:bg-white/5 rounded-[1.8rem] transition-colors"
-                >
-                  <Heart size={18} fill={isLiked ? themeColor : "none"} style={{ color: isLiked ? themeColor : "white" }}/>
-                  <span className="text-xs font-bold italic">Gostar</span>
+                <button onClick={() => { toggleLike(track); setOpen(false); }} className="w-full p-3 flex items-center gap-3 hover:bg-white/5 rounded-xl">
+                  <Heart size={16} fill={isLiked ? "currentColor" : "none"} className={isLiked ? "text-red-500" : ""} />
+                  <span className="text-xs font-bold">{isLiked ? "Remover Favoritas" : "Adicionar Favoritas"}</span>
                 </button>
-                
-                <button 
-                  onClick={() => setShowPlaylists(true)}
-                  className="w-full flex items-center justify-between p-4 hover:bg-white/5 rounded-[1.8rem] transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <ListPlus size={18}/>
-                    <span className="text-xs font-bold italic">Adicionar à Playlist</span>
-                  </div>
-                  <ChevronRight size={14} className="opacity-20" />
-                </button>
-
-                <button className="w-full flex items-center gap-3 p-4 hover:bg-white/5 rounded-[1.8rem] transition-colors">
-                  <Share size={18}/>
-                  <span className="text-xs font-bold italic">Partilhar</span>
-                </button>
-
-                {isAdmin && (
-                  <div className="m-2 p-4 bg-red-500/10 rounded-[1.8rem] border border-red-500/20 text-[9px]">
-                    <p className="font-mono truncate opacity-40">ID: {track.id}</p>
-                  </div>
+                <div className="h-px bg-white/5 my-1" />
+                <p className="text-[8px] font-black uppercase opacity-20 p-2 tracking-widest">Add to Playlist</p>
+                {playlists.map(p => (
+                  <button key={p.id} onClick={() => { addTrackToPlaylist(p.id, track); setOpen(false); }} className="w-full p-2 flex items-center gap-3 hover:bg-white/5 rounded-xl text-xs font-bold truncate">
+                    <Plus size={14} /> {p.name}
+                  </button>
+                ))}
+                {(playlistId || isFavoriteView) && (
+                  <>
+                    <div className="h-px bg-white/5 my-1" />
+                    <button onClick={() => { if(confirm("Remover faixa?")) { playlistId ? removeTrackFromPlaylist(playlistId, track.id) : toggleLike(track); } setOpen(false); }} className="w-full p-3 flex items-center gap-3 hover:bg-red-500/10 text-red-500 rounded-xl">
+                      <Trash2 size={16} /> <span className="text-xs font-bold">Remover</span>
+                    </button>
+                  </>
                 )}
               </>
-            ) : (
-              <div className="p-2">
-                <p className="text-[9px] font-black uppercase tracking-widest opacity-20 mb-2 ml-2">As Tuas Playlists</p>
-                <div className="max-h-48 overflow-y-auto space-y-1 custom-scroll">
-                  {playlists.map(p => (
-                    <button 
-                      key={p.id}
-                      onClick={() => { addTrackToPlaylist(p.id, track); setIsOpen(false); }}
-                      className="w-full text-left p-3 hover:bg-white/10 rounded-xl text-xs font-bold truncate"
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => setShowPlaylists(false)} className="w-full mt-2 p-2 text-[9px] font-black uppercase opacity-20">Voltar</button>
-              </div>
             )}
           </div>
         </>
