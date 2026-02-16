@@ -1,95 +1,81 @@
 "use client";
 import { useXalanify } from "@/context/XalanifyContext";
-import { Palette, Moon, Sun, Monitor, Zap, Sparkles, LogOut } from "lucide-react";
+import { Shield, Activity, LogOut, Palette, CheckCircle2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
-export default function Settings() {
-  const { 
-    themeColor, setThemeColor, bgMode, setBgMode, 
-    glassIntensity, setGlassIntensity, logout, user 
-  } = useXalanify();
-
-  const colors = ["#a855f7", "#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#ec4899"];
+export default function SettingsPage() {
+  const { themeColor, setThemeColor, isAdmin, setIsAdmin, logs, perfMetrics } = useXalanify();
 
   return (
-    <div className="p-8 pb-40 animate-slide-up">
-      <header className="mb-10">
-        <h1 className="text-5xl font-black italic tracking-tighter mb-2">Settings</h1>
-        <p className="text-[10px] font-black uppercase tracking-widest opacity-30">Perfil: {user?.email}</p>
-      </header>
+    <div className="p-8 pb-40 animate-app-entry">
+      <h1 className="text-5xl font-black italic mb-10 tracking-tighter">Settings</h1>
 
-      <div className="space-y-8">
-        {/* Personalização de Cores */}
-        <section className="glass p-6 rounded-[2.5rem]">
-          <div className="flex items-center gap-3 mb-6">
-            <Palette size={18} style={{ color: themeColor }} />
-            <h2 className="text-sm font-bold italic">Acento Visual</h2>
+      <div className="space-y-6">
+        {/* Personalização */}
+        <div className="glass p-6 rounded-[2.5rem] border-white/5">
+          <div className="flex items-center gap-3 mb-6 opacity-40">
+            <Palette size={18} />
+            <span className="text-[10px] font-black uppercase tracking-widest text-white">Personalização</span>
           </div>
-          <div className="flex justify-between items-center gap-2">
-            {colors.map(c => (
+          <div className="flex gap-4">
+            {["#a855f7", "#3b82f6", "#ef4444", "#10b981", "#f59e0b"].map(color => (
               <button
-                key={c}
-                onClick={() => setThemeColor(c)}
-                className="w-10 h-10 rounded-full transition-all active:scale-75 shadow-lg"
-                style={{ 
-                  backgroundColor: c, 
-                  border: themeColor === c ? '3px solid white' : 'none',
-                  boxShadow: themeColor === c ? `0 0 15px ${c}` : 'none'
-                }}
-              />
-            ))}
-          </div>
-        </section>
-
-        {/* Estilo do Background */}
-        <section className="glass p-6 rounded-[2.5rem]">
-          <div className="flex items-center gap-3 mb-6">
-            <Sparkles size={18} style={{ color: themeColor }} />
-            <h2 className="text-sm font-bold italic">Atmosfera</h2>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { id: 'vivid', label: 'Vibrante', icon: Zap },
-              { id: 'pure', label: 'OLED', icon: Moon },
-              { id: 'gradient', label: 'Suave', icon: Sun }
-            ].map(mode => (
-              <button
-                key={mode.id}
-                onClick={() => setBgMode(mode.id as any)}
-                className={`flex flex-col items-center gap-3 p-4 rounded-3xl transition-all ${bgMode === mode.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
+                key={color}
+                onClick={() => setThemeColor(color)}
+                className="w-12 h-12 rounded-full border-2 transition-all flex items-center justify-center"
+                style={{ backgroundColor: color, borderColor: themeColor === color ? 'white' : 'transparent' }}
               >
-                <mode.icon size={20} className={bgMode === mode.id ? 'opacity-100' : 'opacity-20'} />
-                <span className="text-[9px] font-black uppercase tracking-tighter">{mode.label}</span>
+                {themeColor === color && <CheckCircle2 size={16} className="text-white" />}
               </button>
             ))}
           </div>
-        </section>
+        </div>
 
-        {/* Intensidade do Vidro */}
-        <section className="glass p-6 rounded-[2.5rem]">
+        {/* Zona Admin */}
+        <div className="glass p-6 rounded-[2.5rem] border-white/5">
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Monitor size={18} style={{ color: themeColor }} />
-              <h2 className="text-sm font-bold italic">Opacidade</h2>
+            <div className="flex items-center gap-3 opacity-40">
+              <Shield size={18} />
+              <span className="text-[10px] font-black uppercase tracking-widest text-white">Modo Programador</span>
             </div>
-            <span className="text-xs font-mono opacity-40">{glassIntensity}%</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={isAdmin} 
+                onChange={(e) => setIsAdmin(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
           </div>
-          <input 
-            type="range" 
-            min="10" max="80" 
-            value={glassIntensity}
-            onChange={(e) => setGlassIntensity(parseInt(e.target.value))}
-            className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white"
-            style={{ '--thumb-color': themeColor } as any}
-          />
-        </section>
 
-        {/* Logout Box */}
+          {isAdmin && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+              <div className="grid grid-cols-2 gap-3 text-white">
+                <div className="bg-white/5 p-4 rounded-2xl">
+                  <p className="text-[8px] uppercase opacity-40 font-bold mb-1">RAM</p>
+                  <p className="font-mono text-xs italic">{perfMetrics.memory}</p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl">
+                  <p className="text-[8px] uppercase opacity-40 font-bold mb-1">LATÊNCIA</p>
+                  <p className="font-mono text-xs italic">{perfMetrics.latency}ms</p>
+                </div>
+              </div>
+              <div className="bg-black/40 p-4 rounded-3xl max-h-48 overflow-y-auto custom-scroll border border-white/5">
+                <p className="text-[8px] uppercase opacity-40 font-bold mb-2 ml-1">Logs do Sistema</p>
+                {logs.map((log, i) => (
+                  <p key={i} className="text-[10px] font-mono opacity-60 mb-1 border-l-2 border-white/10 pl-3 italic">{log}</p>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <button 
-          onClick={logout}
-          className="w-full bg-red-500/10 border border-red-500/20 p-6 rounded-[2.5rem] flex items-center justify-center gap-3 text-red-500 hover:bg-red-500/20 transition-all active:scale-95"
+          onClick={() => supabase.auth.signOut()}
+          className="w-full p-6 glass rounded-[2.5rem] border-red-500/10 text-red-500 font-black italic flex items-center justify-center gap-3 hover:bg-red-500/5 transition-all active:scale-95 mt-10"
         >
-          <LogOut size={18} />
-          <span className="text-xs font-black uppercase italic">Encerrar Sessão</span>
+          <LogOut size={20} /> Terminar Sessão
         </button>
       </div>
     </div>
