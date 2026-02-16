@@ -1,58 +1,97 @@
 "use client";
 import { useXalanify } from "@/context/XalanifyContext";
-import { User as UserIcon, Palette, Moon, Sliders, LogOut } from "lucide-react";
+import { Palette, Moon, Sun, Monitor, Zap, Sparkles, LogOut } from "lucide-react";
 
-export default function SettingsPage() {
-  const { user, themeColor, setThemeColor, bgMode, setBgMode, glassIntensity, setGlassIntensity, logout } = useXalanify();
+export default function Settings() {
+  const { 
+    themeColor, setThemeColor, bgMode, setBgMode, 
+    glassIntensity, setGlassIntensity, logout, user 
+  } = useXalanify();
 
-  const colors = ["#a855f7", "#00d2ff", "#ff3b30", "#00ff88", "#ffcc00", "#ffffff", "#ff00ff", "#00ffa3", "#ff6b00"];
+  const colors = ["#a855f7", "#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#ec4899"];
 
   return (
-    <div className="p-8 space-y-8 pb-40">
-      <h1 className="text-6xl font-black italic tracking-tighter mb-10">Ajustes</h1>
+    <div className="p-8 pb-40 animate-slide-up">
+      <header className="mb-10">
+        <h1 className="text-5xl font-black italic tracking-tighter mb-2">Settings</h1>
+        <p className="text-[10px] font-black uppercase tracking-widest opacity-30">Perfil: {user?.email}</p>
+      </header>
 
-      {/* PERFIL - RESTAURADO */}
-      <div className="glass p-8 rounded-[2.5rem] border border-white/5 flex items-center gap-6">
-        <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center border-2" style={{borderColor: themeColor}}>
-          <UserIcon size={40} style={{color: themeColor}} />
-        </div>
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Conta Ativa</p>
-          <p className="font-bold text-lg truncate max-w-[180px]">{user?.email}</p>
-          <div className="mt-1 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[9px] font-bold opacity-30 uppercase">Premium Member</span>
+      <div className="space-y-8">
+        {/* Personalização de Cores */}
+        <section className="glass p-6 rounded-[2.5rem]">
+          <div className="flex items-center gap-3 mb-6">
+            <Palette size={18} style={{ color: themeColor }} />
+            <h2 className="text-sm font-bold italic">Acento Visual</h2>
           </div>
-        </div>
-      </div>
+          <div className="flex justify-between items-center gap-2">
+            {colors.map(c => (
+              <button
+                key={c}
+                onClick={() => setThemeColor(c)}
+                className="w-10 h-10 rounded-full transition-all active:scale-75 shadow-lg"
+                style={{ 
+                  backgroundColor: c, 
+                  border: themeColor === c ? '3px solid white' : 'none',
+                  boxShadow: themeColor === c ? `0 0 15px ${c}` : 'none'
+                }}
+              />
+            ))}
+          </div>
+        </section>
 
-      {/* CORES - EXPANDIDO */}
-      <div className="glass p-8 rounded-[2.5rem] border border-white/5">
-        <div className="flex items-center gap-2 mb-6"><Palette size={16} /> <span className="text-[10px] font-black uppercase">Cores do Sistema</span></div>
-        <div className="grid grid-cols-5 gap-4">
-          {colors.map(c => (
-            <button key={c} onClick={() => setThemeColor(c)} className={`aspect-square rounded-2xl transition-all ${themeColor === c ? 'scale-110 ring-4 ring-white/10' : 'opacity-40 hover:opacity-100'}`} style={{backgroundColor: c}} />
-          ))}
-        </div>
-      </div>
+        {/* Estilo do Background */}
+        <section className="glass p-6 rounded-[2.5rem]">
+          <div className="flex items-center gap-3 mb-6">
+            <Sparkles size={18} style={{ color: themeColor }} />
+            <h2 className="text-sm font-bold italic">Atmosfera</h2>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { id: 'vivid', label: 'Vibrante', icon: Zap },
+              { id: 'pure', label: 'OLED', icon: Moon },
+              { id: 'gradient', label: 'Suave', icon: Sun }
+            ].map(mode => (
+              <button
+                key={mode.id}
+                onClick={() => setBgMode(mode.id as any)}
+                className={`flex flex-col items-center gap-3 p-4 rounded-3xl transition-all ${bgMode === mode.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
+              >
+                <mode.icon size={20} className={bgMode === mode.id ? 'opacity-100' : 'opacity-20'} />
+                <span className="text-[9px] font-black uppercase tracking-tighter">{mode.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
 
-      {/* CUSTOMIZAÇÃO DE VIDRO */}
-      <div className="glass p-8 rounded-[2.5rem] border border-white/5">
-        <div className="flex items-center gap-2 mb-6"><Sliders size={16} /> <span className="text-[10px] font-black uppercase">Efeito Vidro ({glassIntensity}px)</span></div>
-        <input type="range" min="0" max="60" value={glassIntensity} onChange={(e) => setGlassIntensity(Number(e.target.value))} className="w-full h-1 bg-white/10 rounded-full appearance-none outline-none" style={{accentColor: themeColor}} />
-      </div>
+        {/* Intensidade do Vidro */}
+        <section className="glass p-6 rounded-[2.5rem]">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Monitor size={18} style={{ color: themeColor }} />
+              <h2 className="text-sm font-bold italic">Opacidade</h2>
+            </div>
+            <span className="text-xs font-mono opacity-40">{glassIntensity}%</span>
+          </div>
+          <input 
+            type="range" 
+            min="10" max="80" 
+            value={glassIntensity}
+            onChange={(e) => setGlassIntensity(parseInt(e.target.value))}
+            className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white"
+            style={{ '--thumb-color': themeColor } as any}
+          />
+        </section>
 
-      {/* MODO DE FUNDO */}
-      <div className="grid grid-cols-2 gap-4">
-        <button onClick={() => setBgMode('vivid')} className={`glass p-6 rounded-[2rem] flex flex-col items-center gap-2 ${bgMode === 'vivid' ? 'bg-white/10' : 'opacity-40'}`}>
-          <Moon size={20} style={{color: themeColor}} /> <span className="text-[9px] font-bold">VIVID</span>
+        {/* Logout Box */}
+        <button 
+          onClick={logout}
+          className="w-full bg-red-500/10 border border-red-500/20 p-6 rounded-[2.5rem] flex items-center justify-center gap-3 text-red-500 hover:bg-red-500/20 transition-all active:scale-95"
+        >
+          <LogOut size={18} />
+          <span className="text-xs font-black uppercase italic">Encerrar Sessão</span>
         </button>
-        <button onClick={() => setBgMode('pure')} className={`glass p-6 rounded-[2rem] flex flex-col items-center gap-2 ${bgMode === 'pure' ? 'bg-white/10' : 'opacity-40'}`}>
-          <div className="w-5 h-5 bg-black border border-white/20 rounded-full" /> <span className="text-[9px] font-bold">PURE DARK</span>
-        </button>
       </div>
-
-      <button onClick={logout} className="w-full glass p-6 rounded-[2.5rem] text-red-500 font-black text-xs tracking-widest hover:bg-red-500/5 transition-colors">TERMINAR SESSÃO</button>
     </div>
   );
 }
