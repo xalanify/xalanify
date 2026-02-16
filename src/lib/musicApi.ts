@@ -1,6 +1,5 @@
 export async function searchMusic(query: string) {
   try {
-    // Aumentamos o limite para 25 para trazer mais variedade (colaborações, remixes, etc)
     const res = await fetch(
       `https://spotify-downloader9.p.rapidapi.com/api/search?q=${encodeURIComponent(query)}&type=multi&limit=25`, 
       {
@@ -11,19 +10,24 @@ export async function searchMusic(query: string) {
         }
       }
     );
+
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+
     const data = await res.json();
     
-    // Mapeamos os resultados garantindo que capturamos uma lista vasta
+    // Verificação de segurança para evitar erro .map()
+    if (!data || !data.data) return [];
+
     return data.data.map((item: any) => ({
-      id: item.id,
-      title: item.title,
-      artist: item.artist,
-      thumbnail: item.thumbnail,
-      youtubeId: item.youtubeId || null, // Se a API já trouxer, usamos
+      id: item.id || Math.random().toString(),
+      title: item.title || "Sem Título",
+      artist: item.artist || "Artista Desconhecido",
+      thumbnail: item.thumbnail || "",
+      youtubeId: item.youtubeId || null,
     }));
   } catch (error) {
     console.error("Erro na busca:", error);
-    return [];
+    return []; // Retorna lista vazia em vez de quebrar a app
   }
 }
 
@@ -40,7 +44,7 @@ export async function getYoutubeId(title: string, artist: string) {
       }
     );
     const data = await res.json();
-    return data.data; // Retorna o ID do vídeo do YouTube
+    return data?.data || null;
   } catch (error) {
     return null;
   }

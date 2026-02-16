@@ -52,7 +52,7 @@ const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined
 export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [logs, setLogs] = useState<string[]>(["Xalanify Engine Online"]);
+  const [logs, setLogs] = useState<string[]>(["Sistemas Inicializados"]);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -64,30 +64,61 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [searchResults, setSearchResults] = useState<Track[]>([]);
-  const [perfMetrics, setPerfMetricsState] = useState({ loadTime: 0, memory: "128MB", latency: 15 });
+  const [perfMetrics, setPerfMetricsState] = useState({ loadTime: 0, memory: "128MB", latency: 0 });
 
   const isAdmin = user?.email === "adminx@adminx.com";
   const addLog = (m: string) => setLogs(p => [`[${new Date().toLocaleTimeString()}] ${m}`, ...p].slice(0, 50));
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--theme-color', themeColor);
-    document.documentElement.style.setProperty('--glass-blur', `${glassIntensity}px`);
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
     });
     supabase.auth.onAuthStateChange((_, session) => setUser(session?.user ?? null));
-  }, [themeColor, glassIntensity]);
+  }, []);
 
   useEffect(() => { if (user) loadData(); }, [user]);
 
   const loadData = async () => {
-    const { data: likes } = await supabase.from('liked_tracks').select('track_data').eq('user_id', user?.id);
-    if (likes) setLikedTracks(likes.map(l => l.track_data));
-    const { data: pList } = await supabase.from('playlists').select('*').eq('user_id', user?.id);
-    if (pList) setPlaylists(pList.map(p => ({ id: p.id, name: p.name, tracks: p.tracks_json || [] })));
+    try {
+      const { data: likes, error: e1 } = await supabase.from('liked_tracks').select('track_data').eq('user_id', user?.id);
+      if (e1) throw e1;
+      if (likes) setLikedTracks(likes.map(l => l.track_data));
+
+      const { data: pList, error: e2 } = await supabase.from('playlists').select('*').eq('user_id', user?.id);
+      if (e2) throw e2;
+      if (pList) setPlaylists(pList.map(p => ({ id: p.id, name: p.name, tracks: p.tracks_json || [] })));
+    } catch (err: any) {
+      addLog("Erro Supabase: Verifique as tabelas/RLS");
+      console.error("Erro ao carregar dados:", err.message);
+    }
   };
 
+  const createPlaylist = async (name: string) => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.from('playlists').insert({ user_id: user.id, name, tracks_json: [] }).select().single();
+      if (error) throw error;
+      if (data) {
+        setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
+        addLog(`Playlist ${name} criada.`);
+      }
+    } catch (err) { addLog("Falha ao criar playlist."); }
+  };
+
+  const addTrackToPlaylist = async (playlistId: string, track: Track) => {
+    const playlist = playlists.find(p => p.id === playlistId);
+    if (!playlist) return;
+    const updatedTracks = [...playlist.tracks, track];
+    try {
+      const { error } = await supabase.from('playlists').update({ tracks_json: updatedTracks }).eq('id', playlistId);
+      if (error) throw error;
+      setPlaylists(p => p.map(pl => pl.id === playlistId ? { ...pl, tracks: updatedTracks } : pl));
+      addLog("Música adicionada!");
+    } catch (err) { addLog("Erro ao salvar música na playlist."); }
+  };
+
+  // Funções de auxílio
   const toggleLike = async (track: Track) => {
     const isLiked = likedTracks.some(t => t.id === track.id);
     if (isLiked) {
@@ -97,20 +128,6 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       setLikedTracks(p => [track, ...p]);
       await supabase.from('liked_tracks').insert({ user_id: user?.id, track_data: track });
     }
-  };
-
-  const createPlaylist = async (name: string) => {
-    if (!user) return;
-    const { data } = await supabase.from('playlists').insert({ user_id: user.id, name, tracks_json: [] }).select().single();
-    if (data) setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
-  };
-
-  const addTrackToPlaylist = async (playlistId: string, track: Track) => {
-    const playlist = playlists.find(p => p.id === playlistId);
-    if (!playlist) return;
-    const updatedTracks = [...playlist.tracks, track];
-    const { error } = await supabase.from('playlists').update({ tracks_json: updatedTracks }).eq('id', playlistId);
-    if (!error) setPlaylists(p => p.map(pl => pl.id === playlistId ? { ...pl, tracks: updatedTracks } : pl));
   };
 
   const playNext = () => {
@@ -132,13 +149,12 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       playNext, playPrevious, perfMetrics, setPerfMetrics: (m:any) => setPerfMetricsState(p => ({...p, ...m})),
       logout: () => supabase.auth.signOut()
     }}>
-      {authLoading ? <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-purple-500" /></div> : !user ? <Auth /> : (
+      {authLoading ? (
+        <div className="h-screen bg-black flex items-center justify-center">
+            <Loader2 className="animate-spin text-purple-500" />
+        </div>
+      ) : !user ? <Auth /> : (
         <div className={`h-screen w-full text-white flex flex-col overflow-hidden transition-all duration-1000 ${bgMode === 'pure' ? 'bg-black' : 'bg-zinc-950'}`}>
-          {bgMode !== 'pure' && (
-            <div className="fixed inset-0 -z-10 overflow-hidden">
-              <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full opacity-20 blur-[120px] animate-pulse" style={{backgroundColor: themeColor}} />
-            </div>
-          )}
           <div className="flex-1 overflow-y-auto relative z-10 custom-scroll pb-40">{children}</div>
           {isAdmin && <AdminHUD />}
         </div>
@@ -152,14 +168,15 @@ function AdminHUD() {
   const [show, setShow] = React.useState(false);
   return (
     <div className="fixed top-6 right-6 z-[1000]">
-      <button onClick={() => setShow(!show)} className="w-10 h-10 glass rounded-full flex items-center justify-center border border-white/10 shadow-2xl"><Activity size={16} style={{color: themeColor}} /></button>
+      <button onClick={() => setShow(!show)} className="w-10 h-10 glass rounded-full flex items-center justify-center border border-white/10 shadow-2xl">
+        <Activity size={16} style={{color: themeColor}} />
+      </button>
       {show && (
         <div className="absolute top-12 right-0 w-64 glass p-4 rounded-[2rem] animate-in zoom-in-95 border border-white/10">
-          <div className="flex gap-2 mb-3">
-            <div className="flex-1 bg-white/5 p-2 rounded-xl text-[8px] font-mono text-center">RAM: {perfMetrics.memory}</div>
-            <div className="flex-1 bg-white/5 p-2 rounded-xl text-[8px] font-mono text-center">PING: {perfMetrics.latency}ms</div>
+          <p className="text-[10px] font-bold mb-2 opacity-50 uppercase">Logs de Sistema</p>
+          <div className="max-h-40 overflow-y-auto text-[8px] font-mono space-y-1">
+            {logs.map((l, i) => <div key={i} className="border-l border-white/10 pl-2">{l}</div>)}
           </div>
-          <div className="max-h-24 overflow-y-auto text-[7px] font-mono opacity-40">{logs.map((l, i) => <div key={i}>{l}</div>)}</div>
         </div>
       )}
     </div>
