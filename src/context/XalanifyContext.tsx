@@ -110,25 +110,42 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const createPlaylist = async (name: string) => {
-    if (!user) return;
-    const { data, error } = await supabase.from('playlists').insert({ user_id: user.id, name, tracks_json: [] }).select().single();
-    if (data) {
-      setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
-      addLog(`Playlist '${name}' criada`);
-    }
-  };
+ const createPlaylist = async (name: string) => {
+  if (!user) return;
+  const { data, error } = await supabase
+    .from('playlists')
+    .insert({ 
+      user_id: user.id, 
+      name: name, 
+      tracks_json: [] // Garante que a coluna na DB é tracks_json
+    })
+    .select()
+    .single();
 
-  const addTrackToPlaylist = async (playlistId: string, track: Track) => {
-    const pl = playlists.find(p => p.id === playlistId);
-    if (!pl) return;
-    const updated = [...pl.tracks, track];
-    const { error } = await supabase.from('playlists').update({ tracks_json: updated }).eq('id', playlistId);
-    if (!error) {
-      setPlaylists(p => p.map(x => x.id === playlistId ? { ...x, tracks: updated } : x));
-      addLog(`Adicionada a música à playlist`);
-    }
-  };
+  if (!error && data) {
+    setPlaylists(prev => [...prev, { id: data.id, name: data.name, tracks: [] }]);
+    addLog(`Playlist "${name}" criada!`);
+  } else {
+    addLog(`Erro ao criar playlist: ${error?.message || "Erro desconhecido"}`);
+  }
+};
+
+const addTrackToPlaylist = async (playlistId: string, track: Track) => {
+  const playlist = playlists.find(p => p.id === playlistId);
+  if (!playlist) return;
+
+  const updatedTracks = [...playlist.tracks, track];
+
+  const { error } = await supabase
+    .from('playlists')
+    .update({ tracks_json: updatedTracks })
+    .eq('id', playlistId);
+
+  if (!error) {
+    setPlaylists(prev => prev.map(p => p.id === playlistId ? { ...p, tracks: updatedTracks } : p));
+    addLog(`Adicionado a ${playlist.name}`);
+  }
+};
 
   // Dentro do XalanifyContext.tsx
 

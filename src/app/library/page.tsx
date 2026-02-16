@@ -1,16 +1,47 @@
 "use client";
-import { Plus, Heart, Music, Play, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { Plus, Heart, Music, Play, ChevronLeft, ListMusic } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
+import TrackOptions from "@/components/TrackOptions";
 
 export default function LibraryPage() {
   const { playlists, likedTracks, createPlaylist, themeColor, setCurrentTrack, setIsPlaying } = useXalanify();
+  const [view, setView] = useState<{ type: 'main' | 'liked' | 'playlist', data?: any }>({ type: 'main' });
 
-  const playCollection = (tracks: any[]) => {
-    if (tracks.length > 0) {
-      setCurrentTrack(tracks[0]);
-      setIsPlaying(true);
-    }
+  const playTrack = (track: any) => {
+    setCurrentTrack(track);
+    setIsPlaying(true);
   };
+
+  // Ecrã secundário para ver músicas de uma lista
+  if (view.type !== 'main') {
+    const title = view.type === 'liked' ? "Favoritos" : view.data.name;
+    const tracks = view.type === 'liked' ? likedTracks : view.data.tracks;
+
+    return (
+      <div className="p-8 pb-40 animate-app-entry">
+        <button onClick={() => setView({ type: 'main' })} className="mb-8 flex items-center gap-2 opacity-50 hover:opacity-100">
+          <ChevronLeft size={20} /> <span className="font-bold text-[10px] uppercase">Voltar</span>
+        </button>
+        <h1 className="text-4xl font-black italic mb-10 tracking-tighter">{title}</h1>
+        <div className="space-y-2">
+          {tracks.map((track: any) => (
+            <div key={track.id} className="flex items-center justify-between glass p-3 rounded-[1.8rem]">
+              <div onClick={() => playTrack(track)} className="flex items-center gap-4 flex-1 cursor-pointer">
+                <img src={track.thumbnail} className="w-12 h-12 rounded-xl object-cover" alt="" />
+                <div>
+                  <p className="text-sm font-bold italic">{track.title}</p>
+                  <p className="text-[10px] opacity-40 uppercase font-black">{track.artist}</p>
+                </div>
+              </div>
+              <TrackOptions track={track} />
+            </div>
+          ))}
+          {tracks.length === 0 && <p className="text-center opacity-20 py-10 font-bold italic">Vazio por aqui...</p>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 pb-40 animate-app-entry">
@@ -18,59 +49,44 @@ export default function LibraryPage() {
         <h1 className="text-5xl font-black italic tracking-tighter">Library</h1>
         <button 
           onClick={() => {
-            const n = prompt("Nome da nova playlist?");
-            if(n) createPlaylist(n);
+            const name = prompt("Nome da nova playlist?");
+            if (name) createPlaylist(name);
           }}
-          className="w-14 h-14 rounded-full flex items-center justify-center glass hover:scale-110 active:scale-90 transition-all border-white/10 shadow-2xl"
+          className="w-14 h-14 rounded-full flex items-center justify-center glass border-white/10"
         >
           <Plus size={28} style={{color: themeColor}} />
         </button>
       </div>
 
       <div className="space-y-4">
-        {/* Favoritos */}
+        {/* Card Favoritos */}
         <div 
-          onClick={() => playCollection(likedTracks)}
-          className="group relative glass p-5 rounded-[2.5rem] flex items-center gap-5 hover:bg-white/5 cursor-pointer transition-all border-white/5"
+          onClick={() => setView({ type: 'liked' })}
+          className="glass p-6 rounded-[2.5rem] flex items-center gap-5 hover:bg-white/5 cursor-pointer transition-all border-white/5"
         >
-          <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-[1.8rem] flex items-center justify-center shadow-2xl group-hover:rotate-3 transition-transform">
-            <Heart fill="white" size={32} />
+          <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center">
+            <Heart size={28} style={{ color: themeColor }} fill={themeColor} />
           </div>
-          <div className="flex-1">
-            <p className="font-black text-xl italic tracking-tight">Favoritos</p>
-            <p className="text-[10px] font-black uppercase opacity-30 tracking-widest">{likedTracks.length} músicas salvas</p>
+          <div>
+            <p className="font-black text-xl italic tracking-tight">Músicas Gostadas</p>
+            <p className="text-[10px] font-black uppercase opacity-30">{likedTracks.length} músicas</p>
           </div>
-          <ChevronRight className="opacity-10 group-hover:opacity-100 transition-opacity" />
         </div>
 
-        {/* Listagem de Playlists */}
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-20 mt-10 mb-4 ml-4">As tuas Playlists</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-20 mt-10 mb-4 ml-4">Playlists</p>
         
         {playlists.map(p => (
            <div 
             key={p.id} 
-            onClick={() => playCollection(p.tracks)}
-            className="group relative glass p-5 rounded-[2.5rem] flex items-center gap-5 hover:bg-white/5 cursor-pointer transition-all border-white/5"
+            onClick={() => setView({ type: 'playlist', data: p })}
+            className="glass p-5 rounded-[2.5rem] flex items-center gap-5 hover:bg-white/5 cursor-pointer border-white/5"
            >
-            <div className="w-20 h-20 bg-zinc-800 rounded-[1.8rem] flex items-center justify-center overflow-hidden border border-white/5 shadow-xl">
-               <Music size={32} className="opacity-20" />
+            <div className="w-14 h-14 bg-zinc-900 rounded-2xl flex items-center justify-center">
+               <ListMusic size={24} className="opacity-20" />
             </div>
-            <div className="flex-1">
-              <p className="font-black text-xl italic tracking-tight truncate w-40">{p.name}</p>
-              <p className="text-[10px] font-black uppercase opacity-30 tracking-widest">{p.tracks.length} faixas</p>
-            </div>
-            <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-              <Play size={16} fill="white" />
-            </button>
+            <p className="font-black text-lg italic tracking-tight flex-1">{p.name}</p>
           </div>
         ))}
-
-        {playlists.length === 0 && (
-          <div className="py-20 text-center opacity-20 border-2 border-dashed border-white/5 rounded-[3rem]">
-            <Music size={40} className="mx-auto mb-4" />
-            <p className="text-[10px] font-black uppercase">Vazio por aqui</p>
-          </div>
-        )}
       </div>
     </div>
   );
