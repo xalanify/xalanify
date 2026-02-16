@@ -36,7 +36,8 @@ interface XalanifyContextType {
   likedTracks: Track[]; 
   toggleLike: (t: Track) => void;
   playlists: Playlist[]; 
-  createPlaylist: (n: string) => Promise<void>; // Agora funcional
+  createPlaylist: (n: string) => Promise<void>;
+  addTrackToPlaylist: (playlistId: string, track: Track) => Promise<void>;
   searchResults: Track[]; 
   setSearchResults: (t: Track[]) => void;
   playNext: () => void; 
@@ -51,7 +52,7 @@ const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined
 export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [logs, setLogs] = useState<string[]>(["Xalanify Engine v4.2 Online"]);
+  const [logs, setLogs] = useState<string[]>(["Xalanify Engine Online"]);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -63,7 +64,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [searchResults, setSearchResults] = useState<Track[]>([]);
-  const [perfMetrics, setPerfMetricsState] = useState({ loadTime: 0, memory: "124MB", latency: 22 });
+  const [perfMetrics, setPerfMetricsState] = useState({ loadTime: 0, memory: "128MB", latency: 15 });
 
   const isAdmin = user?.email === "adminx@adminx.com";
   const addLog = (m: string) => setLogs(p => [`[${new Date().toLocaleTimeString()}] ${m}`, ...p].slice(0, 50));
@@ -100,18 +101,16 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
 
   const createPlaylist = async (name: string) => {
     if (!user) return;
-    const { data, error } = await supabase
-      .from('playlists')
-      .insert({ user_id: user.id, name, tracks_json: [] })
-      .select()
-      .single();
-    
-    if (data) {
-      setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
-      addLog(`Playlist "${name}" criada com sucesso.`);
-    } else {
-      addLog("Erro ao criar playlist no Supabase");
-    }
+    const { data } = await supabase.from('playlists').insert({ user_id: user.id, name, tracks_json: [] }).select().single();
+    if (data) setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
+  };
+
+  const addTrackToPlaylist = async (playlistId: string, track: Track) => {
+    const playlist = playlists.find(p => p.id === playlistId);
+    if (!playlist) return;
+    const updatedTracks = [...playlist.tracks, track];
+    const { error } = await supabase.from('playlists').update({ tracks_json: updatedTracks }).eq('id', playlistId);
+    if (!error) setPlaylists(p => p.map(pl => pl.id === playlistId ? { ...pl, tracks: updatedTracks } : pl));
   };
 
   const playNext = () => {
@@ -129,7 +128,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       user, isAdmin, logs, addLog, currentTrack, setCurrentTrack, isPlaying, setIsPlaying,
       progress, setProgress, duration, setDuration, isExpanded, setIsExpanded, 
       themeColor, setThemeColor, bgMode, setBgMode, glassIntensity, setGlassIntensity, 
-      likedTracks, toggleLike, playlists, createPlaylist, searchResults, setSearchResults, 
+      likedTracks, toggleLike, playlists, createPlaylist, addTrackToPlaylist, searchResults, setSearchResults, 
       playNext, playPrevious, perfMetrics, setPerfMetrics: (m:any) => setPerfMetricsState(p => ({...p, ...m})),
       logout: () => supabase.auth.signOut()
     }}>
@@ -137,7 +136,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
         <div className={`h-screen w-full text-white flex flex-col overflow-hidden transition-all duration-1000 ${bgMode === 'pure' ? 'bg-black' : 'bg-zinc-950'}`}>
           {bgMode !== 'pure' && (
             <div className="fixed inset-0 -z-10 overflow-hidden">
-              <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] rounded-full opacity-10 blur-[120px] animate-pulse" style={{backgroundColor: themeColor}} />
+              <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full opacity-20 blur-[120px] animate-pulse" style={{backgroundColor: themeColor}} />
             </div>
           )}
           <div className="flex-1 overflow-y-auto relative z-10 custom-scroll pb-40">{children}</div>
