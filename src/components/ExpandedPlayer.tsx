@@ -1,119 +1,81 @@
 "use client";
-import React from "react";
-import { ChevronDown, MoreHorizontal, Heart, Repeat, Shuffle, Share2, Volume2, SkipBack, SkipForward, Play, Pause } from "lucide-react";
+import React, { useState } from "react";
+import { ChevronDown, Heart, SkipBack, SkipForward, Play, Pause, ListMusic } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
 
 export default function ExpandedPlayer() {
   const { 
-    currentTrack, isPlaying, setIsPlaying, 
-    progress, setProgress, duration,
-    themeColor, playNext, playPrevious, 
-    isExpanded, setIsExpanded, likedTracks, toggleLike 
+    currentTrack, isPlaying, setIsPlaying, progress, themeColor, 
+    playNext, playPrevious, isExpanded, setIsExpanded, likedTracks, toggleLike 
   } = useXalanify();
+
+  const [view, setView] = useState<'cover' | 'lyrics'>('cover');
 
   if (!isExpanded || !currentTrack) return null;
 
-  const isLiked = likedTracks.some(t => t.id === currentTrack.id);
+  // Simulação de Letras (Lyrics Engine)
+  const lyrics = [
+    { time: 0, text: "Xalanify Premium Experience" },
+    { time: 10, text: "Sinta a batida no modo vidro" },
+    { time: 20, text: "A carregar os teus hits favoritos..." },
+    { time: 30, text: currentTrack.title + " - Tocando Agora" },
+  ];
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black overflow-hidden animate-in slide-in-from-bottom duration-500">
-      
-      {/* BACKGROUND ANIMADO (MESH GRADIENT) */}
-      <div className="absolute inset-0 -z-10">
-        <div 
-          className="absolute inset-0 opacity-40 animate-pulse duration-[10s]"
-          style={{ 
-            background: `radial-gradient(circle at 20% 30%, ${themeColor} 0%, transparent 50%),
-                         radial-gradient(circle at 80% 70%, ${themeColor} 0%, transparent 50%)` 
-          }}
-        />
-        <div className="absolute inset-0 backdrop-blur-[120px] bg-black/40" />
+    <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-3xl animate-in slide-in-from-bottom duration-500 overflow-hidden">
+      {/* Fundo Vivid Dinâmico */}
+      <div className="absolute inset-0 -z-10 opacity-40">
+        <div className="absolute top-0 w-full h-full animate-pulse" style={{ background: `radial-gradient(circle at center, ${themeColor}22 0%, transparent 70%)` }} />
       </div>
 
-      <div className="flex flex-col h-full max-w-md mx-auto px-8 pt-6 pb-12">
-        
-        {/* HEADER */}
+      <div className="h-full max-w-md mx-auto flex flex-col px-8 pt-6 pb-12">
         <div className="flex justify-between items-center mb-10">
-          <button onClick={() => setIsExpanded(false)} className="p-2 glass rounded-full">
+          <button onClick={() => setIsExpanded(false)} className="p-3 glass rounded-full active:scale-90 transition-transform">
             <ChevronDown size={24} />
           </button>
-          <div className="text-center">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">A Tocar de</p>
-            <p className="text-[11px] font-bold italic">Sua Biblioteca</p>
-          </div>
-          <button className="p-2">
-            <MoreHorizontal size={24} />
+          <button onClick={() => setView(view === 'cover' ? 'lyrics' : 'cover')} className="p-3 glass rounded-full active:scale-90 transition-transform">
+            <ListMusic size={20} style={{ color: view === 'lyrics' ? themeColor : 'white' }} />
           </button>
         </div>
 
-        {/* ARTWORK (CAPA) */}
-        <div className="flex-1 flex items-center justify-center py-6">
-          <div className="relative group w-full aspect-square max-w-[320px]">
-            <img 
-              src={currentTrack.thumbnail} 
-              alt={currentTrack.title}
-              className={`w-full h-full object-cover rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.8)] transition-transform duration-700 ${isPlaying ? 'scale-100' : 'scale-90'}`}
-            />
-            {/* Glow reflexivo na capa */}
-            <div 
-              className="absolute -inset-4 opacity-30 blur-3xl -z-10 rounded-full animate-pulse"
-              style={{ backgroundColor: themeColor }}
-            />
+        {view === 'cover' ? (
+          <div className="flex-1 flex flex-col justify-center items-center gap-12">
+            <div className="relative w-full aspect-square group">
+                <img src={currentTrack.thumbnail} className="w-full h-full object-cover rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.6)] group-hover:scale-[1.02] transition-transform duration-700" />
+                <div className="absolute -inset-4 blur-3xl opacity-20 -z-10 rounded-full" style={{backgroundColor: themeColor}} />
+            </div>
+            <div className="w-full text-left">
+                <h2 className="text-4xl font-black italic tracking-tighter truncate">{currentTrack.title}</h2>
+                <p className="text-xl font-bold opacity-40 uppercase tracking-widest" style={{color: themeColor}}>{currentTrack.artist}</p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto custom-scroll flex flex-col gap-8 py-10">
+            {lyrics.map((line, i) => {
+                const isActive = progress > line.time && progress < (lyrics[i+1]?.time || 100);
+                return (
+                  <p key={i} className={`text-3xl font-black italic transition-all duration-500 ${isActive ? 'opacity-100 scale-105' : 'opacity-20 scale-100 blur-[1px]'}`}
+                     style={{ color: isActive ? themeColor : 'white' }}>
+                    {line.text}
+                  </p>
+                );
+            })}
+          </div>
+        )}
 
-        {/* INFO DA MÚSICA */}
-        <div className="mt-8 flex items-center justify-between">
-          <div className="flex-1 overflow-hidden pr-4">
-            <h2 className="text-3xl font-black tracking-tighter italic truncate mb-1">{currentTrack.title}</h2>
-            <p className="text-xl font-medium opacity-50 truncate" style={{ color: themeColor }}>{currentTrack.artist}</p>
+        {/* Controlos Finais */}
+        <div className="mt-auto space-y-10">
+          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full shadow-[0_0_20px_var(--theme-color)] transition-all duration-300" 
+                 style={{ width: `${progress}%`, backgroundColor: themeColor }} />
           </div>
-          <button onClick={() => toggleLike(currentTrack)} className="p-3 transition-transform active:scale-75">
-            <Heart size={28} fill={isLiked ? themeColor : "transparent"} style={{ color: isLiked ? themeColor : "white" }} />
-          </button>
-        </div>
-
-        {/* PROGRESS BAR */}
-        <div className="mt-10">
-          <div className="relative h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-            <div 
-              className="absolute top-0 left-0 h-full shadow-[0_0_15px_rgba(255,255,255,0.5)] transition-all duration-300"
-              style={{ width: `${progress}%`, backgroundColor: themeColor }}
-            />
-          </div>
-          <div className="flex justify-between mt-3">
-            <span className="text-[10px] font-mono opacity-40">0:00</span>
-            <span className="text-[10px] font-mono opacity-40">3:45</span>
-          </div>
-        </div>
-
-        {/* CONTROLOS PRINCIPAIS */}
-        <div className="flex items-center justify-between mt-8">
-          <Shuffle size={20} className="opacity-30" />
-          <div className="flex items-center gap-8">
-            <button onClick={playPrevious} className="active:scale-90 transition-transform">
-              <SkipBack size={42} fill="white" />
+          <div className="flex items-center justify-between px-4">
+            <button onClick={playPrevious}><SkipBack size={40} fill="white" /></button>
+            <button onClick={() => setIsPlaying(!isPlaying)} className="w-20 h-20 bg-white rounded-full flex items-center justify-center active:scale-90 transition-transform shadow-2xl">
+              {isPlaying ? <Pause size={35} fill="black" className="text-black" /> : <Play size={35} fill="black" className="text-black ml-1" />}
             </button>
-            <button 
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="w-20 h-20 rounded-full flex items-center justify-center bg-white shadow-2xl transition-transform active:scale-90"
-            >
-              {isPlaying ? <Pause size={38} className="text-black" fill="black" /> : <Play size={38} className="text-black ml-1" fill="black" />}
-            </button>
-            <button onClick={playNext} className="active:scale-90 transition-transform">
-              <SkipForward size={42} fill="white" />
-            </button>
+            <button onClick={playNext}><SkipForward size={40} fill="white" /></button>
           </div>
-          <Repeat size={20} className="opacity-30" />
-        </div>
-
-        {/* FOOTER CONTROLOS */}
-        <div className="flex justify-between items-center mt-12 px-4 opacity-40">
-          <Volume2 size={18} />
-          <div className="h-[3px] flex-1 mx-6 bg-white/10 rounded-full">
-            <div className="h-full w-3/4 bg-white/40 rounded-full" />
-          </div>
-          <Share2 size={18} />
         </div>
       </div>
     </div>
