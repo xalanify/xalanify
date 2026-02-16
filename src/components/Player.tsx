@@ -1,6 +1,7 @@
 "use client";
-import React, { useEffect, useRef } from "react";
-import { Play, Pause, SkipForward, SkipBack, Maximize2 } from "lucide-react";
+import React, { useRef } from "react";
+import ReactPlayer from "react-player/youtube";
+import { Play, Pause, SkipForward, SkipBack } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
 
 export default function Player() {
@@ -10,39 +11,40 @@ export default function Player() {
     themeColor, playNext, playPrevious, setIsExpanded 
   } = useXalanify();
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Sincronização do estado Play/Pause com o elemento HTML5
-  useEffect(() => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.play().catch(() => setIsPlaying(false));
-    } else {
-      audioRef.current.pause();
-    }
-  }, [isPlaying, currentTrack]);
+  const playerRef = useRef<ReactPlayer>(null);
 
   if (!currentTrack) return null;
 
-  // URL de stream (usando o ID do YouTube que convertemos)
-  const audioUrl = `https://www.youtube.com/watch?v=${currentTrack.youtubeId}`;
-  // Nota: Para apps web reais, usamos proxys ou o link direto se disponível. 
-  // Se estiveres a usar o Spotify Downloader API, o link vem de lá.
+  // A barra de progresso só anda se o onProgress for disparado
+  const handleProgress = (state: { played: number, playedSeconds: number }) => {
+    setProgress(state.played * 100);
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = x / rect.width;
+    playerRef.current?.seekTo(percent, 'fraction');
+  };
 
   return (
     <div className="fixed bottom-24 left-4 right-4 z-[90] animate-in slide-in-from-bottom-10 duration-500">
-      {/* Elemento de Áudio Oculto */}
-      <audio 
-        ref={audioRef}
-        src={currentTrack.youtubeId ? `https://api.spotify-downloader.com/stream/${currentTrack.youtubeId}` : ''} 
-        onTimeUpdate={(e) => {
-          const target = e.currentTarget;
-          setProgress((target.currentTime / target.duration) * 100);
-        }}
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-        onEnded={() => playNext()} // AQUI É ONDE A MÁGICA ACONTECE
-        autoPlay={isPlaying}
-      />
+      {/* Motor de Áudio (Invisível) */}
+      <div className="hidden">
+        <ReactPlayer
+          ref={playerRef}
+          url={`https://www.youtube.com/watch?v=${currentTrack.youtubeId}`}
+          playing={isPlaying}
+          onProgress={handleProgress}
+          onDuration={(d) => setDuration(d)}
+          onEnded={() => playNext()}
+          config={{
+            youtube: {
+              playerVars: { autoplay: 1, controls: 0 }
+            }
+          }}
+        />
+      </div>
 
       <div className="glass rounded-[2.5rem] p-4 flex items-center gap-4 shadow-2xl relative overflow-hidden border border-white/5">
         <div className="absolute inset-0 opacity-10 blur-3xl -z-10" style={{ backgroundColor: themeColor }} />
@@ -59,7 +61,7 @@ export default function Player() {
           <button onClick={playPrevious} className="p-2 opacity-40 hover:opacity-100 transition-all"><SkipBack size={20} fill="white" /></button>
           <button 
             onClick={() => setIsPlaying(!isPlaying)}
-            className="w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90"
+            className="w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 shadow-xl"
             style={{ backgroundColor: themeColor }}
           >
             {isPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" className="ml-1" />}
@@ -67,9 +69,15 @@ export default function Player() {
           <button onClick={playNext} className="p-2 opacity-40 hover:opacity-100 transition-all"><SkipForward size={20} fill="white" /></button>
         </div>
 
-        {/* Barra de Progresso */}
-        <div className="absolute bottom-0 left-6 right-6 h-[2px] bg-white/10 rounded-full overflow-hidden">
-          <div className="h-full transition-all duration-300" style={{ width: `${progress}%`, backgroundColor: themeColor }} />
+        {/* Barra de Progresso Interativa */}
+        <div 
+          onClick={handleSeek}
+          className="absolute bottom-0 left-0 right-0 h-1 bg-white/5 cursor-pointer group"
+        >
+          <div 
+            className="h-full transition-all duration-150" 
+            style={{ width: `${progress}%`, backgroundColor: themeColor }} 
+          />
         </div>
       </div>
     </div>

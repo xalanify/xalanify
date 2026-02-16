@@ -72,12 +72,10 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     setCurrentTrackState(track);
     if (track) {
         addLog(`A carregar: ${track.title}`);
-        // Pequeno delay para garantir que o componente de áudio reinicie
         setTimeout(() => setIsPlaying(true), 300);
     }
   };
 
-  // Carregar dados do Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -100,15 +98,12 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     fetchData();
   }, [user]);
 
-  // FUNÇÃO CRÍTICA: Próxima Música
   const playNext = useCallback(() => {
     if (activeQueue.length === 0) return;
     const currentIndex = activeQueue.findIndex(t => t.id === currentTrack?.id);
-    
     if (currentIndex !== -1 && currentIndex < activeQueue.length - 1) {
       setCurrentTrack(activeQueue[currentIndex + 1]);
     } else {
-      // Se for a última, para ou volta ao início
       setIsPlaying(false);
       setProgress(0);
     }
@@ -136,8 +131,21 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
 
   const createPlaylist = async (name: string) => {
     if (!user) return;
-    const { data, error } = await supabase.from('playlists').insert({ user_id: user.id, name, tracks_json: [] }).select().single();
-    if (!error && data) setPlaylists(prev => [...prev, { id: data.id, name: data.name, tracks: [] }]);
+    try {
+      // Correção do 400: Garantir que user_id e tracks_json (como array vazio []) são enviados
+      const { data, error } = await supabase
+        .from('playlists')
+        .insert([{ user_id: user.id, name: name, tracks_json: [] }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      if (data) setPlaylists(prev => [...prev, { id: data.id, name: data.name, tracks: [] }]);
+      addLog(`Playlist "${name}" criada.`);
+    } catch (e: any) {
+      console.error(e);
+      addLog("Erro ao criar playlist no Supabase.");
+    }
   };
 
   const addTrackToPlaylist = async (pId: string, track: Track) => {
@@ -158,12 +166,17 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     activeQueue, setActiveQueue
   };
 
-  if (authLoading) return <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-white opacity-20" size={32} /></div>;
+  if (authLoading) return (
+    <div className="h-screen bg-black flex items-center justify-center">
+      <Loader2 className="animate-spin text-white opacity-20" size={32} />
+    </div>
+  );
 
   return (
     <XalanifyContext.Provider value={value}>
       {!user ? <Auth /> : (
         <div className={`h-screen text-white overflow-hidden relative transition-colors duration-1000 ${bgMode === 'pure' ? 'bg-black' : 'bg-[#050505]'}`}>
+          {bgMode === 'vivid' && <div className="fixed inset-0 opacity-20 blur-[120px] pointer-events-none" style={{ background: `radial-gradient(circle at 50% 50%, ${themeColor}, transparent)` }} />}
           <div className="relative z-10 h-full overflow-hidden flex flex-col">{children}</div>
         </div>
       )}
