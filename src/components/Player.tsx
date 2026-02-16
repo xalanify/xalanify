@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import ReactPlayer from "react-player/youtube";
 import { Play, Pause, SkipForward, SkipBack } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
@@ -13,14 +13,24 @@ export default function Player() {
 
   const playerRef = useRef<ReactPlayer>(null);
 
+  // Escutar eventos globais para seek (vindo do ExpandedPlayer)
+  useEffect(() => {
+    const handleGlobalSeek = (e: any) => {
+        if (e.detail?.percent !== undefined) {
+            playerRef.current?.seekTo(e.detail.percent / 100, 'fraction');
+        }
+    };
+    window.addEventListener('playerSeek', handleGlobalSeek);
+    return () => window.removeEventListener('playerSeek', handleGlobalSeek);
+  }, []);
+
   if (!currentTrack) return null;
 
-  // A barra de progresso só anda se o onProgress for disparado
   const handleProgress = (state: { played: number, playedSeconds: number }) => {
     setProgress(state.played * 100);
   };
 
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+  const onSeekLocal = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percent = x / rect.width;
@@ -29,7 +39,6 @@ export default function Player() {
 
   return (
     <div className="fixed bottom-24 left-4 right-4 z-[90] animate-in slide-in-from-bottom-10 duration-500">
-      {/* Motor de Áudio (Invisível) */}
       <div className="hidden">
         <ReactPlayer
           ref={playerRef}
@@ -38,15 +47,11 @@ export default function Player() {
           onProgress={handleProgress}
           onDuration={(d) => setDuration(d)}
           onEnded={() => playNext()}
-          config={{
-            youtube: {
-              playerVars: { autoplay: 1, controls: 0 }
-            }
-          }}
+          config={{ youtube: { playerVars: { autoplay: 1, controls: 0 } } }}
         />
       </div>
 
-      <div className="glass rounded-[2.5rem] p-4 flex items-center gap-4 shadow-2xl relative overflow-hidden border border-white/5">
+      <div className="glass rounded-[2.5rem] p-4 flex items-center gap-4 shadow-2xl relative overflow-hidden border border-white/5 group">
         <div className="absolute inset-0 opacity-10 blur-3xl -z-10" style={{ backgroundColor: themeColor }} />
 
         <div onClick={() => setIsExpanded(true)} className="flex items-center gap-4 flex-1 cursor-pointer">
@@ -69,15 +74,12 @@ export default function Player() {
           <button onClick={playNext} className="p-2 opacity-40 hover:opacity-100 transition-all"><SkipForward size={20} fill="white" /></button>
         </div>
 
-        {/* Barra de Progresso Interativa */}
+        {/* Barra de Progresso no Mini Player */}
         <div 
-          onClick={handleSeek}
-          className="absolute bottom-0 left-0 right-0 h-1 bg-white/5 cursor-pointer group"
+          onClick={onSeekLocal}
+          className="absolute bottom-0 left-0 right-0 h-1 bg-white/5 cursor-pointer"
         >
-          <div 
-            className="h-full transition-all duration-150" 
-            style={{ width: `${progress}%`, backgroundColor: themeColor }} 
-          />
+          <div className="h-full transition-all duration-150" style={{ width: `${progress}%`, backgroundColor: themeColor }} />
         </div>
       </div>
     </div>

@@ -13,15 +13,26 @@ export default function ExpandedPlayer() {
 
   const isLiked = likedTracks.some(t => t.id === currentTrack.id);
 
+  // Função para Seek no ecrã expandido
+  const handleSeekExpanded = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = (x / rect.width) * 100;
+    
+    // Dispara um evento personalizado que o componente Player vai ouvir
+    const event = new CustomEvent('playerSeek', { detail: { percent } });
+    window.dispatchEvent(event);
+  };
+
   return (
-    <div className="fixed inset-0 z-[200] bg-black animate-in slide-in-from-bottom duration-500 overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-[200] bg-black animate-in slide-in-from-bottom duration-500 overflow-hidden flex flex-col font-jakarta">
       <div className="absolute inset-0 opacity-30 blur-[150px]" style={{ background: `radial-gradient(circle at 50% 30%, ${themeColor}, transparent)` }} />
       
       <div className="p-8 flex items-center justify-between relative z-10">
         <button onClick={() => setIsExpanded(false)} className="w-12 h-12 glass rounded-full flex items-center justify-center">
           <ChevronDown size={24} />
         </button>
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 text-center flex-1">A tocar de Pesquisa</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 text-center flex-1">A reproduzir</p>
         <div className="w-12 h-12" /> 
       </div>
 
@@ -30,9 +41,9 @@ export default function ExpandedPlayer() {
         
         <div className="w-full max-w-[350px]">
           <div className="flex items-center justify-between mb-2">
-            <div>
-              <h2 className="text-3xl font-extrabold tracking-tight">{currentTrack.title}</h2>
-              <p className="text-lg font-bold opacity-40">{currentTrack.artist}</p>
+            <div className="flex-1 mr-4 overflow-hidden">
+              <h2 className="text-3xl font-extrabold tracking-tight truncate">{currentTrack.title}</h2>
+              <p className="text-lg font-bold opacity-40 truncate">{currentTrack.artist}</p>
             </div>
             <button onClick={() => toggleLike(currentTrack)}>
               <Heart size={28} style={{ color: isLiked ? themeColor : 'white' }} fill={isLiked ? themeColor : 'none'} className="transition-all active:scale-75" />
@@ -40,11 +51,15 @@ export default function ExpandedPlayer() {
           </div>
 
           <div className="mt-10 space-y-4">
-            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+            {/* Barra de Progresso Interativa */}
+            <div 
+                onClick={handleSeekExpanded}
+                className="h-2 w-full bg-white/10 rounded-full overflow-hidden cursor-pointer relative"
+            >
               <div className="h-full transition-all" style={{ width: `${progress}%`, backgroundColor: themeColor }} />
             </div>
             <div className="flex justify-between text-[10px] font-black opacity-20 uppercase tracking-widest">
-              <span>0:00</span><span>Live Stream</span>
+              <span>Ao Vivo</span><span>Stream</span>
             </div>
           </div>
 

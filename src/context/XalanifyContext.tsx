@@ -42,6 +42,7 @@ interface XalanifyContextType {
   playPrevious: () => void;
   activeQueue: Track[];
   setActiveQueue: (t: Track[]) => void;
+  handleSeek: (percent: number) => void; // Nova função para seek unificado
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
@@ -74,6 +75,12 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
         addLog(`A carregar: ${track.title}`);
         setTimeout(() => setIsPlaying(true), 300);
     }
+  };
+
+  const handleSeek = (percent: number) => {
+    // Esta função será preenchida pelo componente Player via evento ou ref se necessário, 
+    // mas por agora guardamos o valor para o Player reagir
+    addLog(`Seek para ${Math.round(percent)}%`);
   };
 
   useEffect(() => {
@@ -132,19 +139,28 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const createPlaylist = async (name: string) => {
     if (!user) return;
     try {
-      // Correção do 400: Garantir que user_id e tracks_json (como array vazio []) são enviados
+      // Correção: Incluindo 'username' para satisfazer a constraint do banco
+      const username = user.user_metadata?.user_name || user.email?.split('@')[0] || "Utilizador";
       const { data, error } = await supabase
         .from('playlists')
-        .insert([{ user_id: user.id, name: name, tracks_json: [] }])
+        .insert([{ 
+          user_id: user.id, 
+          name: name, 
+          tracks_json: [],
+          username: username 
+        }])
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Erro detalhado Supabase:", error);
+        throw error;
+      }
       if (data) setPlaylists(prev => [...prev, { id: data.id, name: data.name, tracks: [] }]);
-      addLog(`Playlist "${name}" criada.`);
+      addLog(`Playlist "${name}" criada com sucesso.`);
     } catch (e: any) {
-      console.error(e);
-      addLog("Erro ao criar playlist no Supabase.");
+      addLog(`Erro: ${e.message}`);
+      alert(`Não foi possível criar a playlist. Erro: ${e.message}`);
     }
   };
 
@@ -163,7 +179,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     isExpanded, setIsExpanded, themeColor, setThemeColor,
     bgMode, setBgMode, likedTracks, playlists, searchResults, setSearchResults,
     toggleLike, createPlaylist, addTrackToPlaylist, playNext, playPrevious,
-    activeQueue, setActiveQueue
+    activeQueue, setActiveQueue, handleSeek
   };
 
   if (authLoading) return (
@@ -176,6 +192,13 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     <XalanifyContext.Provider value={value}>
       {!user ? <Auth /> : (
         <div className={`h-screen text-white overflow-hidden relative transition-colors duration-1000 ${bgMode === 'pure' ? 'bg-black' : 'bg-[#050505]'}`}>
+          {/* Badge Beta */}
+          <div className="fixed top-2 left-0 right-0 z-[1000] flex justify-center pointer-events-none">
+             <span className="bg-red-600/20 text-red-500 text-[8px] font-black uppercase tracking-[0.4em] px-4 py-1 rounded-full border border-red-500/20 backdrop-blur-md">
+                v0.53.2 Beta - Em Desenvolvimento
+             </span>
+          </div>
+          
           {bgMode === 'vivid' && <div className="fixed inset-0 opacity-20 blur-[120px] pointer-events-none" style={{ background: `radial-gradient(circle at 50% 50%, ${themeColor}, transparent)` }} />}
           <div className="relative z-10 h-full overflow-hidden flex flex-col">{children}</div>
         </div>
