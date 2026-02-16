@@ -48,3 +48,7 @@ html, body {
   -webkit-tap-highlight-color: transparent;
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
+@keyframes spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}

@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import ReactPlayer from "react-player/youtube";
 import { Play, Pause, SkipForward, SkipBack } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
@@ -7,93 +7,97 @@ import { useXalanify } from "@/context/XalanifyContext";
 export default function Player() {
   const { 
     currentTrack, isPlaying, setIsPlaying, 
-    progress, setProgress, setDuration,
+    progress, setProgress, setDuration, lastSeek,
     themeColor, playNext, playPrevious, setIsExpanded 
   } = useXalanify();
 
-  // Definimos o tipo do Ref para evitar o erro de "Property does not exist"
   const playerRef = useRef<ReactPlayer>(null);
+
+  // Sincroniza o "Seek" disparado pelo contexto (ex: início de música)
+  useEffect(() => {
+    if (lastSeek !== undefined && playerRef.current) {
+      playerRef.current.seekTo(lastSeek, 'seconds');
+    }
+  }, [lastSeek]);
 
   if (!currentTrack) return null;
 
-  const videoUrl = `https://www.youtube.com/watch?v=${currentTrack.youtubeId}`;
+  // Função para saltar para um ponto da música ao clicar na barra
+  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!playerRef.current) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left; // Distância do clique desde o início da barra
+    const percentage = x / rect.width;
+    const totalDuration = playerRef.current.getDuration();
+    
+    if (totalDuration) {
+      const seconds = percentage * totalDuration;
+      playerRef.current.seekTo(seconds, 'seconds');
+    }
+  };
 
   return (
     <div className="fixed bottom-24 left-4 right-4 z-[90] animate-in slide-in-from-bottom-10 duration-500">
-      {/* O motor do som (Invisível) */}
+      {/* Motor de Áudio Invisível */}
       <div className="hidden">
         <ReactPlayer
           ref={playerRef}
-          url={videoUrl}
+          url={`https://www.youtube.com/watch?v=${currentTrack.youtubeId}`}
           playing={isPlaying}
-          controls={false}
-          width="0"
-          height="0"
-          // O onProgress atualiza o estado global 'progress' (0 a 100)
           onProgress={(state) => setProgress(state.played * 100)}
           onDuration={(d) => setDuration(d)}
-          onEnded={playNext}
-          config={{
-            youtube: {
-              playerVars: { 
-                autoplay: 1,
-                controls: 0,
-                modestbranding: 1,
-                iv_load_policy: 3
-              }
-            }
+          onEnded={playNext} // Toca a próxima automaticamente
+          config={{ 
+            youtube: { 
+              playerVars: { autoplay: 1, controls: 0, modestbranding: 1 } 
+            } 
           }}
         />
       </div>
 
+      {/* Interface do Player */}
       <div className="glass rounded-[2.5rem] p-4 flex items-center gap-4 shadow-2xl relative overflow-hidden border border-white/5">
         <div className="absolute inset-0 opacity-10 blur-3xl -z-10" style={{ backgroundColor: themeColor }} />
 
-        {/* Capa e Info */}
         <div onClick={() => setIsExpanded(true)} className="flex items-center gap-4 flex-1 cursor-pointer overflow-hidden">
-          <img 
-            src={currentTrack.thumbnail || "/api/placeholder/100/100"} 
-            className="w-12 h-12 rounded-2xl object-cover shadow-lg" 
-            alt={currentTrack.title} 
-          />
+          <img src={currentTrack.thumbnail} className="w-12 h-12 rounded-2xl object-cover shadow-lg" alt="" />
           <div className="flex-1 overflow-hidden">
             <h4 className="text-sm font-bold truncate italic tracking-tighter">{currentTrack.title}</h4>
             <p className="text-[10px] font-bold opacity-40 uppercase truncate tracking-widest">{currentTrack.artist}</p>
           </div>
         </div>
 
-        {/* Controlos */}
-        <div className="flex items-center gap-2 pr-2">
-          <button onClick={playPrevious} className="p-2 opacity-40 hover:opacity-100 active:scale-90 transition-opacity">
+        <div className="flex items-center gap-1 pr-2">
+          <button onClick={playPrevious} className="p-2 opacity-40 hover:opacity-100 active:scale-75 transition-all">
             <SkipBack size={20} fill="white" />
           </button>
 
           <button 
             onClick={() => setIsPlaying(!isPlaying)}
-            className="w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-xl hover:brightness-110"
+            className="w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 shadow-xl"
             style={{ backgroundColor: themeColor }}
           >
-            {isPlaying ? (
-              <Pause size={22} fill="white" />
-            ) : (
-              <Play size={22} fill="white" className="ml-1" />
-            )}
+            {isPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" className="ml-1" />}
           </button>
 
-          <button onClick={playNext} className="p-2 opacity-40 hover:opacity-100 active:scale-90 transition-opacity">
+          <button onClick={playNext} className="p-2 opacity-40 hover:opacity-100 active:scale-75 transition-all">
             <SkipForward size={20} fill="white" />
           </button>
         </div>
 
-        {/* Barra de Progresso Corrigida (Usa o estado do contexto) */}
-        <div className="absolute bottom-0 left-6 right-6 h-[2px] bg-white/5 rounded-full overflow-hidden">
+        {/* SeekBar Interativa (Barra de Progresso) */}
+        <div 
+          onClick={handleProgressBarClick}
+          className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/5 cursor-pointer group"
+        >
           <div 
-            className="h-full transition-all duration-300"
-            style={{ 
-              width: `${progress}%`, 
-              backgroundColor: themeColor 
-            }}
-          />
+            className="h-full transition-all duration-100 relative"
+            style={{ width: `${progress}%`, backgroundColor: themeColor }}
+          >
+            {/* Indicador visual ao passar o rato */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full scale-0 group-hover:scale-100 transition-transform shadow-lg" />
+          </div>
         </div>
       </div>
     </div>
