@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { XalanifyProvider } from "@/context/XalanifyContext";
-import Navigation from "@/components/Navigation"; // IMPORTANTE
-import Player from "@/components/Player"; // IMPORTANTE
+import Navigation from "@/components/Navigation";
+import Player from "@/components/Player";
+import ExpandedPlayer from "@/components/ExpandedPlayer"; // NOVO
 
 export const metadata: Metadata = {
   title: "Xalanify",
@@ -30,17 +31,18 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="bg-black text-white antialiased">
+      <body className="bg-black text-white antialiased overflow-hidden">
         <XalanifyProvider>
-          {/* Adicionamos padding-bottom (pb-32) para o conteúdo não ficar escondido atrás das barras */}
-          <main className="min-h-screen pb-32">
+          <main className="h-screen overflow-y-auto custom-scroll pb-40">
             {children}
           </main>
           
-          {/* Componentes Fixos Globais */}
+          {/* Interface de Reprodução */}
           <Player />
-          <Navigation />
+          <ExpandedPlayer /> {/* Agora integrado sem conflitos */}
           
+          {/* Navegação */}
+          <Navigation />
         </XalanifyProvider>
       </body>
     </html>
