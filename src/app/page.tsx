@@ -1,33 +1,60 @@
 "use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useXalanify, Track } from "@/context/XalanifyContext";
+import { searchMusic } from "@/lib/musicApi";
+import { Sparkles, ListMusic } from "lucide-react";
 
-export default function SplashScreen() {
-  const router = useRouter();
+export default function HomePage() {
+  const { likedTracks, recentSearches, themeColor, setCurrentTrack, setActiveQueue } = useXalanify();
+  const [recommendations, setRecommendations] = useState<Track[]>([]);
 
   useEffect(() => {
-    const timer = setTimeout(() => router.push("/search"), 2500);
-    return () => clearTimeout(timer);
-  }, [router]);
+    const fetchRecs = async () => {
+      // Prioridade: Artistas curtidos > Pesquisas recentes > Padrão
+      const seed = likedTracks[0]?.artist || recentSearches[0] || "Pop Mix";
+      const recs = await searchMusic(seed);
+      setRecommendations(recs.slice(0, 6));
+    };
+    fetchRecs();
+  }, [likedTracks, recentSearches]);
 
   return (
-    <div className="h-screen bg-black flex flex-col items-center justify-center overflow-hidden font-jakarta">
-      <div className="text-center space-y-4 relative z-10 animate-in fade-in zoom-in duration-1000">
-        <h1 className="text-6xl font-black tracking-tighter bg-gradient-to-b from-white to-white/40 bg-clip-text text-transparent">
-          Xalanify
-        </h1>
-        <p className="text-red-500 text-[10px] font-black uppercase tracking-[0.6em] animate-pulse">
-          Beta - Em Desenvolvimento
-        </p>
-      </div>
-      
-      <div className="mt-16 w-64 h-[2px] bg-white/5 rounded-full relative overflow-hidden">
-         <div className="absolute inset-y-0 left-0 bg-white shadow-[0_0_15px_rgba(255,255,255,0.5)] animate-[progress_2.5s_ease-in-out]" />
-      </div>
+    <div className="p-8 pb-40 animate-app-entry font-jakarta overflow-y-auto">
+      <header className="mb-10">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 mb-2">Para ti</p>
+        <h1 className="text-5xl font-black tracking-tighter italic">Recomendado</h1>
+      </header>
 
-      <style jsx>{`
-        @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } }
-      `}</style>
+      <section className="grid grid-cols-2 gap-4 mb-12">
+        {recommendations.map((track) => (
+          <div 
+            key={track.id}
+            onClick={() => { setActiveQueue([track]); setCurrentTrack(track); }}
+            className="glass p-4 rounded-[2.5rem] border border-white/5 relative group active:scale-95 transition-all"
+          >
+            <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Sparkles size={16} style={{ color: themeColor }} />
+            </div>
+            <img src={track.thumbnail} className="w-full aspect-square rounded-2xl object-cover mb-4 shadow-2xl" alt="" />
+            <p className="font-bold text-sm truncate">{track.title}</p>
+            <p className="text-[10px] font-black opacity-30 uppercase truncate">{track.artist}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* Secção de Playlists Públicas baseadas no gosto */}
+      <h2 className="text-2xl font-black mb-6 tracking-tight flex items-center gap-2">
+        <ListMusic size={24} style={{ color: themeColor }} />
+        Mixes para Explorar
+      </h2>
+      <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+          {recommendations.slice(0, 3).map((item) => (
+              <div key={`mix-${item.id}`} className="shrink-0 w-64 glass p-4 rounded-[2rem] border border-white/5">
+                  <img src={item.thumbnail} className="w-full h-32 rounded-xl object-cover mb-3" alt="" />
+                  <p className="font-bold text-xs truncate">Mix: {item.artist}</p>
+              </div>
+          ))}
+      </div>
     </div>
   );
 }

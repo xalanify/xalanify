@@ -31,15 +31,15 @@ export default function SettingsPage() {
                     <p className="text-[10px] opacity-40 font-black uppercase tracking-widest">{user?.email}</p>
                 </div>
             </div>
-            <button onClick={handleLogout} className="w-full p-4 rounded-2xl bg-white/5 hover:bg-red-500/10 text-red-500 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+            <button onClick={handleLogout} className="w-full p-4 rounded-2xl bg-white/5 hover:bg-red-500/10 text-red-500 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 font-jakarta">
               <LogOut size={16} /> Terminar Sessão
             </button>
         </section>
 
-        {/* Personalização - Persistente */}
+        {/* Personalização */}
         <div className="glass p-6 rounded-[2.5rem] border border-white/5">
           <div onClick={() => setShowPersonalize(!showPersonalize)} className="flex items-center justify-between cursor-pointer">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 font-jakarta">
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: themeColor + '20' }}>
                 <Palette size={20} style={{ color: themeColor }} />
               </div>
@@ -49,7 +49,7 @@ export default function SettingsPage() {
           </div>
 
           {showPersonalize && (
-            <div className="mt-8 space-y-8 animate-in slide-in-from-top-4">
+            <div className="mt-8 space-y-8 animate-in slide-in-from-top-4 font-jakarta">
               <div>
                 <p className="text-[10px] font-black uppercase opacity-20 mb-4 tracking-widest">Cores de Destaque</p>
                 <div className="flex flex-wrap gap-4">
@@ -64,13 +64,13 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase opacity-20 mb-4 tracking-widest">Fundo</p>
+                <p className="text-[10px] font-black uppercase opacity-20 mb-4 tracking-widest">Estilo de Fundo</p>
                 <div className="grid grid-cols-2 gap-3">
                   {['vivid', 'pure', 'gradient', 'animated'].map(m => (
                     <button 
                         key={m} 
                         onClick={(e) => { e.stopPropagation(); setBgMode(m as any); }} 
-                        className="p-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all" 
+                        className="p-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all font-jakarta" 
                         style={{ 
                             backgroundColor: bgMode === m ? themeColor : 'rgba(255,255,255,0.02)', 
                             borderColor: bgMode === m ? 'white' : 'transparent',
@@ -85,10 +85,14 @@ export default function SettingsPage() {
           )}
         </div>
 
+        {/* Créditos - Fonte Corrigida */}
         <div className="glass p-8 rounded-[2.5rem] border border-white/5 relative overflow-hidden group">
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-5 relative z-10 font-jakarta">
                 <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center"><Zap size={24} style={{ color: themeColor }} /></div>
-                <div><p className="text-2xl font-black tracking-tight italic">Xalanify</p><p className="text-[10px] font-black uppercase opacity-40">Build 0.53.5</p></div>
+                <div>
+                  <p className="text-2xl font-black tracking-tight italic">Xalanify</p>
+                  <p className="text-[10px] font-black uppercase opacity-40 tracking-widest">Versão 0.53.8 Beta</p>
+                </div>
             </div>
         </div>
       </div>

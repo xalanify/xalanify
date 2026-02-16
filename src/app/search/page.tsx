@@ -1,125 +1,78 @@
 "use client";
 import { useState } from "react";
-import { Search as SearchIcon, Loader2, Music, Globe } from "lucide-react";
-import { useXalanify } from "@/context/XalanifyContext";
-import { searchMusic, getYoutubeId } from "@/lib/musicApi"; 
-import TrackOptions from "@/components/TrackOptions";
+import { Search as SearchIcon, Loader2, Play, Music, ListMusic } from "lucide-react";
+import { searchMusic, getYoutubeId } from "@/lib/musicApi"; // Usa a lógica do Spotify
+import { useXalanify, Track } from "@/context/XalanifyContext";
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isFetchingId, setIsFetchingId] = useState<string | null>(null);
-  
-  const { 
-    setSearchResults, 
-    searchResults,
-    setCurrentTrack, 
-    setIsPlaying, 
-    themeColor, 
-    currentTrack,
-    addLog,
-    setActiveQueue
-  } = useXalanify();
+  const { setSearchResults, searchResults, setCurrentTrack, themeColor, setActiveQueue } = useXalanify();
 
-  const handleSearch = async (e?: React.FormEvent, targetQuery?: string) => {
-    if (e) e.preventDefault();
-    const q = targetQuery || query;
-    if (!q.trim()) return;
-    
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
     setLoading(true);
-    if (targetQuery) setQuery(targetQuery);
-    
     try {
-      const tracks = await searchMusic(q); 
-      setSearchResults(tracks);
-    } catch (err) {
-      addLog("Erro na ligação à API");
+      // Obtém tracks do Spotify com capas de alta qualidade
+      const results = await searchMusic(query);
+      setSearchResults(results);
+    } catch (error) {
+      console.error("Erro na pesquisa:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePlay = async (track: any) => {
-    // Define os resultados da pesquisa como a fila atual
-    setActiveQueue(searchResults);
-
-    if (track.youtubeId) {
-      setCurrentTrack(track);
-      setIsPlaying(true);
-      return;
-    }
-
-    setIsFetchingId(track.id);
-    try {
-      const ytId = await getYoutubeId(track.title, track.artist);
-      if (ytId) {
-        setCurrentTrack({ ...track, youtubeId: ytId });
-        setIsPlaying(true);
-      }
-    } catch (err) {
-      addLog("Erro ao obter áudio");
-    } finally {
-      setIsFetchingId(null);
+  const playTrack = async (track: Track) => {
+    const ytId = await getYoutubeId(track.title, track.artist);
+    if (ytId) {
+      const updatedTrack = { ...track, youtubeId: ytId };
+      setActiveQueue([updatedTrack]);
+      setCurrentTrack(updatedTrack);
     }
   };
 
   return (
-    <div className="p-6 pt-12 animate-app-entry">
-      <form onSubmit={handleSearch} className="relative mb-12">
-        <SearchIcon className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20" size={20} />
-        <input 
-          value={query} 
+    <div className="p-8 pb-40 animate-app-entry font-jakarta">
+      <h1 className="text-5xl font-black mb-8 tracking-tighter">Explorar</h1>
+      
+      <form onSubmit={handleSearch} className="relative mb-10">
+        <input
+          type="text"
+          value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="O que queres ouvir?"
-          className="w-full bg-white/5 border border-white/5 p-6 pl-16 rounded-[2.5rem] outline-none focus:border-white/10 transition-all font-bold text-lg shadow-2xl"
+          placeholder="Artistas, músicas ou playlists..."
+          className="w-full bg-white/5 border border-white/10 p-6 rounded-[2rem] pl-14 outline-none focus:ring-2 transition-all font-bold text-white placeholder:opacity-20"
+          style={{ '--tw-ring-color': themeColor } as any}
         />
-        {loading && <Loader2 className="absolute right-6 top-1/2 -translate-y-1/2 animate-spin opacity-20" size={20} />}
+        <SearchIcon className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20" size={20} />
+        {loading && <Loader2 className="absolute right-6 top-1/2 -translate-y-1/2 animate-spin text-white/20" size={20} />}
       </form>
 
-      {searchResults.length > 0 ? (
-        <div className="space-y-2">
-          {searchResults.map((track) => (
-            <div key={track.id} className="flex items-center justify-between group">
-              <div 
-                onClick={() => handlePlay(track)} 
-                className="flex-1 flex items-center gap-4 p-3 hover:bg-white/5 rounded-[2rem] transition-all cursor-pointer"
-              >
-                <div className="relative">
-                  <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-lg" alt="" />
-                  {isFetchingId === track.id && (
-                    <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
-                      <Loader2 className="animate-spin text-white" size={20} />
-                    </div>
-                  )}
-                  {currentTrack?.id === track.id && !isFetchingId && (
-                    <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
-                      <Music size={20} style={{ color: themeColor }} className="animate-pulse" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 overflow-hidden">
-                  <p className="text-sm font-bold truncate" style={{ color: currentTrack?.id === track.id ? themeColor : 'white' }}>{track.title}</p>
-                  <p className="text-[10px] opacity-40 font-black uppercase tracking-tighter">{track.artist}</p>
-                </div>
+      <div className="space-y-4">
+        {searchResults.map((track) => (
+          <div 
+            key={track.id} 
+            onClick={() => playTrack(track)}
+            className="glass p-3 rounded-[2rem] flex items-center gap-4 hover:bg-white/5 transition-all cursor-pointer group border border-white/5"
+          >
+            <div className="relative w-16 h-16 shrink-0">
+              <img src={track.thumbnail} className="w-full h-full rounded-2xl object-cover shadow-lg" alt="" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl">
+                <Play size={24} fill="white" className="text-white" />
               </div>
-              <TrackOptions track={track} />
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {["Rap", "Phonk", "Lofi", "Pop"].map(tag => (
-            <div 
-              key={tag} 
-              onClick={() => handleSearch(undefined, tag)} 
-              className="glass p-8 rounded-[2.5rem] hover:scale-105 transition-all cursor-pointer border border-white/5 group"
-            >
-              <Globe size={20} style={{color: themeColor}} className="mb-4 opacity-40 group-hover:opacity-100" />
-              <p className="font-black text-xs uppercase tracking-widest">{tag}</p>
+            <div className="flex-1 overflow-hidden">
+              <p className="font-bold truncate text-sm">{track.title}</p>
+              <p className="text-[10px] font-black opacity-40 uppercase tracking-widest truncate">{track.artist}</p>
             </div>
-          ))}
-        </div>
-      )}
+            <div className="pr-4 opacity-20">
+               {track.title.toLowerCase().includes('playlist') ? <ListMusic size={18} /> : <Music size={18} />}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

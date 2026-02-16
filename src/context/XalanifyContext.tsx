@@ -22,6 +22,7 @@ interface XalanifyContextType {
   bgMode: 'vivid' | 'pure' | 'gradient' | 'animated'; setBgMode: (m: any) => void;
   likedTracks: Track[]; playlists: Playlist[];
   searchResults: Track[]; setSearchResults: (t: Track[]) => void;
+  recentSearches: string[]; addRecentSearch: (q: string) => void;
   toggleLike: (t: Track) => Promise<void>;
   createPlaylist: (name: string) => Promise<void>;
   deletePlaylist: (id: string) => Promise<void>;
@@ -49,16 +50,18 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activeQueue, setActiveQueue] = useState<Track[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const addLog = (m: string) => setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${m}`, ...prev].slice(0, 50));
+  
+  const addRecentSearch = (q: string) => {
+    setRecentSearches(prev => [q, ...prev.filter(i => i !== q)].slice(0, 5));
+  };
 
-  // Função otimizada para troca de faixa
   const setCurrentTrack = (track: Track | null) => {
-    setIsPlaying(false); // Pausa antes de trocar
+    setIsPlaying(false);
     setProgress(0);
-    setCurrentTrackState(null); // Limpa o ID
-    
-    // O delay de 300ms permite que o ReactPlayer anterior seja desmontado
+    setCurrentTrackState(null);
     setTimeout(() => {
       setCurrentTrackState(track);
       if (track) {
@@ -96,7 +99,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     if (currentIndex !== -1 && currentIndex < activeQueue.length - 1) {
       setCurrentTrack(activeQueue[currentIndex + 1]);
     } else {
-      setIsPlaying(false); // Fim da fila
+      setIsPlaying(false);
     }
   }, [currentTrack, activeQueue]);
 
@@ -152,16 +155,17 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     progress, setProgress, duration, setDuration,
     isExpanded, setIsExpanded, themeColor, setThemeColor,
     bgMode, setBgMode, likedTracks, playlists, searchResults, setSearchResults,
+    recentSearches, addRecentSearch,
     toggleLike, createPlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist,
     playNext, playPrevious, activeQueue, setActiveQueue
   };
 
-  if (authLoading) return <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-white opacity-20" size={32} /></div>;
+  if (authLoading) return <div className="h-screen bg-black flex items-center justify-center font-jakarta"><Loader2 className="animate-spin text-white opacity-20" size={32} /></div>;
 
   return (
     <XalanifyContext.Provider value={value}>
       {!user ? <Auth /> : (
-        <div className={`h-screen text-white overflow-hidden relative transition-colors duration-1000 ${bgMode === 'pure' ? 'bg-black' : 'bg-[#050505]'}`}>
+        <div className={`h-screen text-white overflow-hidden font-jakarta relative transition-colors duration-1000 ${bgMode === 'pure' ? 'bg-black' : 'bg-[#050505]'}`}>
            {bgMode === 'vivid' && <div className="fixed inset-0 opacity-20 blur-[120px] pointer-events-none" style={{ background: `radial-gradient(circle at 50% 50%, ${themeColor}, transparent)` }} />}
            <div className="relative z-10 h-full overflow-hidden flex flex-col">{children}</div>
         </div>
