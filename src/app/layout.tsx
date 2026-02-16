@@ -3,6 +3,7 @@ import "./globals.css";
 import { XalanifyProvider } from "@/context/XalanifyContext";
 import Navigation from "@/components/Navigation";
 import Player from "@/components/Player";
+import ExpandedPlayer from "@/components/ExpandedPlayer";
 
 export const metadata: Metadata = {
   title: "Xalanify",
@@ -25,8 +26,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className="bg-black text-white antialiased overflow-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
         <XalanifyProvider>
@@ -34,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
           <Player />
+          <ExpandedPlayer />
           <Navigation />
         </XalanifyProvider>
       </body>

@@ -8,7 +8,6 @@ import Auth from "@/components/Auth";
 export interface Track {
   id: string; title: string; artist: string; thumbnail: string; youtubeId?: string;
 }
-
 export interface Playlist { id: string; name: string; tracks: Track[]; }
 
 interface XalanifyContextType {
@@ -26,8 +25,6 @@ interface XalanifyContextType {
   setProgress: (v: number) => void;
   duration: number;
   setDuration: (v: number) => void;
-  seekTo: (seconds: number) => void;
-  lastSeek: number;
   isExpanded: boolean;
   setIsExpanded: (v: boolean) => void;
   themeColor: string;
@@ -43,6 +40,8 @@ interface XalanifyContextType {
   addTrackToPlaylist: (pId: string, track: Track) => Promise<void>;
   playNext: () => void;
   playPrevious: () => void;
+  activeQueue: Track[];
+  setActiveQueue: (t: Track[]) => void;
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
@@ -54,35 +53,31 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [logs, setLogs] = useState<string[]>([]);
   const [themeColor, setThemeColor] = useState("#a855f7");
   const [bgMode, setBgMode] = useState<'vivid' | 'pure' | 'gradient' | 'animated'>('vivid');
-  
   const [currentTrack, setCurrentTrackState] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [lastSeek, setLastSeek] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchResults, setSearchResults] = useState<Track[]>([]);
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [activeQueue, setActiveQueue] = useState<Track[]>([]);
   const [perfMetrics, setPerfMetrics] = useState({ memory: '0MB', latency: 0 });
 
   const addLog = (m: string) => setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${m}`, ...prev].slice(0, 50));
 
-  // Função robusta para trocar de música
   const setCurrentTrack = (track: Track | null) => {
     setIsPlaying(false);
     setProgress(0);
-    setLastSeek(0);
     setCurrentTrackState(track);
-    
-    // Pequeno delay para garantir que o ReactPlayer recebe o novo ID antes do play
     if (track) {
-      setTimeout(() => {
-        setIsPlaying(true);
-      }, 400);
+        addLog(`A carregar: ${track.title}`);
+        // Pequeno delay para garantir que o componente de áudio reinicie
+        setTimeout(() => setIsPlaying(true), 300);
     }
   };
 
+  // Carregar dados do Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -105,42 +100,44 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     fetchData();
   }, [user]);
 
-  const seekTo = (seconds: number) => setLastSeek(seconds);
-
+  // FUNÇÃO CRÍTICA: Próxima Música
   const playNext = useCallback(() => {
-    let list = searchResults.length > 0 ? searchResults : likedTracks;
-    const idx = list.findIndex(t => t.id === currentTrack?.id);
-    if (idx !== -1 && idx < list.length - 1) {
-      setCurrentTrack(list[idx + 1]);
+    if (activeQueue.length === 0) return;
+    const currentIndex = activeQueue.findIndex(t => t.id === currentTrack?.id);
+    
+    if (currentIndex !== -1 && currentIndex < activeQueue.length - 1) {
+      setCurrentTrack(activeQueue[currentIndex + 1]);
     } else {
-      // Loop: Reinicia a música se for a última
-      setLastSeek(0);
-      setIsPlaying(true);
+      // Se for a última, para ou volta ao início
+      setIsPlaying(false);
+      setProgress(0);
     }
-  }, [currentTrack, searchResults, likedTracks]);
+  }, [currentTrack, activeQueue]);
 
   const playPrevious = useCallback(() => {
-    let list = searchResults.length > 0 ? searchResults : likedTracks;
-    const idx = list.findIndex(t => t.id === currentTrack?.id);
-    if (idx > 0) setCurrentTrack(list[idx - 1]);
-  }, [currentTrack, searchResults, likedTracks]);
+    if (activeQueue.length === 0) return;
+    const currentIndex = activeQueue.findIndex(t => t.id === currentTrack?.id);
+    if (currentIndex > 0) {
+      setCurrentTrack(activeQueue[currentIndex - 1]);
+    }
+  }, [currentTrack, activeQueue]);
 
   const toggleLike = async (track: Track) => {
     if (!user) return;
     const isLiked = likedTracks.some(t => t.id === track.id);
     if (isLiked) {
-      await supabase.from('liked_tracks').delete().eq('user_id', user.id).filter('track_data->>id', 'eq', track.id);
       setLikedTracks(prev => prev.filter(t => t.id !== track.id));
+      await supabase.from('liked_tracks').delete().eq('user_id', user.id).filter('track_data->>id', 'eq', track.id);
     } else {
-      await supabase.from('liked_tracks').insert({ user_id: user.id, track_data: track });
       setLikedTracks(prev => [...prev, track]);
+      await supabase.from('liked_tracks').insert({ user_id: user.id, track_data: track });
     }
   };
 
   const createPlaylist = async (name: string) => {
     if (!user) return;
-    const { data } = await supabase.from('playlists').insert({ user_id: user.id, name, tracks_json: [] }).select().single();
-    if (data) setPlaylists(prev => [...prev, { id: data.id, name: data.name, tracks: [] }]);
+    const { data, error } = await supabase.from('playlists').insert({ user_id: user.id, name, tracks_json: [] }).select().single();
+    if (!error && data) setPlaylists(prev => [...prev, { id: data.id, name: data.name, tracks: [] }]);
   };
 
   const addTrackToPlaylist = async (pId: string, track: Track) => {
@@ -154,37 +151,19 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user, isAdmin, setIsAdmin, logs, addLog, perfMetrics,
     currentTrack, setCurrentTrack, isPlaying, setIsPlaying,
-    progress, setProgress, duration, setDuration, seekTo, lastSeek,
+    progress, setProgress, duration, setDuration,
     isExpanded, setIsExpanded, themeColor, setThemeColor,
     bgMode, setBgMode, likedTracks, playlists, searchResults, setSearchResults,
-    toggleLike, createPlaylist, addTrackToPlaylist, playNext, playPrevious
+    toggleLike, createPlaylist, addTrackToPlaylist, playNext, playPrevious,
+    activeQueue, setActiveQueue
   };
 
-  if (authLoading) return (
-    <div className="h-screen bg-black flex items-center justify-center">
-      <Loader2 className="animate-spin text-white opacity-20" size={32} />
-    </div>
-  );
+  if (authLoading) return <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-white opacity-20" size={32} /></div>;
 
   return (
     <XalanifyContext.Provider value={value}>
       {!user ? <Auth /> : (
         <div className={`h-screen text-white overflow-hidden relative transition-colors duration-1000 ${bgMode === 'pure' ? 'bg-black' : 'bg-[#050505]'}`}>
-          {bgMode === 'vivid' && (
-            <div className="fixed inset-0 opacity-20 blur-[120px] pointer-events-none"
-              style={{ background: `radial-gradient(circle at 50% 50%, ${themeColor}, transparent)` }} />
-          )}
-          {bgMode === 'gradient' && (
-            <div className="fixed inset-0 opacity-10 pointer-events-none"
-              style={{ background: `linear-gradient(180deg, ${themeColor} 0%, black 100%)` }} />
-          )}
-          {bgMode === 'animated' && (
-            <div className="fixed inset-0 opacity-15 pointer-events-none overflow-hidden">
-               <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] animate-[spin_20s_linear_infinite]"
-                 style={{ background: `conic-gradient(from 0deg, transparent, ${themeColor}, transparent, ${themeColor}, transparent)` }} />
-               <div className="absolute inset-0 backdrop-blur-[100px]" />
-            </div>
-          )}
           <div className="relative z-10 h-full overflow-hidden flex flex-col">{children}</div>
         </div>
       )}
