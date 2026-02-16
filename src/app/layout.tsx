@@ -7,7 +7,13 @@ import ExpandedPlayer from "@/components/ExpandedPlayer";
 
 export const metadata: Metadata = {
   title: "Xalanify",
-  description: "Music App Premium",
+  description: "Xalana Music Experience",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Xalanify",
+  },
 };
 
 export const viewport: Viewport = {
@@ -23,11 +29,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+        {/* Link para o ícone que enviaste (deve estar em public/XALANIFY.png) */}
+        <link rel="apple-touch-icon" href="/XALANIFY.png" />
+        <link rel="shortcut icon" href="/XALANIFY.png" />
       </head>
-      <body className="bg-black text-white antialiased overflow-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <body className="bg-black text-white antialiased overflow-hidden font-jakarta">
         <XalanifyProvider>
           <main className="h-screen overflow-y-auto custom-scroll pb-40">
             {children}

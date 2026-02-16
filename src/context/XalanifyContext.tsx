@@ -11,38 +11,24 @@ export interface Track {
 export interface Playlist { id: string; name: string; tracks: Track[]; }
 
 interface XalanifyContextType {
-  user: User | null;
-  isAdmin: boolean;
-  setIsAdmin: (v: boolean) => void;
-  logs: string[];
-  addLog: (m: string) => void;
-  currentTrack: Track | null;
-  setCurrentTrack: (t: Track | null) => void;
-  isPlaying: boolean;
-  setIsPlaying: (p: boolean) => void;
-  progress: number;
-  setProgress: (v: number) => void;
-  duration: number;
-  setDuration: (v: number) => void;
-  isExpanded: boolean;
-  setIsExpanded: (v: boolean) => void;
-  themeColor: string;
-  setThemeColor: (c: string) => void;
-  bgMode: 'vivid' | 'pure' | 'gradient' | 'animated';
-  setBgMode: (m: 'vivid' | 'pure' | 'gradient' | 'animated') => void;
-  likedTracks: Track[];
-  playlists: Playlist[];
-  searchResults: Track[];
-  setSearchResults: (t: Track[]) => void;
+  user: User | null; isAdmin: boolean; setIsAdmin: (v: boolean) => void;
+  logs: string[]; addLog: (m: string) => void;
+  currentTrack: Track | null; setCurrentTrack: (t: Track | null) => void;
+  isPlaying: boolean; setIsPlaying: (p: boolean) => void;
+  progress: number; setProgress: (v: number) => void;
+  duration: number; setDuration: (v: number) => void;
+  isExpanded: boolean; setIsExpanded: (v: boolean) => void;
+  themeColor: string; setThemeColor: (c: string) => void;
+  bgMode: 'vivid' | 'pure' | 'gradient' | 'animated'; setBgMode: (m: any) => void;
+  likedTracks: Track[]; playlists: Playlist[];
+  searchResults: Track[]; setSearchResults: (t: Track[]) => void;
   toggleLike: (t: Track) => Promise<void>;
   createPlaylist: (name: string) => Promise<void>;
   deletePlaylist: (id: string) => Promise<void>;
   addTrackToPlaylist: (pId: string, track: Track) => Promise<void>;
   removeTrackFromPlaylist: (pId: string, trackId: string) => Promise<void>;
-  playNext: () => void;
-  playPrevious: () => void;
-  activeQueue: Track[];
-  setActiveQueue: (t: Track[]) => void;
+  playNext: () => void; playPrevious: () => void;
+  activeQueue: Track[]; setActiveQueue: (t: Track[]) => void;
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
@@ -66,14 +52,20 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
 
   const addLog = (m: string) => setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${m}`, ...prev].slice(0, 50));
 
+  // Função otimizada para troca de faixa
   const setCurrentTrack = (track: Track | null) => {
-    setIsPlaying(false);
+    setIsPlaying(false); // Pausa antes de trocar
     setProgress(0);
-    setCurrentTrackState(null); 
+    setCurrentTrackState(null); // Limpa o ID
+    
+    // O delay de 300ms permite que o ReactPlayer anterior seja desmontado
     setTimeout(() => {
       setCurrentTrackState(track);
-      if (track) setIsPlaying(true);
-    }, 250);
+      if (track) {
+        setIsPlaying(true);
+        addLog(`Reproduzir: ${track.title}`);
+      }
+    }, 300);
   };
 
   useEffect(() => {
@@ -103,6 +95,8 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     const currentIndex = activeQueue.findIndex(t => t.id === currentTrack?.id);
     if (currentIndex !== -1 && currentIndex < activeQueue.length - 1) {
       setCurrentTrack(activeQueue[currentIndex + 1]);
+    } else {
+      setIsPlaying(false); // Fim da fila
     }
   }, [currentTrack, activeQueue]);
 
@@ -116,25 +110,18 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const isLiked = likedTracks.some(t => t.id === track.id);
     const username = user.user_metadata?.user_name || "adminx";
-
     if (isLiked) {
       setLikedTracks(prev => prev.filter(t => t.id !== track.id));
       await supabase.from('liked_tracks').delete().eq('user_id', user.id).filter('track_data->>id', 'eq', track.id);
     } else {
       setLikedTracks(prev => [...prev, track]);
-      await supabase.from('liked_tracks').insert([{ 
-        user_id: user.id, 
-        username: username,
-        track_id: track.id,
-        track_data: track 
-      }]);
+      await supabase.from('liked_tracks').insert([{ user_id: user.id, username, track_id: track.id, track_data: track }]);
     }
   };
 
   const createPlaylist = async (name: string) => {
     if (!user) return;
-    const username = user.user_metadata?.user_name || "adminx";
-    const { data, error } = await supabase.from('playlists').insert([{ user_id: user.id, name, tracks_json: [], username }]).select().single();
+    const { data, error } = await supabase.from('playlists').insert([{ user_id: user.id, name, tracks_json: [], username: "adminx" }]).select().single();
     if (!error && data) setPlaylists(prev => [...prev, { id: data.id, name: data.name, tracks: [] }]);
   };
 
@@ -176,12 +163,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       {!user ? <Auth /> : (
         <div className={`h-screen text-white overflow-hidden relative transition-colors duration-1000 ${bgMode === 'pure' ? 'bg-black' : 'bg-[#050505]'}`}>
            {bgMode === 'vivid' && <div className="fixed inset-0 opacity-20 blur-[120px] pointer-events-none" style={{ background: `radial-gradient(circle at 50% 50%, ${themeColor}, transparent)` }} />}
-           <div className="fixed top-2 left-0 right-0 z-[1000] flex justify-center pointer-events-none">
-             <span className="bg-red-600/20 text-red-500 text-[8px] font-black uppercase tracking-[0.4em] px-4 py-1 rounded-full border border-red-500/20 backdrop-blur-md">
-                v0.53.3 Beta - Em Desenvolvimento
-             </span>
-          </div>
-          <div className="relative z-10 h-full overflow-hidden flex flex-col">{children}</div>
+           <div className="relative z-10 h-full overflow-hidden flex flex-col">{children}</div>
         </div>
       )}
     </XalanifyContext.Provider>
