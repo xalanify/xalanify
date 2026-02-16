@@ -13,12 +13,12 @@ export default function Player() {
 
   const playerRef = useRef<ReactPlayer>(null);
 
-  // Escutar eventos globais para seek (vindo do ExpandedPlayer)
+  // Listener para seek do ExpandedPlayer
   useEffect(() => {
     const handleGlobalSeek = (e: any) => {
-        if (e.detail?.percent !== undefined) {
-            playerRef.current?.seekTo(e.detail.percent / 100, 'fraction');
-        }
+      if (e.detail?.percent !== undefined) {
+        playerRef.current?.seekTo(e.detail.percent / 100, 'fraction');
+      }
     };
     window.addEventListener('playerSeek', handleGlobalSeek);
     return () => window.removeEventListener('playerSeek', handleGlobalSeek);
@@ -26,60 +26,61 @@ export default function Player() {
 
   if (!currentTrack) return null;
 
-  const handleProgress = (state: { played: number, playedSeconds: number }) => {
-    setProgress(state.played * 100);
-  };
-
-  const onSeekLocal = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percent = x / rect.width;
-    playerRef.current?.seekTo(percent, 'fraction');
-  };
-
   return (
     <div className="fixed bottom-24 left-4 right-4 z-[90] animate-in slide-in-from-bottom-10 duration-500">
+      {/* Ponto 2: O key={currentTrack.id} força o player a reiniciar totalmente o buffer de som */}
       <div className="hidden">
         <ReactPlayer
+          key={currentTrack.id}
           ref={playerRef}
           url={`https://www.youtube.com/watch?v=${currentTrack.youtubeId}`}
           playing={isPlaying}
-          onProgress={handleProgress}
+          onProgress={(s) => setProgress(s.played * 100)}
           onDuration={(d) => setDuration(d)}
-          onEnded={() => playNext()}
+          onEnded={playNext}
           config={{ youtube: { playerVars: { autoplay: 1, controls: 0 } } }}
         />
       </div>
 
-      <div className="glass rounded-[2.5rem] p-4 flex items-center gap-4 shadow-2xl relative overflow-hidden border border-white/5 group">
-        <div className="absolute inset-0 opacity-10 blur-3xl -z-10" style={{ backgroundColor: themeColor }} />
-
+      {/* Ponto 3: Cor sólida gradiente conforme o tema */}
+      <div 
+        className="rounded-[2.5rem] p-4 flex items-center gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden border border-white/10"
+        style={{ 
+          background: `linear-gradient(135deg, ${themeColor} 0%, #111 100%)`,
+        }}
+      >
         <div onClick={() => setIsExpanded(true)} className="flex items-center gap-4 flex-1 cursor-pointer">
-          <img src={currentTrack.thumbnail} className="w-12 h-12 rounded-2xl object-cover shadow-lg" alt="" />
+          <img src={currentTrack.thumbnail} className="w-12 h-12 rounded-2xl object-cover shadow-lg border border-white/10" alt="" />
           <div className="flex-1 overflow-hidden">
-            <h4 className="font-bold text-sm truncate tracking-tight">{currentTrack.title}</h4>
-            <p className="text-[10px] font-black opacity-40 uppercase tracking-widest truncate">{currentTrack.artist}</p>
+            <h4 className="font-bold text-sm truncate tracking-tight text-white">{currentTrack.title}</h4>
+            <p className="text-[10px] font-black opacity-60 uppercase tracking-widest truncate text-white">{currentTrack.artist}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button onClick={playPrevious} className="p-2 opacity-40 hover:opacity-100 transition-all"><SkipBack size={20} fill="white" /></button>
-          <button 
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 shadow-xl"
-            style={{ backgroundColor: themeColor }}
-          >
-            {isPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" className="ml-1" />}
+        <div className="flex items-center gap-1">
+          <button onClick={(e) => { e.stopPropagation(); playPrevious(); }} className="p-2 hover:scale-110 transition-all active:scale-90 text-white">
+            <SkipBack size={20} fill="white" />
           </button>
-          <button onClick={playNext} className="p-2 opacity-40 hover:opacity-100 transition-all"><SkipForward size={20} fill="white" /></button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }}
+            className="w-12 h-12 rounded-full flex items-center justify-center bg-white shadow-xl active:scale-90 transition-all"
+          >
+            {isPlaying ? <Pause size={22} className="text-black" fill="black" /> : <Play size={22} className="text-black ml-1" fill="black" />}
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); playNext(); }} className="p-2 hover:scale-110 transition-all active:scale-90 text-white">
+            <SkipForward size={20} fill="white" />
+          </button>
         </div>
 
-        {/* Barra de Progresso no Mini Player */}
         <div 
-          onClick={onSeekLocal}
-          className="absolute bottom-0 left-0 right-0 h-1 bg-white/5 cursor-pointer"
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            playerRef.current?.seekTo(x / rect.width, 'fraction');
+          }}
+          className="absolute bottom-0 left-0 right-0 h-1 bg-black/20 cursor-pointer"
         >
-          <div className="h-full transition-all duration-150" style={{ width: `${progress}%`, backgroundColor: themeColor }} />
+          <div className="h-full bg-white/40" style={{ width: `${progress}%` }} />
         </div>
       </div>
     </div>
