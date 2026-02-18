@@ -1,58 +1,107 @@
 "use client";
 import { useState } from "react";
-import { Search as SearchIcon, Loader2 } from "lucide-react";
-import { searchMusic, getYoutubeId } from "@/lib/musicApi";
-import { useXalanify, Track } from "@/context/XalanifyContext";
+import { Search, Loader2, Play, Globe, Music } from "lucide-react";
+import { useXalanify } from "@/context/XalanifyContext";
+import { searchMusic, getYoutubeId } from "@/lib/musicApi"; 
+import TrackOptions from "@/components/TrackOptions";
 
 export default function SearchPage() {
+  const { searchResults, setSearchResults, themeColor, setCurrentTrack, setIsPlaying, addLog } = useXalanify();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const { setSearchResults, searchResults, setCurrentTrack, themeColor, setActiveQueue } = useXalanify();
+  const [fetchingId, setFetchingId] = useState<string | null>(null);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    setLoading(true);
+  const performSearch = async (q: string) => {
+    if (!q.trim()) return;
+    setLoading(true); setQuery(q);
     try {
-      const results = await searchMusic(query);
-      setSearchResults(results);
-    } catch (error) { console.error(error); } finally { setLoading(false); }
+      addLog(`Searching: ${q}`);
+      const data = await searchMusic(q);
+      setSearchResults(data);
+    } catch (e) { addLog("Search API Error"); }
+    finally { setLoading(false); }
   };
 
-  const playTrack = async (track: Track) => {
-    const ytId = await getYoutubeId(track.title, track.artist);
-    if (ytId) {
-      const updatedTrack = { ...track, youtubeId: ytId };
-      setActiveQueue([updatedTrack]);
-      setCurrentTrack(updatedTrack);
+  const play = async (track: any) => {
+    if (fetchingId) return;
+    setFetchingId(track.id);
+    addLog(`Fetching Audio: ${track.title}`);
+    
+    try {
+      const ytId = await getYoutubeId(track.title, track.artist);
+      if (ytId) {
+        // Primeiro definimos a música, o useEffect no Player tratará do resto
+        setCurrentTrack({ ...track, youtubeId: ytId });
+        setIsPlaying(true); 
+        addLog("Reproduzindo...");
+      } else {
+        alert("Não foi possível encontrar o áudio desta música.");
+      }
+    } catch (error) {
+      addLog("Erro ao carregar áudio");
+    } finally {
+      setFetchingId(null);
     }
   };
 
   return (
-    <div className="p-8 pb-40 animate-app-entry font-jakarta">
-      <h1 className="text-5xl font-black mb-8 tracking-tighter italic">Explorar</h1>
-      <form onSubmit={handleSearch} className="relative mb-10">
-        <input
-          type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-          placeholder="Pesquisar..."
-          className="w-full bg-white/5 border border-white/10 p-6 rounded-[2.5rem] pl-14 outline-none focus:ring-2 transition-all font-bold"
-          style={{ '--tw-ring-color': themeColor } as any}
+    <div className="p-8 pb-40 animate-in fade-in duration-500">
+      <h1 className="text-5xl font-black italic tracking-tighter mb-8">Search</h1>
+      
+      <form onSubmit={(e) => { e.preventDefault(); performSearch(query); }} className="relative mb-10">
+        <input 
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Artistas, músicas ou álbuns..."
+          className="w-full glass p-6 rounded-[2.5rem] outline-none text-sm font-bold border border-white/5 focus:border-white/20 transition-all"
         />
-        <SearchIcon className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20" size={20} />
-        {loading && <Loader2 className="absolute right-6 top-1/2 -translate-y-1/2 animate-spin" size={20} style={{ color: themeColor }} />}
+        <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center">
+          {loading ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />}
+        </button>
       </form>
 
-      <div className="space-y-3">
-        {searchResults.map((track) => (
-          <div key={track.id} onClick={() => playTrack(track)} className="glass p-3 rounded-[2rem] flex items-center gap-4 border border-white/5 active:scale-95 transition-all">
-            <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover" alt="" />
-            <div className="flex-1 overflow-hidden">
-              <p className="font-bold truncate text-sm">{track.title}</p>
-              <p className="text-[10px] font-black opacity-40 uppercase tracking-widest truncate">{track.artist}</p>
-            </div>
+      {searchResults.length > 0 ? (
+        <section className="space-y-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 ml-2">Resultados</p>
+          <div className="grid gap-3">
+            {searchResults.map((track) => (
+              <div key={track.id} className="flex items-center gap-3 group">
+                <div 
+                  onClick={() => play(track)} 
+                  className="flex-1 flex items-center gap-4 glass p-3 rounded-[2rem] hover:bg-white/5 cursor-pointer border border-white/5 transition-all active:scale-[0.98]"
+                >
+                  <div className="relative">
+                    <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-xl" />
+                    {fetchingId === track.id && (
+                      <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
+                        <Loader2 className="animate-spin text-white" size={20} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <p className="font-bold text-sm truncate">{track.title}</p>
+                    <p className="text-[10px] opacity-40 font-black uppercase">{track.artist}</p>
+                  </div>
+                </div>
+                <TrackOptions track={track} />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </section>
+      ) : (
+        <section>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 mb-6 ml-2">Explorar Gêneros</p>
+          <div className="grid grid-cols-2 gap-4">
+            {["Rap FR", "GIMS Mix", "Top Global", "Phonk"].map(p => (
+              <div key={p} onClick={() => performSearch(p)} className="glass p-6 rounded-[2.5rem] hover:scale-105 transition-all cursor-pointer border border-white/5">
+                <Globe size={24} style={{color: themeColor}} className="mb-4" />
+                <p className="font-black text-xs uppercase italic truncate">{p}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
