@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Search, Loader2, Play, Globe, Music } from "lucide-react";
+import { Search, Loader2, Globe } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
 import { searchMusic, getYoutubeId } from "@/lib/musicApi"; 
 import TrackOptions from "@/components/TrackOptions";
@@ -30,12 +30,11 @@ export default function SearchPage() {
     try {
       const ytId = await getYoutubeId(track.title, track.artist);
       if (ytId) {
-        // Primeiro definimos a música, o useEffect no Player tratará do resto
         setCurrentTrack({ ...track, youtubeId: ytId });
         setIsPlaying(true); 
         addLog("Reproduzindo...");
       } else {
-        alert("Não foi possível encontrar o áudio desta música.");
+        alert("Não foi possível encontrar o áudio.");
       }
     } catch (error) {
       addLog("Erro ao carregar áudio");
@@ -72,7 +71,7 @@ export default function SearchPage() {
                   className="flex-1 flex items-center gap-4 glass p-3 rounded-[2rem] hover:bg-white/5 cursor-pointer border border-white/5 transition-all active:scale-[0.98]"
                 >
                   <div className="relative">
-                    <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-xl" />
+                    <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-xl" alt="" />
                     {fetchingId === track.id && (
                       <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
                         <Loader2 className="animate-spin text-white" size={20} />
@@ -91,7 +90,6 @@ export default function SearchPage() {
         </section>
       ) : (
         <section>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 mb-6 ml-2">Explorar Gêneros</p>
           <div className="grid grid-cols-2 gap-4">
             {["Rap FR", "GIMS Mix", "Top Global", "Phonk"].map(p => (
               <div key={p} onClick={() => performSearch(p)} className="glass p-6 rounded-[2.5rem] hover:scale-105 transition-all cursor-pointer border border-white/5">

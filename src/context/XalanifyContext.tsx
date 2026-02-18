@@ -39,9 +39,13 @@ interface XalanifyContextType {
   toggleLike: (t: Track) => void;
   playlists: Playlist[];
   createPlaylist: (n: string) => Promise<void>;
+  deletePlaylist: (id: string) => Promise<void>;
   addTrackToPlaylist: (playlistId: string, track: Track) => Promise<void>;
+  removeTrackFromPlaylist: (playlistId: string, trackId: string) => Promise<void>;
   searchResults: Track[];
   setSearchResults: (t: Track[]) => void;
+  activeQueue: Track[];
+  setActiveQueue: (tracks: Track[]) => void;
   playNext: () => void;
   playPrevious: () => void;
   logout: () => void;
@@ -60,6 +64,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [activeQueue, setActiveQueue] = useState<Track[]>([]);
   
   const [themeColor, setThemeColor] = useState("#a855f7");
   const [bgMode, setBgMode] = useState<'vivid' | 'pure' | 'gradient'>('vivid');
@@ -117,6 +122,15 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const deletePlaylist = async (id: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('playlists').delete().eq('id', id).eq('user_id', user.id);
+    if (!error) {
+      setPlaylists(p => p.filter(x => x.id !== id));
+      addLog("Playlist removida.");
+    }
+  };
+
   const addTrackToPlaylist = async (playlistId: string, track: Track) => {
     const pl = playlists.find(p => p.id === playlistId);
     if (!pl || !user) return;
@@ -125,6 +139,17 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     if (!error) {
       setPlaylists(p => p.map(x => x.id === playlistId ? { ...x, tracks: updated } : x));
       addLog("Música adicionada à playlist.");
+    }
+  };
+
+  const removeTrackFromPlaylist = async (playlistId: string, trackId: string) => {
+    const pl = playlists.find(p => p.id === playlistId);
+    if (!pl || !user) return;
+    const updated = pl.tracks.filter(t => t.id !== trackId);
+    const { error } = await supabase.from('playlists').update({ tracks_json: updated }).eq('id', playlistId).eq('user_id', user.id);
+    if (!error) {
+      setPlaylists(p => p.map(x => x.id === playlistId ? { ...x, tracks: updated } : x));
+      addLog("Música removida da playlist.");
     }
   };
 
@@ -143,17 +168,15 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const playNext = async () => {
-    // Tenta encontrar na lista de pesquisa ou na playlist atual
-    const currentList = searchResults.length > 0 ? searchResults : likedTracks;
+    const currentList = activeQueue.length > 0 ? activeQueue : (searchResults.length > 0 ? searchResults : likedTracks);
     const idx = currentList.findIndex(t => t.id === currentTrack?.id);
     
     if (idx !== -1 && idx < currentList.length - 1) {
       const nextTrack = currentList[idx+1];
-      setIsPlaying(false); // Para antes de carregar o próximo
+      setIsPlaying(false);
       const ytId = await getYoutubeId(nextTrack.title, nextTrack.artist);
       setCurrentTrack({ ...nextTrack, youtubeId: ytId });
       setIsPlaying(true);
-      addLog(`Próxima: ${nextTrack.title}`);
     }
   };
 
@@ -164,7 +187,8 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       user, isAdmin, logs, addLog, perfMetrics, currentTrack, setCurrentTrack, isPlaying, setIsPlaying,
       progress, setProgress, duration, setDuration, isExpanded, setIsExpanded,
       themeColor, setThemeColor, bgMode, setBgMode, glassIntensity, setGlassIntensity,
-      likedTracks, toggleLike, playlists, createPlaylist, addTrackToPlaylist, searchResults, setSearchResults,
+      likedTracks, toggleLike, playlists, createPlaylist, deletePlaylist, addTrackToPlaylist, 
+      removeTrackFromPlaylist, searchResults, setSearchResults, activeQueue, setActiveQueue,
       playNext, playPrevious: () => {}, logout: () => supabase.auth.signOut()
     }}>
       {loading ? (
@@ -196,16 +220,16 @@ function AdminHUD() {
   const [show, setShow] = useState(false);
   return (
     <div className="fixed top-6 right-6 z-[1000]">
-      <button onClick={() => setShow(!show)} className="w-10 h-10 glass rounded-full flex items-center justify-center border border-white/10">
+      <button onClick={() => setShow(!show)} className="w-10 h-10 glass rounded-full flex items-center justify-center border border-white/10 shadow-2xl">
         <Activity size={16} style={{color: themeColor}} />
       </button>
       {show && (
         <div className="absolute top-12 right-0 w-64 glass p-4 rounded-[2rem] animate-in zoom-in-95">
           <div className="flex gap-2 mb-3">
-            <div className="flex-1 bg-white/5 p-2 rounded-xl text-[8px] font-mono text-zinc-400 text-center">RAM: {perfMetrics.memory}</div>
-            <div className="flex-1 bg-white/5 p-2 rounded-xl text-[8px] font-mono text-zinc-400 text-center">PING: {perfMetrics.latency}ms</div>
+            <div className="flex-1 bg-white/5 p-2 rounded-xl text-[8px] font-mono text-center">RAM: {perfMetrics.memory}</div>
+            <div className="flex-1 bg-white/5 p-2 rounded-xl text-[8px] font-mono text-center">PING: {perfMetrics.latency}ms</div>
           </div>
-          <div className="max-h-32 overflow-y-auto space-y-1 custom-scroll">
+          <div className="max-h-24 overflow-y-auto space-y-1 custom-scroll">
             {logs.map((l, i) => <p key={i} className="text-[7px] font-mono opacity-40 leading-tight">{l}</p>)}
           </div>
         </div>
