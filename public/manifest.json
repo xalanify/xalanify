@@ -1,6 +1,6 @@
 {
-  "name": "Musify",
-  "short_name": "Musify",
+  "name": "Xalanify",
+  "short_name": "Xalanify",
   "description": "Your music, everywhere.",
   "start_url": "/",
   "display": "standalone",

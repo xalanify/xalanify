@@ -43,7 +43,7 @@ export default function LibraryTab() {
       getPlaylists(user.id),
       getLikedTracks(user.id),
     ])
-    setPlaylists(pl)
+    setPlaylists(pl.map((playlist: any) => ({ ...playlist, tracks: Array.isArray(playlist.tracks) ? playlist.tracks : [] })))
     setLikedTracks(lt)
   }, [user])
 

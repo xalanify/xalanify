@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Search, Settings, Home, Music } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Search, Settings, Music } from "lucide-react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { PlayerProvider } from "@/lib/player-context"
 import LoginScreen from "@/components/login-screen"
@@ -14,21 +14,33 @@ import AudioEngine from "@/components/audio-engine"
 import TrackMenu from "@/components/track-menu"
 import type { Track } from "@/lib/player-context"
 
-function MusifyApp() {
+function SplashScreen() {
+  return (
+    <div
+      className="flex min-h-dvh flex-col items-center justify-center gap-4"
+      style={{ background: "linear-gradient(180deg, #2a0e0e 0%, #0a0404 100%)" }}
+    >
+      <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#e63946] border-t-transparent" />
+      <h1 className="text-3xl font-bold tracking-tight text-[#f0e0d0]">Xalanify</h1>
+      <p className="text-xs tracking-[0.2em] text-[#a08070]">EM DESENVOLVIMENTO</p>
+    </div>
+  )
+}
+
+function XalanifyApp() {
   const { user, loading } = useAuth()
   const [activeTab, setActiveTab] = useState<"search" | "library" | "settings">("search")
   const [showFullPlayer, setShowFullPlayer] = useState(false)
   const [menuTrack, setMenuTrack] = useState<Track | null>(null)
+  const [showSplash, setShowSplash] = useState(true)
 
-  if (loading) {
-    return (
-      <div
-        className="flex min-h-dvh items-center justify-center"
-        style={{ background: "linear-gradient(180deg, #2a0e0e 0%, #0a0404 100%)" }}
-      >
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#e63946] border-t-transparent" />
-      </div>
-    )
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 2500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (showSplash || loading) {
+    return <SplashScreen />
   }
 
   if (!user) {
@@ -55,57 +67,48 @@ function MusifyApp() {
 
   return (
     <div
-      className="flex min-h-dvh flex-col safe-top"
+      className="relative flex h-dvh flex-col overflow-hidden safe-top"
       style={{ background: "linear-gradient(180deg, #2a0e0e 0%, #0a0404 100%)" }}
     >
-      {/* Audio engine (hidden) */}
       <AudioEngine />
 
-      {/* Content area */}
-      <div className="flex flex-1 flex-col overflow-hidden pt-4">
+      <div className="flex-1 overflow-hidden px-0 pb-[152px] pt-4">
         {activeTab === "search" && <SearchTab onTrackMenu={setMenuTrack} />}
         {activeTab === "library" && <LibraryTab />}
         {activeTab === "settings" && <SettingsTab />}
       </div>
 
-      {/* Mini Player */}
-      <MiniPlayer onExpand={() => setShowFullPlayer(true)} />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-3 pb-3 safe-bottom">
+        <div className="pointer-events-auto">
+          <MiniPlayer onExpand={() => setShowFullPlayer(true)} />
+        </div>
 
-      {/* Bottom Navigation */}
-      <nav className="glass-card-strong mx-3 mb-3 flex items-center justify-around rounded-2xl px-2 py-2.5 safe-bottom">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className="flex flex-col items-center gap-1 px-4 py-1 transition-colors"
-              aria-label={tab.label}
-            >
-              <tab.icon
-                className="h-5 w-5"
-                style={{ color: isActive ? "#e63946" : "#605040" }}
-              />
-              <span
-                className="text-[10px] font-semibold tracking-wider"
-                style={{ color: isActive ? "#e63946" : "#605040" }}
+        <nav className="glass-card-strong mt-2 flex items-center justify-around rounded-2xl px-2 py-2.5">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="flex flex-col items-center gap-1 px-4 py-1 transition-colors"
+                aria-label={tab.label}
               >
-                {tab.label}
-              </span>
-            </button>
-          )
-        })}
-      </nav>
+                <tab.icon className="h-5 w-5" style={{ color: isActive ? "#e63946" : "#605040" }} />
+                <span
+                  className="text-[10px] font-semibold tracking-wider"
+                  style={{ color: isActive ? "#e63946" : "#605040" }}
+                >
+                  {tab.label}
+                </span>
+              </button>
+            )
+          })}
+        </nav>
+      </div>
 
-      {/* Full Player Overlay */}
-      {showFullPlayer && (
-        <FullPlayer onClose={() => setShowFullPlayer(false)} />
-      )}
+      {showFullPlayer && <FullPlayer onClose={() => setShowFullPlayer(false)} />}
 
-      {/* Track Context Menu */}
-      {menuTrack && (
-        <TrackMenu track={menuTrack} onClose={() => setMenuTrack(null)} />
-      )}
+      {menuTrack && <TrackMenu track={menuTrack} onClose={() => setMenuTrack(null)} />}
     </div>
   )
 }
@@ -114,7 +117,7 @@ export default function Page() {
   return (
     <AuthProvider>
       <PlayerProvider>
-        <MusifyApp />
+        <XalanifyApp />
       </PlayerProvider>
     </AuthProvider>
   )

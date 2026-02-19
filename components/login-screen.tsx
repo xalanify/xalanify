@@ -37,8 +37,8 @@ export default function LoginScreen() {
         >
           <Music className="h-8 w-8 text-[#fff]" />
         </div>
-        <h1 className="text-3xl font-bold tracking-tight text-[#f0e0d0]">Musify</h1>
-        <p className="text-sm text-[#a08070]">A tua musica, em todo o lado.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-[#f0e0d0]">Xalanify</h1>
+        <p className="text-sm text-[#a08070]">A tua música, em todo o lado.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">

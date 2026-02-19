@@ -1,11 +1,9 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Search, MoreHorizontal, Heart, Plus } from "lucide-react"
+import { Search, MoreHorizontal } from "lucide-react"
 import { searchMusic } from "@/lib/musicApi"
 import { usePlayer, type Track } from "@/lib/player-context"
-import { useAuth } from "@/lib/auth-context"
-import { addLikedTrack, addTrackToPlaylist, getPlaylists } from "@/lib/supabase"
 
 interface SearchTabProps {
   onTrackMenu?: (track: Track) => void
