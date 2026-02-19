@@ -1,0 +1,140 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.12 0.02 20);
+  --foreground: oklch(0.93 0.01 60);
+  --card: oklch(0.18 0.015 20);
+  --card-foreground: oklch(0.93 0.01 60);
+  --popover: oklch(0.15 0.02 20);
+  --popover-foreground: oklch(0.93 0.01 60);
+  --primary: oklch(0.6 0.2 25);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.22 0.015 20);
+  --secondary-foreground: oklch(0.85 0.01 60);
+  --muted: oklch(0.25 0.01 20);
+  --muted-foreground: oklch(0.6 0.01 60);
+  --accent: oklch(0.6 0.2 25);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.3 0.015 20);
+  --input: oklch(0.25 0.015 20);
+  --ring: oklch(0.6 0.2 25);
+  --radius: 0.75rem;
+
+  --musify-red: oklch(0.6 0.22 25);
+  --musify-dark: oklch(0.1 0.02 20);
+  --musify-card: oklch(0.2 0.015 20);
+  --musify-card-border: oklch(0.32 0.02 20);
+  --musify-gradient-start: oklch(0.2 0.06 20);
+  --musify-gradient-end: oklch(0.08 0.01 20);
+}
+
+@theme inline {
+  --font-sans: 'Inter', 'Geist', sans-serif;
+  --font-mono: 'Geist Mono', monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-musify-red: var(--musify-red);
+  --color-musify-dark: var(--musify-dark);
+  --color-musify-card: var(--musify-card);
+  --color-musify-card-border: var(--musify-card-border);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* PWA / App-like styles */
+html, body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  background: linear-gradient(180deg, var(--musify-gradient-start) 0%, var(--musify-gradient-end) 100%);
+  min-height: 100dvh;
+}
+
+/* Hide scrollbar but allow scroll */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Glass card effect matching the screenshots */
+.glass-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-card-strong {
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* Standalone PWA safe areas */
+@supports (padding: env(safe-area-inset-top)) {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Custom range slider for player */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+}
