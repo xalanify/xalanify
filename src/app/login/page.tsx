@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Mail, Loader2 } from "lucide-react";
+import { Mail, Loader2, Sparkles } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -21,27 +21,38 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-sm space-y-8 text-center">
-        <h1 className="text-6xl font-black italic tracking-tighter">Xalanify</h1>
+    <div className="min-h-screen bg-[#050a18] flex items-center justify-center p-6 relative overflow-hidden">
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/20 blur-[120px] rounded-full" />
+      
+      <div className="w-full max-w-sm space-y-10 text-center relative z-10">
+        <div className="space-y-2">
+          <div className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-white/10 shadow-2xl">
+            <Sparkles className="text-blue-500" size={40} />
+          </div>
+          <h1 className="text-6xl font-black italic tracking-tighter">Xalanify</h1>
+          <p className="text-white/40 font-medium">O teu ecossistema musical premium.</p>
+        </div>
+
         {sent ? (
-          <p className="text-zinc-400 font-bold">Verifica o teu email para entrar!</p>
+          <div className="glass p-8 rounded-[3rem] border-white/10 animate-in zoom-in">
+            <p className="text-blue-400 font-black text-xl mb-2">Email Enviado!</p>
+            <p className="text-zinc-400 text-sm">Verifica a tua caixa de entrada para acederes à tua conta.</p>
+          </div>
         ) : (
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="relative">
+            <div className="relative group">
               <input 
-                type="email" placeholder="Teu email..." 
-                className="w-full bg-zinc-900 border border-white/10 p-5 rounded-3xl outline-none"
+                type="email" placeholder="Introduz o teu email..." 
+                className="w-full bg-white/5 border border-white/10 p-6 rounded-[2rem] outline-none focus:bg-white/10 focus:border-blue-500/50 transition-all text-center font-bold"
                 value={email} onChange={e => setEmail(e.target.value)} required
               />
-              <Mail className="absolute right-5 top-1/2 -translate-y-1/2 text-zinc-600" />
+              <Mail className="absolute right-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-blue-500 transition-colors" />
             </div>
             <button 
               disabled={loading}
-              className="w-full py-5 bg-white text-black rounded-3xl font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="w-full py-6 bg-white text-black rounded-[2rem] font-black uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-3 shadow-2xl"
             >
-              {loading && <Loader2 className="animate-spin" size={18} />}
-              Entrar com Magic Link
+              {loading ? <Loader2 className="animate-spin" size={20} /> : "Entrar Agora"}
             </button>
           </form>
         )}
