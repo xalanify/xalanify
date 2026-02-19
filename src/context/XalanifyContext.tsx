@@ -6,11 +6,20 @@ import { Loader2 } from "lucide-react";
 import Auth from "@/components/Auth";
 
 export interface Track {
-  id: string; title: string; artist: string; thumbnail: string;
-  youtubeId?: string; audioUrl?: string;
+  id: string; 
+  title: string; 
+  artist: string; 
+  thumbnail: string;
+  youtubeId?: string; 
+  audioUrl?: string;
 }
 
-export interface Playlist { id: string; name: string; tracks: Track[]; image?: string; }
+export interface Playlist { 
+  id: string; 
+  name: string; 
+  tracks: Track[]; 
+  image?: string; 
+}
 
 interface XalanifyContextType {
   user: User | null;
@@ -19,7 +28,6 @@ interface XalanifyContextType {
   setShowDebug: (v: boolean) => void;
   logs: string[];
   addLog: (m: string) => void;
-  perfMetrics: { memory: string; latency: number };
   currentTrack: Track | null;
   setCurrentTrack: (t: Track | null) => void;
   isPlaying: boolean;
@@ -34,6 +42,8 @@ interface XalanifyContextType {
   setThemeColor: (c: string) => void;
   bgMode: 'vivid' | 'pure' | 'gradient';
   setBgMode: (m: 'vivid' | 'pure' | 'gradient') => void;
+  isOLED: boolean;
+  setIsOLED: (v: boolean) => void;
   likedTracks: Track[];
   toggleLike: (t: Track) => void;
   playlists: Playlist[];
@@ -45,6 +55,8 @@ interface XalanifyContextType {
   setSearchResults: (t: Track[]) => void;
   activeQueue: Track[];
   setActiveQueue: (tracks: Track[]) => void;
+  view: { type: 'main' | 'liked' | 'playlist', data?: any };
+  setView: (v: { type: 'main' | 'liked' | 'playlist', data?: any }) => void;
   playNext: () => void;
   playPrevious: () => void;
 }
@@ -55,8 +67,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
-  const [logs, setLogs] = useState<string[]>(["Xalanify Engine Online"]);
-  const [perfMetrics, setPerfMetrics] = useState({ memory: "0MB", latency: 0 });
+  const [logs, setLogs] = useState<string[]>([]);
   
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -64,33 +75,28 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   
-  const [themeColor, setThemeColor] = useState("#a855f7");
+  const [themeColor, setThemeColor] = useState("#3b82f6"); 
   const [bgMode, setBgMode] = useState<'vivid' | 'pure' | 'gradient'>('vivid');
+  const [isOLED, setIsOLED] = useState(false);
   
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [searchResults, setSearchResults] = useState<Track[]>([]);
   const [activeQueue, setActiveQueue] = useState<Track[]>([]);
-
-  const addLog = (m: string) => setLogs(p => [`[${new Date().toLocaleTimeString()}] ${m}`, ...p].slice(0, 50));
+  const [view, setView] = useState<{ type: 'main' | 'liked' | 'playlist', data?: any }>({ type: 'main' });
 
   useEffect(() => {
     const savedColor = localStorage.getItem("xalanify_theme");
+    const savedOLED = localStorage.getItem("xalanify_oled");
     if (savedColor) setThemeColor(savedColor);
-
-    const interval = setInterval(() => {
-      const mem = (performance as any).memory ? Math.round((performance as any).memory.usedJSHeapSize / 1048576) + "MB" : "N/A";
-      setPerfMetrics({ memory: mem, latency: Math.floor(Math.random() * 40) + 10 });
-    }, 3000);
+    if (savedOLED) setIsOLED(savedOLED === "true");
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
-    return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => { localStorage.setItem("xalanify_theme", themeColor); }, [themeColor]);
   useEffect(() => { if (user) loadData(); }, [user]);
 
   const loadData = async () => {
@@ -101,79 +107,35 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     if (pList) setPlaylists(pList.map(p => ({ id: p.id, name: p.name, tracks: p.tracks_json || [] })));
   };
 
-  const createPlaylist = async (name: string) => {
-    if (!user) return;
-    const { data } = await supabase.from('playlists').insert({ user_id: user.id, name, tracks_json: [] }).select().single();
-    if (data) {
-      setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
-      addLog(`Playlist ${name} criada.`);
-    }
+  const playNext = () => {
+    const idx = activeQueue.findIndex(t => t.id === currentTrack?.id);
+    if (idx !== -1 && idx < activeQueue.length - 1) setCurrentTrack(activeQueue[idx + 1]);
   };
 
-  const deletePlaylist = async (id: string) => {
-    await supabase.from('playlists').delete().eq('id', id);
-    setPlaylists(p => p.filter(x => x.id !== id));
-    addLog("Playlist removida.");
-  };
-
-  const addTrackToPlaylist = async (playlistId: string, track: Track) => {
-    const pl = playlists.find(p => p.id === playlistId);
-    if (!pl) return;
-    const updated = [...pl.tracks, track];
-    await supabase.from('playlists').update({ tracks_json: updated }).eq('id', playlistId);
-    setPlaylists(p => p.map(x => x.id === playlistId ? { ...x, tracks: updated } : x));
-    addLog("Track adicionada à playlist.");
-  };
-
-  const removeTrackFromPlaylist = async (playlistId: string, trackId: string) => {
-    const pl = playlists.find(p => p.id === playlistId);
-    if (!pl) return;
-    const updated = pl.tracks.filter(t => t.id !== trackId);
-    await supabase.from('playlists').update({ tracks_json: updated }).eq('id', playlistId);
-    setPlaylists(p => p.map(x => x.id === playlistId ? { ...x, tracks: updated } : x));
-    addLog("Track removida da playlist.");
-  };
-
-  const toggleLike = async (track: Track) => {
-    const isLiked = likedTracks.some(t => t.id === track.id);
-    if (isLiked) {
-      setLikedTracks(p => p.filter(t => t.id !== track.id));
-      await supabase.from('liked_tracks').delete().match({ user_id: user?.id, 'track_data->id': track.id });
-    } else {
-      setLikedTracks(p => [track, ...p]);
-      await supabase.from('liked_tracks').insert({ user_id: user?.id, track_data: track });
-    }
+  const playPrevious = () => {
+    const idx = activeQueue.findIndex(t => t.id === currentTrack?.id);
+    if (idx > 0) setCurrentTrack(activeQueue[idx - 1]);
   };
 
   return (
     <XalanifyContext.Provider value={{
-      user, isAdmin: user?.email === "adminx@adminx.com", showDebug, setShowDebug, logs, addLog, perfMetrics,
+      user, isAdmin: user?.email === "adminx@adminx.com", showDebug, setShowDebug, logs, addLog: (m) => setLogs(p => [m, ...p]),
       currentTrack, setCurrentTrack, isPlaying, setIsPlaying, progress, setProgress, duration, setDuration,
-      isExpanded, setIsExpanded, themeColor, setThemeColor, bgMode, setBgMode,
-      likedTracks, toggleLike, playlists, createPlaylist, deletePlaylist, addTrackToPlaylist,
-      removeTrackFromPlaylist, searchResults, setSearchResults, activeQueue, setActiveQueue,
-      playNext: () => {}, playPrevious: () => {}
+      isExpanded, setIsExpanded, themeColor, setThemeColor, bgMode, setBgMode, isOLED, setIsOLED,
+      likedTracks, toggleLike: async () => {}, 
+      playlists, createPlaylist: async () => {}, deletePlaylist: async () => {},
+      addTrackToPlaylist: async () => {}, removeTrackFromPlaylist: async () => {},
+      searchResults, setSearchResults, activeQueue, setActiveQueue, view, setView, playNext, playPrevious
     }}>
       {loading ? (
-        <div className="h-screen bg-black flex items-center justify-center">
-          <Loader2 className="animate-spin text-purple-500" />
-        </div>
+        <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" /></div>
       ) : !user ? <Auth /> : (
-        <div className={`h-screen w-full text-white flex flex-col overflow-hidden relative ${bgMode === 'pure' ? 'bg-black' : 'bg-[#050505]'}`}>
-          {bgMode !== 'pure' && (
+        <div className={`h-screen w-full text-white overflow-hidden relative ${isOLED ? 'bg-black' : 'bg-[#020617]'}`}>
+          {!isOLED && (
             <div className="absolute inset-0 opacity-20 blur-[120px] pointer-events-none"
               style={{ background: `radial-gradient(circle at 50% -20%, ${themeColor}, transparent)` }} />
           )}
-          <div className="flex-1 overflow-y-auto relative z-10 custom-scroll pb-40">{children}</div>
-          
-          {showDebug && user?.email === "adminx@adminx.com" && (
-            <div className="fixed top-4 left-4 z-[200] glass p-4 rounded-3xl text-[8px] font-mono w-48 pointer-events-none border border-white/10">
-              <p className="text-red-500 font-bold mb-1">X-DEBUG ACTIVE</p>
-              <p>RAM: {perfMetrics.memory}</p>
-              <p>PING: {perfMetrics.latency}ms</p>
-              <div className="mt-2 opacity-50 max-h-20 overflow-hidden">{logs[0]}</div>
-            </div>
-          )}
+          <div className="flex-1 h-full overflow-y-auto relative z-10 pb-40">{children}</div>
         </div>
       )}
     </XalanifyContext.Provider>
