@@ -1,10 +1,9 @@
-// src/app/search/page.tsx
-
 "use client";
+import React from "react";
 import { Search, Loader2, Play, Heart } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
 import TrackOptionsMenu from "@/components/TrackOptions";
-    import { searchMusic } from "@/lib/musicApi";
+import { getYoutubeId } from "@/lib/musicApi";
 
 export default function SearchPage() {
   const {
@@ -13,13 +12,11 @@ export default function SearchPage() {
     searchResults,
     searchSpotify,
     isSearching,
-    currentTrack,
     setCurrentTrack,
     setIsPlaying,
     setActiveQueue,
     likedTracks,
     toggleLike,
-    audioRef,
     themeColor
   } = useXalanify();
 
@@ -31,16 +28,24 @@ export default function SearchPage() {
   };
 
   const handlePlayTrack = async (track: typeof searchResults[0]) => {
-    // Obter audio do YouTube
-    const trackWithAudio = await searchMusic(track);
-    
-    setCurrentTrack(trackWithAudio);
-    setActiveQueue(searchResults);
-    setIsPlaying(true);
-    
-    if (audioRef.current && trackWithAudio.audioUrl) {
-      audioRef.current.src = trackWithAudio.audioUrl;
-      audioRef.current.play();
+    try {
+      // 1. Obter o ID do YouTube
+      const yId = await getYoutubeId(track.title, track.artist);
+      
+      // 2. Criar o objeto compatível com o tipo 'Track'
+      // Usamos 'undefined' em vez de 'null' para satisfazer o TypeScript
+      const trackWithAudio = { 
+        ...track, 
+        youtubeId: yId || undefined,
+        audioUrl: yId ? `https://www.youtube.com/watch?v=${yId}` : undefined
+      };
+      
+      // 3. Atualizar o estado global (Contexto)
+      setCurrentTrack(trackWithAudio);
+      setActiveQueue(searchResults);
+      setIsPlaying(true);
+    } catch (error) {
+      console.error("Erro ao reproduzir faixa:", error);
     }
   };
 
@@ -48,7 +53,6 @@ export default function SearchPage() {
     <div className="flex-1 bg-gradient-to-br from-[#2a1a2a] to-[#1a0f1a] rounded-3xl p-6 border border-white/10 flex flex-col overflow-hidden">
       <h1 className="text-4xl font-black mb-6">Procurar</h1>
 
-      {/* Search Input */}
       <form onSubmit={handleSearch} className="mb-6">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={20} />
@@ -62,7 +66,6 @@ export default function SearchPage() {
         </div>
       </form>
 
-      {/* Results */}
       <div className="flex-1 overflow-y-auto custom-scroll space-y-3">
         {isSearching ? (
           <div className="flex items-center justify-center h-40">

@@ -35,6 +35,7 @@ export async function searchMusic(query: string) {
       title: item.name,
       artist: item.artists[0].name,
       thumbnail: item.album.images[0]?.url || "",
+      duration: item.duration_ms / 1000,
       youtubeId: null,
     })) || [];
   } catch (error) {
