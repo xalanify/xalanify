@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react"
 import { getYoutubeId } from "./musicApi"
 
 export interface Track {
@@ -76,6 +76,37 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       playerRef.current.seekTo(fraction, "fraction")
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
+
+    if (!currentTrack) {
+      navigator.mediaSession.metadata = null
+      return
+    }
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentTrack.title,
+      artist: currentTrack.artist,
+      album: "Xalanify",
+      artwork: [
+        { src: currentTrack.thumbnail, sizes: "96x96", type: "image/png" },
+        { src: currentTrack.thumbnail, sizes: "128x128", type: "image/png" },
+        { src: currentTrack.thumbnail, sizes: "192x192", type: "image/png" },
+        { src: currentTrack.thumbnail, sizes: "256x256", type: "image/png" },
+      ],
+    })
+
+    navigator.mediaSession.setActionHandler("play", () => setIsPlaying(true))
+    navigator.mediaSession.setActionHandler("pause", () => setIsPlaying(false))
+    navigator.mediaSession.setActionHandler("nexttrack", () => next())
+    navigator.mediaSession.setActionHandler("previoustrack", () => previous())
+  }, [currentTrack, next, previous])
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused"
+  }, [isPlaying])
 
   return (
     <PlayerContext.Provider

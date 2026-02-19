@@ -17,10 +17,13 @@ import {
   Plus,
   FlaskConical,
   Wand2,
+  Send,
+  UserRound,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { addLikedTrack, addTrackToPlaylist, createPlaylist } from "@/lib/supabase"
+import { addLikedTrack, addTrackToPlaylist, createPlaylist, getPlaylists } from "@/lib/supabase"
 import { searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
+import type { Track } from "@/lib/player-context"
 
 interface Preferences {
   accentColor: string
@@ -30,6 +33,12 @@ interface Preferences {
   animateBackground: boolean
   themeMode: "dark" | "puredark" | "light"
   surfaceEffect: "glass" | "solid" | "neon"
+}
+
+interface UserPlaylist {
+  id: string
+  name: string
+  tracks: Track[]
 }
 
 const DEFAULT_PREFERENCES: Preferences = {
@@ -52,6 +61,7 @@ type SettingsView =
   | "tools"
   | "playlist_tests"
   | "experiments"
+  | "share_tests"
 
 const DEMO_TEST_TRACKS = [
   {
@@ -90,6 +100,12 @@ export default function SettingsTab() {
   const [addingPlaylistId, setAddingPlaylistId] = useState<string | null>(null)
   const [experimentMessage, setExperimentMessage] = useState("")
 
+  const [myPlaylists, setMyPlaylists] = useState<UserPlaylist[]>([])
+  const [targetUserId, setTargetUserId] = useState("")
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState("")
+  const [sharing, setSharing] = useState(false)
+  const [shareMessage, setShareMessage] = useState("")
+
   const isAdmin = user?.email === "adminx@adminx.com"
 
   useEffect(() => {
@@ -108,6 +124,17 @@ export default function SettingsTab() {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(preferences))
     window.dispatchEvent(new Event("xalanify-preferences-changed"))
   }, [preferences])
+
+  useEffect(() => {
+    if (!user || !isAdmin) return
+    getPlaylists(user.id).then((lists: any) => {
+      setMyPlaylists((lists || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        tracks: Array.isArray(item.tracks) ? item.tracks : [],
+      })))
+    })
+  }, [user, isAdmin, activeView])
 
   const initials = useMemo(() => {
     if (!user?.email) return "X"
@@ -163,6 +190,37 @@ export default function SettingsTab() {
     setExperimentMessage("A inserir favorito de teste...")
     await addLikedTrack(user.id, DEMO_TEST_TRACKS[0])
     setExperimentMessage("Favorito de teste inserido.")
+  }
+
+  async function handleSharePlaylistToUser() {
+    if (!targetUserId.trim() || !selectedPlaylistId) {
+      setShareMessage("Preenche o User ID de destino e escolhe uma playlist.")
+      return
+    }
+
+    const chosen = myPlaylists.find((p) => p.id === selectedPlaylistId)
+    if (!chosen) {
+      setShareMessage("Playlist não encontrada.")
+      return
+    }
+
+    setSharing(true)
+    setShareMessage("A enviar playlist para o utilizador...")
+
+    const created = await createPlaylist(targetUserId.trim(), `Partilhado · ${chosen.name}`)
+
+    if (!created?.id) {
+      setShareMessage("Falhou ao criar playlist no utilizador de destino. Verifica as políticas RLS/admin.")
+      setSharing(false)
+      return
+    }
+
+    for (const track of chosen.tracks) {
+      await addTrackToPlaylist(created.id, track)
+    }
+
+    setShareMessage("Playlist partilhada com sucesso para o utilizador de destino.")
+    setSharing(false)
   }
 
   if (activeView === "profile") {
@@ -232,6 +290,17 @@ export default function SettingsTab() {
           </button>
 
           <button
+            onClick={() => setActiveView("share_tests")}
+            className="glass-card-strong flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-left"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(230,57,70,0.2)]">
+              <Send className="h-5 w-5 text-[#e63946]" />
+            </div>
+            <span className="flex-1 text-sm font-medium text-[#f0e0d0]">Partilha de playlist/música para outro user</span>
+            <ChevronRight className="h-5 w-5 text-[#504030]" />
+          </button>
+
+          <button
             onClick={() => setActiveView("experiments")}
             className="glass-card-strong flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-left"
           >
@@ -247,6 +316,50 @@ export default function SettingsTab() {
             <p className="text-xs text-[#a08070]">Esta secção só aparece para adminx@adminx.com para testar ideias futuras.</p>
           </div>
         </div>
+      </div>
+    )
+  }
+
+  if (activeView === "share_tests") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
+        <button onClick={() => setActiveView("tools")} className="mb-4 flex items-center gap-2 text-[#a08070]">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-[#f0e0d0]"><UserRound className="h-5 w-5" /> Partilha de teste (Admin)</h2>
+
+        <div className="space-y-3">
+          <input
+            value={targetUserId}
+            onChange={(e) => setTargetUserId(e.target.value)}
+            placeholder="User ID de destino (auth uid)"
+            className="glass-card w-full rounded-xl px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
+          />
+
+          <select
+            value={selectedPlaylistId}
+            onChange={(e) => setSelectedPlaylistId(e.target.value)}
+            className="glass-card w-full rounded-xl px-4 py-3 text-sm text-[#f0e0d0] focus:outline-none"
+          >
+            <option value="">Seleciona uma playlist tua</option>
+            {myPlaylists.map((pl) => (
+              <option key={pl.id} value={pl.id}>{pl.name} ({pl.tracks.length} faixas)</option>
+            ))}
+          </select>
+
+          <button
+            onClick={handleSharePlaylistToUser}
+            disabled={sharing}
+            className="w-full rounded-xl py-3 text-sm font-semibold text-[#fff] disabled:opacity-40"
+            style={{ background: "linear-gradient(135deg, #e63946 0%, #c1121f 100%)" }}
+          >
+            {sharing ? "A partilhar..." : "Partilhar playlist para outro user"}
+          </button>
+        </div>
+
+        <p className="mt-3 text-xs text-[#a08070]">{shareMessage || "Define o user id de destino e escolhe uma playlist para replicar no outro utilizador."}</p>
       </div>
     )
   }
