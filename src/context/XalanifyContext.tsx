@@ -28,8 +28,6 @@ interface XalanifyContextType {
   setProgress: (v: number) => void;
   duration: number;
   setDuration: (v: number) => void;
-  isExpanded: boolean;
-  setIsExpanded: (v: boolean) => void;
   themeColor: string;
   setThemeColor: (c: string) => void;
   bgMode: 'vivid' | 'pure' | 'gradient';
@@ -46,7 +44,6 @@ interface XalanifyContextType {
   activeQueue: Track[];
   setActiveQueue: (tracks: Track[]) => void;
   playNext: () => void;
-  playPrevious: () => void;
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
@@ -62,16 +59,13 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [activeQueue, setActiveQueue] = useState<Track[]>([]);
-  
-  // Persistência da cor
   const [themeColor, setThemeColor] = useState("#a855f7");
   const [bgMode, setBgMode] = useState<'vivid' | 'pure' | 'gradient'>('vivid');
   
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [searchResults, setSearchResults] = useState<Track[]>([]);
+  const [activeQueue, setActiveQueue] = useState<Track[]>([]);
 
   const addLog = (m: string) => setLogs(p => [`[${new Date().toLocaleTimeString()}] ${m}`, ...p].slice(0, 50));
 
@@ -94,7 +88,6 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem("xalanify_theme", themeColor);
-    document.documentElement.style.setProperty('--theme-color', themeColor);
   }, [themeColor]);
 
   useEffect(() => { if (user) loadData(); }, [user]);
@@ -145,16 +138,14 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const playNext = () => { /* Lógica de fila */ };
-
   return (
     <XalanifyContext.Provider value={{
       user, isAdmin: user?.email === "adminx@adminx.com", showDebug, setShowDebug, logs, addLog, perfMetrics,
       currentTrack, setCurrentTrack, isPlaying, setIsPlaying, progress, setProgress, duration, setDuration,
-      isExpanded, setIsExpanded, themeColor, setThemeColor, bgMode, setBgMode,
+      themeColor, setThemeColor, bgMode, setBgMode,
       likedTracks, toggleLike, playlists, createPlaylist, deletePlaylist, addTrackToPlaylist,
       removeTrackFromPlaylist, searchResults, setSearchResults, activeQueue, setActiveQueue,
-      playNext, playPrevious: () => {}
+      playNext: () => {}
     }}>
       {loading ? (
         <div className="h-screen bg-black flex items-center justify-center">
