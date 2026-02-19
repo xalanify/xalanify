@@ -1,65 +1,54 @@
 "use client";
-import { Search, Plus, Heart, MoreVertical, ChevronRight } from "lucide-react";
+import { Search, Plus, Heart, MoreVertical, ChevronRight, Music2 } from "lucide-react";
 import { useXalanify, Track } from "@/context/XalanifyContext";
 
 export default function LibraryPage() {
-  // ADICIONADO 'user' E 'view' NA DESESTRUTURAÇÃO
   const { 
-    user,
-    view, 
-    setView, 
-    playlists, 
-    likedTracks, 
-    createPlaylist, 
-    setCurrentTrack, 
-    setIsPlaying, 
-    setActiveQueue 
+    user, view, setView, playlists, likedTracks, 
+    createPlaylist, setCurrentTrack, setIsPlaying, setActiveQueue 
   } = useXalanify();
 
-  // 1. VISTA DE CONTEÚDO (Playlist Aberta ou Favoritos)
+  // VISTA DE CONTEÚDO (Playlist ou Favoritos)
   if (view.type !== 'main') {
     const isLikedView = view.type === 'liked';
     const tracks = isLikedView ? likedTracks : (playlists.find(p => p.id === view.data?.id)?.tracks || []);
-    const title = isLikedView ? 'Favoritas' : view.data?.name;
+    const title = isLikedView ? 'Músicas Favoritas' : view.data?.name;
 
     return (
-      <div className="p-6 pt-12 pb-32 animate-in fade-in">
+      <div className="p-6 pt-12 pb-40 animate-in slide-in-from-right duration-500">
         <button 
           onClick={() => setView({ type: 'main' })} 
-          className="mb-8 opacity-40 font-black text-[10px] tracking-[0.2em] uppercase flex items-center gap-1 hover:opacity-100 transition-opacity"
+          className="mb-8 w-10 h-10 glass rounded-full flex items-center justify-center hover:bg-white/10 transition-all"
         >
-           <ChevronRight className="rotate-180" size={14} /> Voltar
+           <ChevronRight className="rotate-180" size={20} />
         </button>
         
-        <h1 className="text-5xl font-black italic tracking-tighter mb-10 text-white leading-tight">
-          {title}
-        </h1>
+        <div className="mb-10">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-500 mb-2">Playlist</p>
+            <h1 className="text-5xl font-black italic tracking-tighter text-white leading-tight">
+              {title}
+            </h1>
+        </div>
         
-        <div className="space-y-4">
+        <div className="space-y-3">
           {tracks.length === 0 ? (
-             <div className="glass p-10 rounded-[2.5rem] text-center border border-white/5">
-                <p className="opacity-30 italic text-sm">Nenhuma música encontrada aqui.</p>
+             <div className="glass p-16 rounded-[3rem] text-center border border-white/5 bg-white/[0.02]">
+                <Music2 className="mx-auto mb-4 opacity-10" size={48} />
+                <p className="opacity-30 italic text-sm font-medium">Esta lista está vazia.</p>
              </div>
           ) : (
              tracks.map((t: Track) => (
-              <div 
-                key={t.id} 
-                className="flex items-center gap-5 glass p-4 rounded-[2.5rem] border border-white/5 hover:bg-white/5 transition-colors group"
-              >
+              <div key={t.id} className="flex items-center gap-5 glass p-3 rounded-[2rem] border border-white/5 hover:bg-white/10 transition-all group">
                 <img 
                   src={t.thumbnail} 
-                  className="w-16 h-16 rounded-[1.5rem] object-cover shadow-lg cursor-pointer active:scale-95 transition-transform" 
-                  onClick={() => { 
-                    setCurrentTrack(t); 
-                    setIsPlaying(true); 
-                    setActiveQueue(tracks); 
-                  }} 
+                  className="w-14 h-14 rounded-[1.2rem] object-cover shadow-lg cursor-pointer active:scale-90 transition-transform" 
+                  onClick={() => { setCurrentTrack(t); setIsPlaying(true); setActiveQueue(tracks); }} 
                 />
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm text-white truncate italic">{t.title}</p>
-                  <p className="text-[10px] opacity-40 uppercase font-black tracking-widest text-gray-300 truncate">{t.artist}</p>
+                  <p className="text-[10px] opacity-40 uppercase font-black tracking-widest mt-0.5">{t.artist}</p>
                 </div>
-                <button className="p-2 text-gray-600 hover:text-white"><MoreVertical size={20} /></button>
+                <button className="p-3 text-white/20 hover:text-white transition-colors"><MoreVertical size={18} /></button>
               </div>
             ))
           )}
@@ -68,98 +57,84 @@ export default function LibraryPage() {
     );
   }
 
-  // 2. VISTA PRINCIPAL DA BIBLIOTECA
+  // VISTA PRINCIPAL
   return (
-    <div className="p-6 pt-12 space-y-8 animate-in fade-in pb-32">
-      {/* Header com Avatar Real */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-4xl font-black tracking-tight text-white">Biblioteca</h1>
-        <div className="w-10 h-10 rounded-full bg-blue-600 border-2 border-white/20 overflow-hidden flex items-center justify-center text-[10px] font-black italic">
-             {user?.email?.substring(0, 2).toUpperCase()}
+    <div className="p-6 pt-12 space-y-8 animate-in fade-in pb-40">
+      <div className="flex justify-between items-center px-2">
+        <h1 className="text-4xl font-black tracking-tighter italic text-white">Biblioteca</h1>
+        <div className="w-12 h-12 rounded-[1.2rem] bg-gradient-to-tr from-blue-600 to-indigo-400 border border-white/20 flex items-center justify-center text-xs font-black shadow-xl">
+             {user?.email?.substring(0, 2).toUpperCase() || "X"}
         </div>
       </div>
 
-      {/* Barra de Pesquisa */}
-      <div className="relative group">
-        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30" size={20} />
+      <div className="relative group mx-2">
+        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20" size={18} />
         <input 
             type="text" 
             placeholder="Procurar na biblioteca" 
-            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-4 text-sm text-white focus:outline-none focus:bg-white/10 transition-all font-medium"
+            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-4 text-sm focus:bg-white/10 outline-none transition-all"
         />
       </div>
 
-      {/* Botão Criar Playlist */}
       <button 
         onClick={() => {
-            const name = prompt("Qual o nome da nova playlist?");
+            const name = prompt("Nome da playlist:");
             if (name) createPlaylist(name);
         }}
-        className="w-full py-4 bg-blue-600 rounded-2xl flex items-center justify-center gap-2 font-bold text-white shadow-lg shadow-blue-900/30 active:scale-[0.98] transition-all"
+        className="mx-2 py-4 bg-white text-black rounded-2xl flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
       >
-        <div className="bg-white/20 rounded-full p-1"><Plus size={16} className="text-white" /></div>
-        Criar Playlist
+        <Plus size={16} /> Criar Nova Playlist
       </button>
 
-      {/* Card de Favoritos */}
       <div 
         onClick={() => setView({ type: 'liked' })}
-        className="bg-[#0f172a] p-6 rounded-[2.5rem] flex items-center justify-between cursor-pointer active:scale-[0.98] transition-all border border-white/5 relative overflow-hidden group"
+        className="mx-2 bg-gradient-to-br from-blue-600 to-indigo-900 p-8 rounded-[2.5rem] flex items-center justify-between cursor-pointer active:scale-95 transition-all shadow-2xl relative overflow-hidden group"
       >
-        <div className="absolute left-[-20px] bottom-[-20px] w-32 h-32 bg-blue-600/20 blur-[60px] rounded-full pointer-events-none" />
-        
-        <div className="flex items-center gap-5 relative z-10">
-            <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+        <div className="absolute right-[-20px] top-[-20px] w-40 h-40 bg-white/10 blur-[50px] rounded-full" />
+        <div className="flex items-center gap-6 relative z-10">
+            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-inner">
                 <Heart fill="white" className="text-white" size={28} />
             </div>
             <div>
-                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Privado</p>
-                <h2 className="text-xl font-bold text-white leading-none mb-1">Músicas<br/>Favoritas</h2>
-                <p className="text-xs text-gray-400 font-medium">{likedTracks.length} faixas</p>
+                <h2 className="text-2xl font-black text-white italic leading-tight">Músicas<br/>Favoritas</h2>
+                <p className="text-[10px] text-white/60 font-black uppercase tracking-widest mt-2">{likedTracks.length} FAIXAS</p>
             </div>
         </div>
-        <ChevronRight className="text-white/20 group-hover:text-white transition-colors" />
+        <ChevronRight className="text-white/40 group-hover:text-white transition-colors" />
       </div>
 
-      {/* Lista de Playlists vindas do Supabase */}
-      <div>
-        <div className="flex justify-between items-end mb-4 px-1">
-            <h3 className="font-bold text-lg text-white">As Tuas Playlists</h3>
-            <button className="text-xs text-blue-500 font-bold hover:text-blue-400">Ver todas</button>
+      <div className="px-2">
+        <div className="flex justify-between items-center mb-6">
+            <h3 className="font-black italic text-lg opacity-40">Coleções</h3>
+            <button className="text-[10px] font-black uppercase tracking-widest text-blue-500">Ver Tudo</button>
         </div>
 
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-4">
             {playlists.length === 0 ? (
-                <div className="text-center py-10 glass rounded-[2rem] border border-white/5 opacity-40">
-                  <p className="text-xs italic">Ainda não criaste nenhuma playlist.</p>
+                <div className="text-center py-10 glass rounded-[2rem] border border-white/5 opacity-20 italic text-xs">
+                  Ainda sem playlists criadas.
                 </div>
             ) : (
                 playlists.map((playlist) => (
                     <div 
                         key={playlist.id} 
                         onClick={() => setView({ type: 'playlist', data: playlist })}
-                        className="glass p-3 rounded-2xl flex items-center gap-4 hover:bg-white/5 transition-colors group cursor-pointer border border-white/5"
+                        className="glass p-3 rounded-[2rem] flex items-center gap-4 hover:bg-white/10 transition-all cursor-pointer border border-white/5 group"
                     >
-                        <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg overflow-hidden bg-zinc-800 border border-white/5">
-                            {playlist.tracks && playlist.tracks.length > 0 ? (
+                        <div className="w-16 h-16 rounded-[1.5rem] bg-zinc-900 overflow-hidden shadow-xl border border-white/5 flex-shrink-0">
+                            {playlist.tracks?.[0] ? (
                                 <img src={playlist.tracks[0].thumbnail} className="w-full h-full object-cover" alt="Cover" />
                             ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center">
-                                  <Plus className="opacity-20" size={16}/>
-                                </div>
+                                <div className="w-full h-full flex items-center justify-center opacity-20"><Plus size={20}/></div>
                             )}
                         </div>
-                        
                         <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-white truncate text-sm">{playlist.name}</h4>
-                            <p className="text-[10px] text-gray-500 truncate font-medium mt-0.5 uppercase tracking-tighter">
-                                {playlist.tracks?.length || 0} músicas • {user?.email === "adminadmin@admin.com" ? "Admin" : "Membro"}
+                            <h4 className="font-bold text-white truncate text-base italic">{playlist.name}</h4>
+                            <p className="text-[10px] text-white/30 truncate font-black uppercase tracking-tighter mt-1">
+                                {playlist.tracks?.length || 0} músicas • {user?.email === "adminadmin@admin.com" ? "Curadoria" : "Pessoal"}
                             </p>
                         </div>
-
-                        <button className="p-3 text-gray-600 hover:text-white transition-colors">
-                          <MoreVertical size={18} />
-                        </button>
+                        <ChevronRight size={16} className="text-white/10 mr-4 group-hover:text-white" />
                     </div>
                 ))
             )}

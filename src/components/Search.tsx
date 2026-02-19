@@ -1,107 +1,43 @@
+// src/app/search/page.tsx
 "use client";
-import { useState } from "react";
-import { Search as SearchIcon, Play, Loader2, Music } from "lucide-react";
-import { useXalanify } from "@/context/XalanifyContext";
-import { searchMusic, getYoutubeId } from "@/lib/musicApi"; 
-import TrackOptions from "./TrackOptions";
+import { Search as SearchIcon } from "lucide-react";
 
-export default function Search() {
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [isFetchingId, setIsFetchingId] = useState<string | null>(null);
-  
-  const { 
-    setSearchResults, 
-    searchResults,
-    setCurrentTrack, 
-    setIsPlaying, 
-    themeColor, 
-    currentTrack 
-  } = useXalanify();
+const CATEGORIES = [
+  { name: "Pop", color: "#e91429" },
+  { name: "Hip-Hop", color: "#bc59ff" },
+  { name: "Dance", color: "#1e3264" },
+  { name: "Rock", color: "#e8115b" },
+  { name: "Indie", color: "#608108" },
+  { name: "Relax", color: "#d84000" },
+];
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    setLoading(true);
-    const tracks = await searchMusic(query); 
-    setSearchResults(tracks);
-    setLoading(false);
-  };
-
-  const playTrack = async (track: any) => {
-    if (isFetchingId) return;
-    setIsFetchingId(track.id);
-    setIsPlaying(false);
-    
-    try {
-      // Busca sempre o ID do YouTube agora
-      const ytId = await getYoutubeId(track.title, track.artist);
-      if (ytId) {
-        setCurrentTrack({ ...track, youtubeId: ytId });
-        setTimeout(() => setIsPlaying(true), 400);
-      }
-    } catch (err) {
-      console.error("Erro ao obter áudio:", err);
-    } finally {
-      setIsFetchingId(null);
-    }
-  };
-
+export default function SearchPage() {
   return (
-    <div className="p-6 pb-40">
-      <h1 className="text-4xl font-black italic mb-6">Procurar</h1>
+    <div className="p-6 pt-12">
+      <h1 className="text-4xl font-black italic tracking-tighter mb-8">Procurar</h1>
       
-      <form onSubmit={handleSearch} className="relative mb-8">
+      <div className="relative mb-10">
         <input 
           type="text" 
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Artistas ou músicas..." 
-          className="w-full bg-zinc-900 border border-white/5 p-5 pl-14 rounded-[2rem] outline-none focus:border-white/20 transition-all font-bold text-sm"
+          placeholder="O que queres ouvir?" 
+          className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-[2rem] outline-none focus:border-white/20 transition-all font-bold italic"
         />
-        <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
-      </form>
+        <SearchIcon className="absolute left-6 top-1/2 -translate-y-1/2 opacity-30" size={20} />
+      </div>
 
-      <div className="space-y-3">
-        {loading ? (
-          <div className="flex flex-col items-center py-20 gap-4 opacity-20">
-            <Loader2 className="animate-spin" size={32} />
-            <p className="text-[10px] font-black uppercase tracking-widest">A procurar no arquivo...</p>
+      <h2 className="text-xs font-black uppercase tracking-[0.3em] opacity-40 mb-6">Categorias Populares</h2>
+      
+      <div className="grid grid-cols-2 gap-4">
+        {CATEGORIES.map((cat) => (
+          <div 
+            key={cat.name} 
+            style={{ backgroundColor: cat.color }}
+            className="h-28 rounded-[2rem] p-5 relative overflow-hidden group cursor-pointer active:scale-95 transition-all shadow-xl"
+          >
+            <span className="text-xl font-black italic tracking-tighter">{cat.name}</span>
+            <div className="absolute -right-2 -bottom-2 w-16 h-16 bg-black/20 blur-2xl group-hover:scale-150 transition-transform" />
           </div>
-        ) : searchResults.length > 0 ? (
-          searchResults.map((track) => (
-            <div 
-              key={track.id} 
-              className="flex items-center justify-between p-3 hover:bg-white/5 rounded-[2.2rem] transition-all group"
-            >
-              <div onClick={() => playTrack(track)} className="flex items-center gap-4 flex-1 cursor-pointer overflow-hidden">
-                <div className="relative flex-shrink-0">
-                  <img src={track.thumbnail} className="w-14 h-14 rounded-2xl object-cover shadow-lg" alt="" />
-                  {isFetchingId === track.id && (
-                    <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
-                      <Loader2 className="animate-spin text-white" size={20} />
-                    </div>
-                  )}
-                </div>
-                <div className="truncate">
-                  <p className="text-sm font-bold truncate" style={{ color: currentTrack?.id === track.id ? themeColor : 'white' }}>
-                    {track.title}
-                  </p>
-                  <p className="text-[10px] text-zinc-500 font-black uppercase tracking-tighter mt-0.5">{track.artist}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                 <TrackOptions track={track} />
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-center py-20 opacity-20">
-            <Music size={48} className="mx-auto mb-4" />
-            <p className="text-[10px] font-black uppercase tracking-[0.3em]">Explora a música</p>
-          </div>
-        )}
+        ))}
       </div>
     </div>
   );

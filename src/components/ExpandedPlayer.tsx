@@ -1,72 +1,104 @@
 "use client";
 import { useXalanify } from "@/context/XalanifyContext";
-import { ChevronDown, Play, Pause, SkipForward, SkipBack, Heart, Shuffle, Repeat } from "lucide-react";
+import { ChevronDown, Play, Pause, SkipForward, SkipBack, Heart, Shuffle, Repeat, MoreHorizontal } from "lucide-react";
 import TrackOptions from "./TrackOptions";
 
 export default function ExpandedPlayer() {
   const { 
     currentTrack, isPlaying, setIsPlaying, progress, 
     themeColor, setIsExpanded, isExpanded, toggleLike, likedTracks,
-    playNext, playPrevious
+    playNext, playPrevious, currentTime, duration, audioRef
   } = useXalanify();
 
   if (!isExpanded || !currentTrack) return null;
   const isLiked = likedTracks.some(t => t.id === currentTrack.id);
 
+  const formatTime = (time: number) => {
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = (Number(e.target.value) / 100) * duration;
+    if (audioRef.current) audioRef.current.currentTime = newTime;
+  };
+
   return (
-    <div className="fixed inset-0 z-[200] bg-black animate-in slide-in-from-bottom duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] overflow-hidden flex flex-col">
-      {/* Glow de fundo animado */}
-      <div className="absolute inset-0 opacity-40 blur-[120px] animate-pulse" 
-           style={{ background: `radial-gradient(circle at 50% 30%, ${themeColor}, transparent)` }} />
+    <div className="fixed inset-0 z-[200] bg-[#050a18] animate-in slide-in-from-bottom duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] overflow-hidden flex flex-col">
+      {/* Background Glow Dinâmico */}
+      <div 
+        className="absolute top-[-10%] left-[-10%] w-[120%] h-[60%] opacity-40 blur-[120px] transition-colors duration-1000" 
+        style={{ background: `radial-gradient(circle, ${themeColor} 0%, transparent 70%)` }} 
+      />
       
-      <div className="p-8 flex items-center justify-between relative z-10">
-        <button onClick={() => setIsExpanded(false)} className="w-12 h-12 glass rounded-full flex items-center justify-center active:scale-75 transition-transform">
+      <div className="p-8 pt-12 flex items-center justify-between relative z-10">
+        <button onClick={() => setIsExpanded(false)} className="w-12 h-12 glass rounded-full flex items-center justify-center active:scale-90 transition-all">
           <ChevronDown size={24} />
         </button>
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Xalanify Player</p>
+        <div className="text-center">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-30">A reproduzir</p>
+            <p className="text-xs font-bold italic mt-1">Xalanify Music</p>
+        </div>
         <TrackOptions track={currentTrack} />
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-8 gap-10 relative z-10">
-        {/* Capa com animação de escala */}
-        <div className={`w-full max-w-[340px] aspect-square transition-all duration-700 ${isPlaying ? 'scale-100' : 'scale-90 opacity-50'}`}>
-          <img src={currentTrack.thumbnail} className="w-full h-full rounded-[3.5rem] object-cover shadow-[0_40px_100px_rgba(0,0,0,0.8)] border border-white/10" alt="" />
+      <div className="flex-1 flex flex-col items-center justify-center px-8 relative z-10">
+        <div className="relative w-full aspect-square max-w-[340px] group">
+          <img 
+            src={currentTrack.thumbnail} 
+            className="w-full h-full rounded-[3rem] object-cover shadow-[0_40px_100px_rgba(0,0,0,0.6)] border border-white/10 group-hover:scale-[1.02] transition-transform duration-700" 
+            alt="Album Cover"
+          />
         </div>
-        
-        <div className="w-full max-w-[340px] animate-in fade-in slide-in-from-bottom-4 duration-1000">
-          <div className="flex flex-col items-center text-center mb-10">
-              <h2 className="text-3xl font-extrabold tracking-tight mb-2 line-clamp-1">{currentTrack.title}</h2>
-              <p className="text-lg font-bold opacity-40 tracking-tight">{currentTrack.artist}</p>
-          </div>
 
-          <div className="space-y-4">
-            <div 
-                onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    window.dispatchEvent(new CustomEvent('playerSeek', { detail: { percent: ((e.clientX - rect.left)/rect.width)*100 } }));
-                }}
-                className="h-2 w-full bg-white/10 rounded-full cursor-pointer relative group"
-            >
-              <div className="h-full transition-all duration-300 rounded-full" style={{ width: `${progress}%`, backgroundColor: themeColor }}>
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full scale-0 group-hover:scale-100 transition-transform shadow-lg" />
-              </div>
+        <div className="w-full mt-12 text-left">
+          <h2 className="text-3xl font-black italic tracking-tighter text-white leading-tight">{currentTrack.title}</h2>
+          <p className="text-lg opacity-40 font-bold uppercase tracking-tighter mt-2 text-blue-400">{currentTrack.artist}</p>
+        </div>
+
+        <div className="w-full mt-10 space-y-4">
+          <div className="relative w-full h-2 group">
+            <input 
+              type="range" 
+              value={progress || 0}
+              onChange={handleSeek}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+            />
+            <div className="h-full w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <div 
+                  className="h-full transition-all duration-300 rounded-full" 
+                  style={{ width: `${progress}%`, backgroundColor: themeColor, boxShadow: `0 0 15px ${themeColor}` }} 
+                />
             </div>
           </div>
-
-          <div className="flex items-center justify-between mt-12">
-            <button onClick={() => toggleLike(currentTrack)} className="active:scale-75 transition-all">
-              <Heart size={26} style={{ color: isLiked ? themeColor : 'white' }} fill={isLiked ? themeColor : 'none'} />
-            </button>
-            <div className="flex items-center gap-6">
-              <button onClick={playPrevious} className="active:scale-75 transition-transform"><SkipBack size={34} fill="white" /></button>
-              <button onClick={() => setIsPlaying(!isPlaying)} className="w-20 h-20 rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-all bg-white">
-                {isPlaying ? <Pause size={32} className="text-black" fill="black" /> : <Play size={32} className="text-black ml-1" fill="black" />}
-              </button>
-              <button onClick={playNext} className="active:scale-75 transition-transform"><SkipForward size={34} fill="white" /></button>
-            </div>
-            <Shuffle size={20} className="opacity-20" />
+          <div className="flex justify-between text-[10px] font-black opacity-30 tracking-widest uppercase">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
           </div>
         </div>
+
+        <div className="w-full flex items-center justify-between mt-10">
+            <button className="text-white/20 hover:text-white"><Shuffle size={20} /></button>
+            <div className="flex items-center gap-8">
+                <button onClick={playPrevious} className="text-white active:scale-75 transition-transform"><SkipBack size={32} fill="currentColor" /></button>
+                <button 
+                  onClick={() => setIsPlaying(!isPlaying)} 
+                  className="w-24 h-24 rounded-full bg-white flex items-center justify-center shadow-2xl active:scale-90 transition-all"
+                >
+                  {isPlaying ? <Pause size={38} fill="black" className="text-black" /> : <Play size={38} fill="black" className="text-black ml-2" />}
+                </button>
+                <button onClick={playNext} className="text-white active:scale-75 transition-transform"><SkipForward size={32} fill="currentColor" /></button>
+            </div>
+            <button className="text-white/20 hover:text-white"><Repeat size={20} /></button>
+        </div>
+      </div>
+      
+      <div className="p-10 flex justify-center relative z-10">
+         <button onClick={() => toggleLike(currentTrack)} className="flex items-center gap-3 glass px-8 py-4 rounded-full border-white/10 active:scale-95 transition-all">
+            <Heart size={20} fill={isLiked ? themeColor : 'none'} style={{ color: isLiked ? themeColor : 'white' }} />
+            <span className="text-[10px] font-black uppercase tracking-widest">{isLiked ? 'Nos Favoritos' : 'Favoritar'}</span>
+         </button>
       </div>
     </div>
   );
