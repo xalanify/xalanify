@@ -12,62 +12,64 @@ export default function LoginPage() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const action = isRegistering ? supabase.auth.signUp : supabase.auth.signInWithPassword;
     
-    const { error } = isRegistering 
-      ? await supabase.auth.signUp({ email, password })
-      : await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) alert(error.message);
+    const { data, error } = await action({ email, password });
+    
+    if (error) {
+      alert(error.message);
+    } else {
+       if (isRegistering) alert("Conta criada! Podes entrar.");
+       else window.location.reload();
+    }
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-[#050a18] flex items-center justify-center p-8 relative overflow-hidden">
-      <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[120px] rounded-full" />
+    <div className="min-h-screen bg-[#050a18] flex items-center justify-center p-6 relative overflow-hidden font-sans">
+      <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-blue-600/10 blur-[150px] rounded-full pointer-events-none" />
       
-      <div className="w-full max-w-sm space-y-12 relative z-10 animate-in fade-in zoom-in duration-500 text-center">
+      <div className="w-full max-w-sm space-y-10 text-center relative z-10 animate-in zoom-in duration-500">
         <div className="space-y-4">
-          <div className="w-24 h-24 bg-white/5 rounded-[2.5rem] flex items-center justify-center mx-auto border border-white/10 shadow-2xl">
-            <Sparkles className="text-blue-500" size={48} />
+          <div className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center mx-auto border border-white/10 shadow-2xl">
+            <Sparkles className="text-blue-500" size={40} />
           </div>
-          <h1 className="text-7xl font-black-italic tracking-tighter text-white">Xalanify</h1>
-          <p className="text-white/30 font-bold uppercase tracking-[0.2em] text-[10px]">Acesso ao Sistema</p>
+          <h1 className="text-5xl font-black italic tracking-tighter text-white">Xalanify</h1>
+          <p className="text-gray-500 font-bold uppercase tracking-[0.2em] text-[10px]">Music Ecosystem</p>
         </div>
 
-        <form onSubmit={handleAuth} className="space-y-5">
-          <div className="space-y-3">
+        <form onSubmit={handleAuth} className="space-y-4">
             <div className="relative group">
               <input 
                 type="email" placeholder="Email" 
-                className="w-full bg-white/5 border border-white/5 p-6 rounded-[2.5rem] outline-none focus:bg-white/10 focus:border-blue-500/30 transition-all font-bold text-center"
+                className="w-full bg-[#1e293b]/50 border border-white/5 p-5 rounded-[2rem] outline-none focus:border-blue-500/50 transition-all text-center font-bold text-white placeholder:text-gray-600"
                 value={email} onChange={e => setEmail(e.target.value)} required
               />
-              <Mail className="absolute right-8 top-1/2 -translate-y-1/2 text-white/10 group-focus-within:text-blue-500 transition-colors" />
+              <Mail className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-blue-500 transition-colors" size={18} />
             </div>
             
             <div className="relative group">
               <input 
                 type="password" placeholder="Password" 
-                className="w-full bg-white/5 border border-white/5 p-6 rounded-[2.5rem] outline-none focus:bg-white/10 focus:border-blue-500/30 transition-all font-bold text-center"
+                className="w-full bg-[#1e293b]/50 border border-white/5 p-5 rounded-[2rem] outline-none focus:border-blue-500/50 transition-all text-center font-bold text-white placeholder:text-gray-600"
                 value={password} onChange={e => setPassword(e.target.value)} required
               />
-              <Lock className="absolute right-8 top-1/2 -translate-y-1/2 text-white/10 group-focus-within:text-blue-500 transition-colors" />
+              <Lock className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-blue-500 transition-colors" size={18} />
             </div>
-          </div>
 
-          <button 
-            disabled={loading}
-            className="w-full py-7 bg-white text-black rounded-[2.5rem] font-black uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-3 shadow-2xl"
-          >
-            {loading ? <Loader2 className="animate-spin" size={24} /> : (isRegistering ? "Criar Conta" : "Entrar")}
-          </button>
+            <button 
+              disabled={loading}
+              className="w-full py-5 bg-blue-600 text-white rounded-[2rem] font-bold uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/40"
+            >
+              {loading ? <Loader2 className="animate-spin" size={20} /> : (isRegistering ? "Criar Conta" : "Entrar")}
+            </button>
         </form>
 
         <button 
           onClick={() => setIsRegistering(!isRegistering)}
-          className="text-white/40 font-bold text-xs uppercase tracking-widest hover:text-white transition-colors"
+          className="text-gray-500 font-bold text-xs uppercase tracking-widest hover:text-white transition-colors"
         >
-          {isRegistering ? "Já tenho conta? Fazer Login" : "Não tens conta? Regista-te aqui"}
+          {isRegistering ? "Já tenho conta" : "Criar nova conta"}
         </button>
       </div>
     </div>
