@@ -105,7 +105,7 @@ export default function LibraryTab() {
                   setQueue(viewPlaylist.tracks)
                   play(track)
                 }}
-                className="glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left"
+                className="glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 active:scale-[0.99]"
               >
                 <img
                   src={track.thumbnail}
@@ -128,7 +128,7 @@ export default function LibraryTab() {
   if (viewLiked) {
     return (
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
-        <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex items-center gap-3">
           <button onClick={() => setViewLiked(false)} className="text-[#a08070]">
             <ChevronRight className="h-6 w-6 rotate-180" />
           </button>
@@ -149,7 +149,7 @@ export default function LibraryTab() {
                   setQueue(likedTracks)
                   play(track)
                 }}
-                className="glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left"
+                className="glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 active:scale-[0.99]"
               >
                 <img
                   src={track.thumbnail}
@@ -194,7 +194,7 @@ export default function LibraryTab() {
         {/* Create Playlist */}
         <button
           onClick={() => setShowCreate(true)}
-          className="glass-card flex w-full items-center gap-4 rounded-xl p-4"
+          className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)]">
             <Plus className="h-5 w-5 text-[#e63946]" />
@@ -205,7 +205,7 @@ export default function LibraryTab() {
         {/* Favoritos */}
         <button
           onClick={() => setViewLiked(true)}
-          className="glass-card flex w-full items-center gap-4 rounded-xl p-4"
+          className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e63946]">
             <Heart className="h-5 w-5 fill-current text-[#fff]" />
@@ -219,7 +219,7 @@ export default function LibraryTab() {
           <div key={pl.id} className="relative">
             <button
               onClick={() => setViewPlaylist(pl)}
-              className="glass-card flex w-full items-center gap-4 rounded-xl p-4"
+              className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
             >
               <div
                 className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${playlistColors[idx % playlistColors.length]}`}
@@ -242,7 +242,8 @@ export default function LibraryTab() {
             </button>
 
             {menuPlaylistId === pl.id && (
-              <div className="glass-card-strong absolute right-4 top-16 z-10 rounded-xl p-2 shadow-xl">
+              <div className="absolute right-4 top-16 z-10 rounded-xl border border-[rgba(255,255,255,0.1)] p-2 shadow-xl"
+                style={{ background: "linear-gradient(135deg, rgba(230,57,70,0.34) 0%, rgba(20,10,10,0.98) 100%)" }}>
                 <button
                   onClick={() => handleDelete(pl.id)}
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-[#e63946] hover:bg-[rgba(255,255,255,0.05)]"

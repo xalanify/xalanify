@@ -21,7 +21,7 @@ import {
   UserRound,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { addLikedTrack, addTrackToPlaylist, createPlaylist, getPlaylists } from "@/lib/supabase"
+import { addLikedTrack, addTrackToPlaylist, createPlaylist, getPlaylists, listShareTargets, type ShareTarget } from "@/lib/supabase"
 import { searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
 import type { Track } from "@/lib/player-context"
 
@@ -101,7 +101,8 @@ export default function SettingsTab() {
   const [experimentMessage, setExperimentMessage] = useState("")
 
   const [myPlaylists, setMyPlaylists] = useState<UserPlaylist[]>([])
-  const [targetUserId, setTargetUserId] = useState("")
+  const [shareTargets, setShareTargets] = useState<ShareTarget[]>([])
+  const [selectedTargetUserId, setSelectedTargetUserId] = useState("")
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("")
   const [sharing, setSharing] = useState(false)
   const [shareMessage, setShareMessage] = useState("")
@@ -127,12 +128,20 @@ export default function SettingsTab() {
 
   useEffect(() => {
     if (!user || !isAdmin) return
+
     getPlaylists(user.id).then((lists: any) => {
-      setMyPlaylists((lists || []).map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        tracks: Array.isArray(item.tracks) ? item.tracks : [],
-      })))
+      setMyPlaylists(
+        (lists || []).map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          tracks: Array.isArray(item.tracks) ? item.tracks : [],
+        }))
+      )
+    })
+
+    listShareTargets(user.id).then((targets) => {
+      setShareTargets(targets)
+      setSelectedTargetUserId((prev) => prev || targets[0]?.user_id || "")
     })
   }, [user, isAdmin, activeView])
 
@@ -193,7 +202,7 @@ export default function SettingsTab() {
   }
 
   async function handleSharePlaylistToUser() {
-    if (!targetUserId.trim() || !selectedPlaylistId) {
+    if (!selectedTargetUserId.trim() || !selectedPlaylistId) {
       setShareMessage("Preenche o User ID de destino e escolhe uma playlist.")
       return
     }
@@ -207,7 +216,7 @@ export default function SettingsTab() {
     setSharing(true)
     setShareMessage("A enviar playlist para o utilizador...")
 
-    const created = await createPlaylist(targetUserId.trim(), `Partilhado · ${chosen.name}`)
+    const created = await createPlaylist(selectedTargetUserId.trim(), `Partilhado · ${chosen.name}`)
 
     if (!created?.id) {
       setShareMessage("Falhou ao criar playlist no utilizador de destino. Verifica as políticas RLS/admin.")
@@ -331,12 +340,16 @@ export default function SettingsTab() {
         <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-[#f0e0d0]"><UserRound className="h-5 w-5" /> Partilha de teste (Admin)</h2>
 
         <div className="space-y-3">
-          <input
-            value={targetUserId}
-            onChange={(e) => setTargetUserId(e.target.value)}
-            placeholder="User ID de destino (auth uid)"
-            className="glass-card w-full rounded-xl px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
-          />
+          <select
+            value={selectedTargetUserId}
+            onChange={(e) => setSelectedTargetUserId(e.target.value)}
+            className="glass-card w-full rounded-xl px-4 py-3 text-sm text-[#f0e0d0] focus:outline-none"
+          >
+            <option value="">Seleciona um utilizador destino</option>
+            {shareTargets.map((target) => (
+              <option key={target.user_id} value={target.user_id}>{target.username} · {target.user_id.slice(0, 8)}...</option>
+            ))}
+          </select>
 
           <select
             value={selectedPlaylistId}
@@ -359,7 +372,7 @@ export default function SettingsTab() {
           </button>
         </div>
 
-        <p className="mt-3 text-xs text-[#a08070]">{shareMessage || "Define o user id de destino e escolhe uma playlist para replicar no outro utilizador."}</p>
+        <p className="mt-3 text-xs text-[#a08070]">{shareMessage || "Escolhe o utilizador de destino numa lista e depois a playlist para replicar."}</p>
       </div>
     )
   }

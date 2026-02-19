@@ -43,6 +43,7 @@ function XalanifyApp() {
   const [activeTab, setActiveTab] = useState<"search" | "library" | "settings">("search")
   const [showFullPlayer, setShowFullPlayer] = useState(false)
   const [menuTrack, setMenuTrack] = useState<Track | null>(null)
+  const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null)
   const [showSplash, setShowSplash] = useState(true)
   const [accentColor, setAccentColor] = useState("#e63946")
   const [themeMode, setThemeMode] = useState<"dark" | "puredark" | "light">("dark")
@@ -112,23 +113,14 @@ function XalanifyApp() {
 
   const navStyle = useMemo(() => {
     if (surfaceEffect === "solid") {
-      return {
-        background: cardGradient,
-        boxShadow: "0 12px 24px rgba(0,0,0,0.35)",
-      }
+      return { background: cardGradient, boxShadow: "0 12px 24px rgba(0,0,0,0.35)" }
     }
 
     if (surfaceEffect === "neon") {
-      return {
-        background: cardGradient,
-        boxShadow: `0 0 20px ${accentColor}66`,
-      }
+      return { background: cardGradient, boxShadow: `0 0 20px ${accentColor}66` }
     }
 
-    return {
-      background: cardGradient,
-      boxShadow: "0 8px 24px rgba(0,0,0,0.28)",
-    }
+    return { background: cardGradient, boxShadow: "0 8px 24px rgba(0,0,0,0.28)" }
   }, [surfaceEffect, cardGradient, accentColor])
 
   if (showSplash || loading) return <SplashScreen />
@@ -147,7 +139,10 @@ function XalanifyApp() {
       <div className={`min-h-0 flex-1 overflow-hidden pt-4 ${contentBottomPadding}`}>
         {activeTab === "search" && (
           <SearchTab
-            onTrackMenu={setMenuTrack}
+            onTrackMenu={(track, rect) => {
+              setMenuTrack(track)
+              setMenuAnchorRect(rect)
+            }}
             query={searchQuery}
             setQuery={setSearchQuery}
             results={searchResults}
@@ -171,7 +166,7 @@ function XalanifyApp() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className="flex flex-col items-center gap-1 px-4 py-1 transition-colors"
+                className="flex flex-col items-center gap-1 px-4 py-1 transition-all duration-200 active:scale-95"
                 aria-label={tab.label}
               >
                 <tab.icon className="h-5 w-5" style={{ color: isActive ? accentColor : "#8a7464" }} />
@@ -185,7 +180,7 @@ function XalanifyApp() {
       </div>
 
       {showFullPlayer && <FullPlayer onClose={() => setShowFullPlayer(false)} accentColor={accentColor} />}
-      {menuTrack && <TrackMenu track={menuTrack} onClose={() => setMenuTrack(null)} />}
+      {menuTrack && <TrackMenu track={menuTrack} anchorRect={menuAnchorRect} onClose={() => { setMenuTrack(null); setMenuAnchorRect(null) }} />}
     </div>
   )
 }

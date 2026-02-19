@@ -6,7 +6,7 @@ import { searchMusic } from "@/lib/musicApi"
 import { usePlayer, type Track } from "@/lib/player-context"
 
 interface SearchTabProps {
-  onTrackMenu?: (track: Track) => void
+  onTrackMenu?: (track: Track, triggerRect: DOMRect) => void
   query: string
   setQuery: (value: string) => void
   results: Track[]
@@ -75,7 +75,7 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
           <button
             key={track.id}
             onClick={() => handlePlay(track)}
-            className="glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors active:bg-[rgba(255,255,255,0.08)]"
+            className="glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 active:scale-[0.99] active:bg-[rgba(255,255,255,0.08)]"
           >
             <img
               src={track.thumbnail}
@@ -89,9 +89,10 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                onTrackMenu?.(track)
+                const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
+                onTrackMenu?.(track, rect)
               }}
-              className="shrink-0 p-1.5 text-[#706050] transition-colors hover:text-[#a08070]"
+              className="shrink-0 p-1.5 text-[#706050] transition-all duration-200 hover:text-[#a08070] active:scale-95"
               aria-label="Mais opcoes"
             >
               <MoreHorizontal className="h-5 w-5" />

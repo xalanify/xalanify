@@ -24,6 +24,11 @@ async function getUserEmail(userId: string) {
   return null
 }
 
+export interface ShareTarget {
+  user_id: string
+  username: string
+}
+
 // User Functions
 export async function getCurrentUser() {
   const { data } = await supabase.auth.getUser()
@@ -103,6 +108,32 @@ export async function removeLikedTrack(userId: string, trackId: string) {
 
   if (error) console.error("Erro ao remover favorito:", error)
   return !error
+}
+
+export async function listShareTargets(currentUserId: string) {
+  const [fromPlaylists, fromLikes] = await Promise.all([
+    supabase.from("playlists").select("user_id, username").limit(200),
+    supabase.from("liked_tracks").select("user_id, username").limit(200),
+  ])
+
+  const targets = new Map<string, ShareTarget>()
+
+  for (const row of fromPlaylists.data || []) {
+    if (!row.user_id || row.user_id === currentUserId) continue
+    targets.set(row.user_id, { user_id: row.user_id, username: row.username || "user" })
+  }
+
+  for (const row of fromLikes.data || []) {
+    if (!row.user_id || row.user_id === currentUserId) continue
+    if (!targets.has(row.user_id)) {
+      targets.set(row.user_id, { user_id: row.user_id, username: row.username || "user" })
+    }
+  }
+
+  if (fromPlaylists.error) console.error("Erro ao listar targets em playlists:", fromPlaylists.error)
+  if (fromLikes.error) console.error("Erro ao listar targets em liked_tracks:", fromLikes.error)
+
+  return Array.from(targets.values())
 }
 
 // Playlists
