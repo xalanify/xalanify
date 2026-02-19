@@ -2,9 +2,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
-import { Loader2, Activity } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Auth from "@/components/Auth";
-import { getYoutubeId } from "@/lib/musicApi";
 
 export interface Track {
   id: string; title: string; artist: string; thumbnail: string;
@@ -16,6 +15,8 @@ export interface Playlist { id: string; name: string; tracks: Track[]; image?: s
 interface XalanifyContextType {
   user: User | null;
   isAdmin: boolean;
+  showDebug: boolean;
+  setShowDebug: (v: boolean) => void;
   logs: string[];
   addLog: (m: string) => void;
   perfMetrics: { memory: string; latency: number };
@@ -33,8 +34,6 @@ interface XalanifyContextType {
   setThemeColor: (c: string) => void;
   bgMode: 'vivid' | 'pure' | 'gradient';
   setBgMode: (m: 'vivid' | 'pure' | 'gradient') => void;
-  glassIntensity: number;
-  setGlassIntensity: (v: number) => void;
   likedTracks: Track[];
   toggleLike: (t: Track) => void;
   playlists: Playlist[];
@@ -48,7 +47,6 @@ interface XalanifyContextType {
   setActiveQueue: (tracks: Track[]) => void;
   playNext: () => void;
   playPrevious: () => void;
-  logout: () => void;
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
@@ -56,6 +54,7 @@ const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined
 export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
   const [logs, setLogs] = useState<string[]>(["Xalanify Engine Online"]);
   const [perfMetrics, setPerfMetrics] = useState({ memory: "0MB", latency: 0 });
   
@@ -66,9 +65,9 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeQueue, setActiveQueue] = useState<Track[]>([]);
   
+  // Persistência da cor
   const [themeColor, setThemeColor] = useState("#a855f7");
   const [bgMode, setBgMode] = useState<'vivid' | 'pure' | 'gradient'>('vivid');
-  const [glassIntensity, setGlassIntensity] = useState(30);
   
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -77,6 +76,9 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const addLog = (m: string) => setLogs(p => [`[${new Date().toLocaleTimeString()}] ${m}`, ...p].slice(0, 50));
 
   useEffect(() => {
+    const savedColor = localStorage.getItem("xalanify_theme");
+    if (savedColor) setThemeColor(savedColor);
+
     const interval = setInterval(() => {
       const mem = (performance as any).memory ? Math.round((performance as any).memory.usedJSHeapSize / 1048576) + "MB" : "N/A";
       setPerfMetrics({ memory: mem, latency: Math.floor(Math.random() * 40) + 10 });
@@ -87,154 +89,95 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      clearInterval(interval);
-      authListener.subscription.unsubscribe();
-    };
+    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("xalanify_theme", themeColor);
+    document.documentElement.style.setProperty('--theme-color', themeColor);
+  }, [themeColor]);
 
   useEffect(() => { if (user) loadData(); }, [user]);
 
   const loadData = async () => {
     if (!user) return;
-    try {
-      const { data: likes } = await supabase.from('liked_tracks').select('track_data').eq('user_id', user.id);
-      if (likes) setLikedTracks(likes.map(l => l.track_data));
-      
-      const { data: pList } = await supabase.from('playlists').select('*').eq('user_id', user.id);
-      if (pList) setPlaylists(pList.map(p => ({ id: p.id, name: p.name, tracks: p.tracks_json || [] })));
-      addLog("Sincronização Supabase concluída.");
-    } catch (e) {
-      addLog("Erro ao carregar dados remotos.");
-    }
+    const { data: likes } = await supabase.from('liked_tracks').select('track_data').eq('user_id', user.id);
+    if (likes) setLikedTracks(likes.map(l => l.track_data));
+    const { data: pList } = await supabase.from('playlists').select('*').eq('user_id', user.id);
+    if (pList) setPlaylists(pList.map(p => ({ id: p.id, name: p.name, tracks: p.tracks_json || [] })));
   };
 
   const createPlaylist = async (name: string) => {
     if (!user) return;
     const { data } = await supabase.from('playlists').insert({ user_id: user.id, name, tracks_json: [] }).select().single();
-    if (data) {
-      setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
-      addLog(`Playlist '${name}' criada.`);
-    }
+    if (data) setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
   };
 
   const deletePlaylist = async (id: string) => {
-    if (!user) return;
-    const { error } = await supabase.from('playlists').delete().eq('id', id).eq('user_id', user.id);
-    if (!error) {
-      setPlaylists(p => p.filter(x => x.id !== id));
-      addLog("Playlist removida.");
-    }
+    await supabase.from('playlists').delete().eq('id', id);
+    setPlaylists(p => p.filter(x => x.id !== id));
   };
 
   const addTrackToPlaylist = async (playlistId: string, track: Track) => {
     const pl = playlists.find(p => p.id === playlistId);
-    if (!pl || !user) return;
+    if (!pl) return;
     const updated = [...pl.tracks, track];
-    const { error } = await supabase.from('playlists').update({ tracks_json: updated }).eq('id', playlistId).eq('user_id', user.id);
-    if (!error) {
-      setPlaylists(p => p.map(x => x.id === playlistId ? { ...x, tracks: updated } : x));
-      addLog("Música adicionada à playlist.");
-    }
+    await supabase.from('playlists').update({ tracks_json: updated }).eq('id', playlistId);
+    setPlaylists(p => p.map(x => x.id === playlistId ? { ...x, tracks: updated } : x));
   };
 
   const removeTrackFromPlaylist = async (playlistId: string, trackId: string) => {
     const pl = playlists.find(p => p.id === playlistId);
-    if (!pl || !user) return;
+    if (!pl) return;
     const updated = pl.tracks.filter(t => t.id !== trackId);
-    const { error } = await supabase.from('playlists').update({ tracks_json: updated }).eq('id', playlistId).eq('user_id', user.id);
-    if (!error) {
-      setPlaylists(p => p.map(x => x.id === playlistId ? { ...x, tracks: updated } : x));
-      addLog("Música removida da playlist.");
-    }
+    await supabase.from('playlists').update({ tracks_json: updated }).eq('id', playlistId);
+    setPlaylists(p => p.map(x => x.id === playlistId ? { ...x, tracks: updated } : x));
   };
 
   const toggleLike = async (track: Track) => {
-    if (!user) return;
     const isLiked = likedTracks.some(t => t.id === track.id);
     if (isLiked) {
       setLikedTracks(p => p.filter(t => t.id !== track.id));
-      await supabase.from('liked_tracks').delete().match({ user_id: user.id, 'track_data->id': track.id });
-      addLog("Removida dos favoritos.");
+      await supabase.from('liked_tracks').delete().match({ user_id: user?.id, 'track_data->id': track.id });
     } else {
       setLikedTracks(p => [track, ...p]);
-      await supabase.from('liked_tracks').insert({ user_id: user.id, track_data: track });
-      addLog("Adicionada aos favoritos.");
+      await supabase.from('liked_tracks').insert({ user_id: user?.id, track_data: track });
     }
   };
 
-  const playNext = async () => {
-    const currentList = activeQueue.length > 0 ? activeQueue : (searchResults.length > 0 ? searchResults : likedTracks);
-    const idx = currentList.findIndex(t => t.id === currentTrack?.id);
-    
-    if (idx !== -1 && idx < currentList.length - 1) {
-      const nextTrack = currentList[idx+1];
-      setIsPlaying(false);
-      const ytId = await getYoutubeId(nextTrack.title, nextTrack.artist);
-      setCurrentTrack({ ...nextTrack, youtubeId: ytId });
-      setIsPlaying(true);
-    }
-  };
-
-  const isAdmin = user?.email === "adminx@adminx.com";
+  const playNext = () => { /* Lógica de fila */ };
 
   return (
     <XalanifyContext.Provider value={{
-      user, isAdmin, logs, addLog, perfMetrics, currentTrack, setCurrentTrack, isPlaying, setIsPlaying,
-      progress, setProgress, duration, setDuration, isExpanded, setIsExpanded,
-      themeColor, setThemeColor, bgMode, setBgMode, glassIntensity, setGlassIntensity,
-      likedTracks, toggleLike, playlists, createPlaylist, deletePlaylist, addTrackToPlaylist, 
+      user, isAdmin: user?.email === "adminx@adminx.com", showDebug, setShowDebug, logs, addLog, perfMetrics,
+      currentTrack, setCurrentTrack, isPlaying, setIsPlaying, progress, setProgress, duration, setDuration,
+      isExpanded, setIsExpanded, themeColor, setThemeColor, bgMode, setBgMode,
+      likedTracks, toggleLike, playlists, createPlaylist, deletePlaylist, addTrackToPlaylist,
       removeTrackFromPlaylist, searchResults, setSearchResults, activeQueue, setActiveQueue,
-      playNext, playPrevious: () => {}, logout: () => supabase.auth.signOut()
+      playNext, playPrevious: () => {}
     }}>
       {loading ? (
         <div className="h-screen bg-black flex items-center justify-center">
           <Loader2 className="animate-spin text-purple-500" />
         </div>
       ) : !user ? <Auth /> : (
-        <div className={`h-screen w-full text-white flex flex-col overflow-hidden transition-all duration-1000 relative
-          ${bgMode === 'pure' ? 'bg-black' : 'bg-zinc-950'}`}>
-          
-          {bgMode === 'vivid' && (
-            <div 
-              className="absolute inset-0 opacity-20 blur-[120px] pointer-events-none transition-all duration-1000"
-              style={{ background: `radial-gradient(circle at 20% 30%, ${themeColor}, transparent)` }}
-            />
+        <div className={`h-screen w-full text-white flex flex-col overflow-hidden relative ${bgMode === 'pure' ? 'bg-black' : 'bg-[#050505]'}`}>
+          {bgMode !== 'pure' && (
+            <div className="absolute inset-0 opacity-20 blur-[120px] pointer-events-none"
+              style={{ background: `radial-gradient(circle at 50% -20%, ${themeColor}, transparent)` }} />
           )}
-
           <div className="flex-1 overflow-y-auto relative z-10 custom-scroll pb-40">{children}</div>
           
-          {isAdmin && <AdminHUD />}
+          {showDebug && user?.email === "adminx@adminx.com" && (
+            <div className="fixed top-4 left-4 z-[200] glass p-4 rounded-3xl text-[8px] font-mono w-48 pointer-events-none">
+              <p>RAM: {perfMetrics.memory}</p>
+              <p>PING: {perfMetrics.latency}ms</p>
+              <div className="mt-2 opacity-50">{logs[0]}</div>
+            </div>
+          )}
         </div>
       )}
     </XalanifyContext.Provider>
-  );
-}
-
-function AdminHUD() {
-  const { logs, perfMetrics, themeColor } = useXalanify();
-  const [show, setShow] = useState(false);
-  return (
-    <div className="fixed top-6 right-6 z-[1000]">
-      <button onClick={() => setShow(!show)} className="w-10 h-10 glass rounded-full flex items-center justify-center border border-white/10 shadow-2xl">
-        <Activity size={16} style={{color: themeColor}} />
-      </button>
-      {show && (
-        <div className="absolute top-12 right-0 w-64 glass p-4 rounded-[2rem] animate-in zoom-in-95">
-          <div className="flex gap-2 mb-3">
-            <div className="flex-1 bg-white/5 p-2 rounded-xl text-[8px] font-mono text-center">RAM: {perfMetrics.memory}</div>
-            <div className="flex-1 bg-white/5 p-2 rounded-xl text-[8px] font-mono text-center">PING: {perfMetrics.latency}ms</div>
-          </div>
-          <div className="max-h-24 overflow-y-auto space-y-1 custom-scroll">
-            {logs.map((l, i) => <p key={i} className="text-[7px] font-mono opacity-40 leading-tight">{l}</p>)}
-          </div>
-        </div>
-      )}
-    </div>
   );
 }
 
