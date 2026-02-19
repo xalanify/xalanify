@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Search, Settings, Music } from "lucide-react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
-import { PlayerProvider } from "@/lib/player-context"
+import { PlayerProvider, usePlayer } from "@/lib/player-context"
 import LoginScreen from "@/components/login-screen"
 import SearchTab from "@/components/search-tab"
 import LibraryTab from "@/components/library-tab"
@@ -29,6 +29,7 @@ function SplashScreen() {
 
 function XalanifyApp() {
   const { user, loading } = useAuth()
+  const { currentTrack } = usePlayer()
   const [activeTab, setActiveTab] = useState<"search" | "library" | "settings">("search")
   const [showFullPlayer, setShowFullPlayer] = useState(false)
   const [menuTrack, setMenuTrack] = useState<Track | null>(null)
@@ -38,6 +39,11 @@ function XalanifyApp() {
     const timer = setTimeout(() => setShowSplash(false), 2500)
     return () => clearTimeout(timer)
   }, [])
+
+  const contentBottomPadding = useMemo(
+    () => (currentTrack ? "pb-[170px]" : "pb-[88px]"),
+    [currentTrack]
+  )
 
   if (showSplash || loading) {
     return <SplashScreen />
@@ -72,16 +78,14 @@ function XalanifyApp() {
     >
       <AudioEngine />
 
-      <div className="flex-1 overflow-hidden px-0 pb-[152px] pt-4">
+      <div className={`flex-1 overflow-hidden pt-4 ${contentBottomPadding}`}>
         {activeTab === "search" && <SearchTab onTrackMenu={setMenuTrack} />}
         {activeTab === "library" && <LibraryTab />}
         {activeTab === "settings" && <SettingsTab />}
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-3 pb-3 safe-bottom">
-        <div className="pointer-events-auto">
-          <MiniPlayer onExpand={() => setShowFullPlayer(true)} />
-        </div>
+      <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3 safe-bottom">
+        {currentTrack && <MiniPlayer onExpand={() => setShowFullPlayer(true)} />}
 
         <nav className="glass-card-strong mt-2 flex items-center justify-around rounded-2xl px-2 py-2.5">
           {tabs.map((tab) => {

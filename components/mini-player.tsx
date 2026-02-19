@@ -1,6 +1,6 @@
 "use client"
 
-import { Play, Pause, SkipForward, SkipBack } from "lucide-react"
+import { Play, Pause, SkipForward } from "lucide-react"
 import { usePlayer } from "@/lib/player-context"
 
 interface MiniPlayerProps {
@@ -15,7 +15,7 @@ export default function MiniPlayer({ onExpand }: MiniPlayerProps) {
   return (
     <button
       onClick={onExpand}
-      className="glass-card-strong mx-3 mb-2 flex items-center gap-3 rounded-2xl p-3 text-left"
+      className="glass-card-strong flex w-full items-center gap-3 rounded-2xl p-3 text-left"
     >
       <img
         src={currentTrack.thumbnail}
