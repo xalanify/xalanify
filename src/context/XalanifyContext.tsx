@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from "r
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
-import LoginPage from "@/app/login/page"; // Import da página de login
+import LoginPage from "@/app/login/page";
 
 export interface Track {
   id: string; title: string; artist: string; thumbnail: string; youtubeId?: string | null; audioUrl?: string;
@@ -41,10 +41,10 @@ interface XalanifyContextType {
   setSearchResults: (t: Track[]) => void;
   activeQueue: Track[];
   setActiveQueue: (t: Track[]) => void;
-  view: { type: 'main' | 'liked' | 'playlist', data?: any };
-  setView: (v: { type: 'main' | 'liked' | 'playlist', data?: any }) => void;
-  settingsView: 'menu' | 'appearance' | 'visuals';
-  setSettingsView: (v: 'menu' | 'appearance' | 'visuals') => void;
+  view: { type: 'main' | 'liked' | 'playlist' | 'account', data?: any };
+  setView: (v: { type: 'main' | 'liked' | 'playlist' | 'account', data?: any }) => void;
+  settingsView: 'menu' | 'appearance' | 'visuals' | 'account_details';
+  setSettingsView: (v: 'menu' | 'appearance' | 'visuals' | 'account_details') => void;
   playNext: () => void;
   playPrevious: () => void;
   audioRef: React.RefObject<HTMLAudioElement | null>;
@@ -68,8 +68,8 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [activeQueue, setActiveQueue] = useState<Track[]>([]);
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [view, setView] = useState<{ type: 'main' | 'liked' | 'playlist', data?: any }>({ type: 'main' });
-  const [settingsView, setSettingsView] = useState<'menu' | 'appearance' | 'visuals'>('menu');
+  const [view, setView] = useState<{ type: 'main' | 'liked' | 'playlist' | 'account', data?: any }>({ type: 'main' });
+  const [settingsView, setSettingsView] = useState<'menu' | 'appearance' | 'visuals' | 'account_details'>('menu');
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -88,26 +88,17 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  // Mock de funções (substituir pela lógica real do Supabase conforme necessário)
   const toggleLike = async (t: Track) => {};
   const createPlaylist = async (n: string) => {};
   const deletePlaylist = async (id: string) => {};
   const addTrackToPlaylist = async (pId: string, t: Track) => {};
   const removeTrackFromPlaylist = async (pId: string, tId: string) => {};
-
-  const playNext = () => {
-    const idx = activeQueue.findIndex(t => t.id === currentTrack?.id);
-    if (idx !== -1 && idx < activeQueue.length - 1) setCurrentTrack(activeQueue[idx + 1]);
-  };
-
-  const playPrevious = () => {
-    const idx = activeQueue.findIndex(t => t.id === currentTrack?.id);
-    if (idx > 0) setCurrentTrack(activeQueue[idx - 1]);
-  };
+  const playNext = () => {};
+  const playPrevious = () => {};
 
   if (loading) return (
     <div className="h-screen bg-[#050a18] flex items-center justify-center">
-      <Loader2 className="animate-spin" style={{color: themeColor}} size={40} />
+      <Loader2 className="animate-spin text-blue-500" size={40} />
     </div>
   );
 
@@ -123,12 +114,21 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       settingsView, setSettingsView, playNext, playPrevious, audioRef, logout
     }}>
       <div className={`h-screen w-full text-white overflow-hidden relative ${isOLED ? 'bg-black' : 'bg-[#050a18]'}`}>
+        {/* CSS Global para Fontes Idênticas */}
+        <style jsx global>{`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;0,900;1,900&display=swap');
+          body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+          .font-black-italic { font-weight: 900; font-style: italic; letter-spacing: -0.04em; }
+          .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        `}</style>
+        
         <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: `radial-gradient(circle at 50% -20%, ${themeColor}, transparent)` }} />
-        <div className="flex-1 h-full overflow-y-auto relative z-10 pb-44 custom-scroll">{children}</div>
+        <div className="flex-1 h-full overflow-y-auto relative z-10 pb-44">{children}</div>
+        
         <audio 
           ref={audioRef} 
+          src={currentTrack?.audioUrl}
           onTimeUpdate={() => audioRef.current && setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100)}
-          onEnded={playNext}
         />
       </div>
     </XalanifyContext.Provider>
