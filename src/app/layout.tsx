@@ -1,46 +1,28 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import "./globals.css";
 import { XalanifyProvider } from "@/context/XalanifyContext";
-import Navigation from "@/components/Navigation";
 import Player from "@/components/Player";
-import ExpandedPlayer from "@/components/ExpandedPlayer";
 
 export const metadata: Metadata = {
   title: "Xalanify",
-  description: "Xalana Music Experience",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Xalanify",
-  },
+  description: "Music Streaming Experience",
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: "cover",
-  themeColor: "#000000",
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="pt">
-      <head>
-        {/* Link para o ícone que enviaste (deve estar em public/XALANIFY.png) */}
-        <link rel="apple-touch-icon" href="/XALANIFY.png" />
-        <link rel="shortcut icon" href="/XALANIFY.png" />
-      </head>
-      <body className="bg-black text-white antialiased overflow-hidden font-jakarta">
+      <body className="bg-black text-white overflow-hidden">
         <XalanifyProvider>
-          <main className="h-screen overflow-y-auto custom-scroll pb-40">
-            {children}
+          <main className="h-screen flex flex-col">
+            <div className="flex flex-1 gap-4 p-4 overflow-hidden">
+              {children}
+            </div>
+            <Player />
           </main>
-          <Player />
-          <ExpandedPlayer />
-          <Navigation />
         </XalanifyProvider>
       </body>
     </html>

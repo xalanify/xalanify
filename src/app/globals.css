@@ -1,54 +1,93 @@
 @import "tailwindcss";
 
-:root {
-  --theme-color: #a855f7;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 html, body {
-  background-color: #000;
-  color: white;
-  margin: 0;
-  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   overflow: hidden;
-  height: 100dvh;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Efeito Vidro iOS */
-.glass {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(25px) saturate(180%);
-  -webkit-backdrop-filter: blur(25px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Custom Scrollbar */
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
 }
 
-/* Animações de Entrada Suaves */
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.animate-app-entry {
-  animation: slideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-/* Scroll Minimalista */
-.custom-scroll::-webkit-scrollbar { width: 4px; }
 .custom-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
+  border-radius: 3px;
 }
 
-/* Pulsar do Player */
-.glow-active {
-  box-shadow: 0 0 20px -5px var(--theme-color);
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
-* {
+/* Firefox */
+.custom-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.zoom-in-95 {
+  animation: zoomIn 0.2s ease-out;
+}
+
+/* Input Focus */
+input:focus {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.2);
+}
+
+/* Button Interactions */
+button {
+  user-select: none;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
-@keyframes spin {
-  from { transform: translate(-50%, -50%) rotate(0deg); }
-  to { transform: translate(-50%, -50%) rotate(360deg); }
+
+button:active {
+  transform: scale(0.98);
+}
+
+/* Smooth Transitions */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }

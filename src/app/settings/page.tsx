@@ -1,123 +1,114 @@
 "use client";
-import { 
-  User, ShieldCheck, Palette, Sparkles, LogOut, ChevronRight, 
-  Search, Bell, Smartphone, HelpCircle, ChevronLeft, Info 
-} from "lucide-react";
+import { ChevronRight, LogOut } from "lucide-react";
 import { useXalanify } from "@/context/XalanifyContext";
 
-export default function SettingsPage() {
-  const { settingsView, setSettingsView, logout, themeColor, setThemeColor, isOLED, setIsOLED } = useXalanify();
-  const colors = ["#3b82f6", "#ef4444", "#a855f7", "#10b981", "#f59e0b", "#3f3f46"];
+export default function SettingsPanel() {
+  const { themeColor, setThemeColor, isOLED, setIsOLED, user } = useXalanify();
 
-  if (settingsView === 'appearance') {
-    return (
-      <div className="p-6 pt-12 min-h-screen animate-in slide-in-from-right duration-500 pb-40">
-        <div className="flex items-center justify-between mb-10">
-            <button onClick={() => setSettingsView('menu')} className="w-10 h-10 glass rounded-full flex items-center justify-center"><ChevronLeft size={20} /></button>
-            <h1 className="text-xl font-black italic tracking-tighter">Aparência</h1>
-            <div className="w-10" />
-        </div>
-
-        <div className="space-y-8">
-            <section>
-                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-4 px-2">Cor de Destaque</p>
-                <div className="glass p-6 rounded-[2.5rem] border border-white/5 flex justify-between">
-                    {colors.map(c => (
-                        <button 
-                            key={c} onClick={() => setThemeColor(c)}
-                            className={`w-10 h-10 rounded-full transition-all border-2 ${themeColor === c ? 'border-white scale-125 shadow-lg' : 'border-transparent opacity-40'}`}
-                            style={{ backgroundColor: c }}
-                        />
-                    ))}
-                </div>
-            </section>
-
-            <section>
-                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-4 px-2">Experiência Visual</p>
-                <div className="glass rounded-[2.5rem] border border-white/5 overflow-hidden">
-                    <div className="p-6 flex items-center justify-between border-b border-white/5">
-                        <div>
-                            <h3 className="font-bold text-sm">Modo OLED</h3>
-                            <p className="text-[10px] opacity-40 font-medium">Preto absoluto para poupar bateria</p>
-                        </div>
-                        <button onClick={() => setIsOLED(!isOLED)} 
-                                className={`w-12 h-6 rounded-full relative transition-all ${isOLED ? 'bg-blue-500' : 'bg-white/10'}`}>
-                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isOLED ? 'right-1' : 'left-1'}`} />
-                        </button>
-                    </div>
-                    <div className="p-6 flex items-center justify-between">
-                        <div>
-                            <h3 className="font-bold text-sm">Interface Glass</h3>
-                            <p className="text-[10px] opacity-40 font-medium">Efeito de transparência e desfoque</p>
-                        </div>
-                        <div className="w-12 h-6 rounded-full bg-blue-500 relative">
-                             <div className="absolute top-1 right-1 w-4 h-4 bg-white rounded-full" />
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
-      </div>
-    );
-  }
+  const colors = [
+    { name: "Roxo", code: "#a855f7" },
+    { name: "Rosa", code: "#ec4899" },
+    { name: "Vermelho", code: "#ef4444" },
+    { name: "Laranja", code: "#f97316" },
+    { name: "Amarelo", code: "#eab308" },
+    { name: "Verde", code: "#22c55e" },
+  ];
 
   return (
-    <div className="p-6 pt-12 min-h-screen animate-in fade-in pb-40">
-        <h1 className="text-5xl font-black mb-10 tracking-tighter italic">Ajustes</h1>
-        
-        <div className="space-y-8">
-            <div className="space-y-3">
-                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] px-4">Conta e Segurança</p>
-                <div className="glass rounded-[2.5rem] border border-white/5 overflow-hidden">
-                    <button className="w-full p-5 flex items-center gap-4 hover:bg-white/5 transition-all text-left border-b border-white/5">
-                        <div className="w-10 h-10 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-500"><User size={20} /></div>
-                        <div className="flex-1">
-                            <h3 className="font-bold text-sm italic">Perfil do Utilizador</h3>
-                            <p className="text-[10px] opacity-40 font-black uppercase tracking-tighter">Gerir dados pessoais</p>
-                        </div>
-                        <ChevronRight className="opacity-20" size={16} />
-                    </button>
-                    <button className="w-full p-5 flex items-center gap-4 hover:bg-white/5 transition-all text-left">
-                        <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-500"><ShieldCheck size={20} /></div>
-                        <div className="flex-1">
-                            <h3 className="font-bold text-sm italic">Xalanify Premium</h3>
-                            <p className="text-[10px] opacity-40 font-black uppercase tracking-tighter">Estado da subscrição</p>
-                        </div>
-                        <ChevronRight className="opacity-20" size={16} />
-                    </button>
-                </div>
-            </div>
+    <div className="w-72 bg-gradient-to-br from-[#2a1a2a] to-[#1a0f1a] rounded-3xl p-6 border border-white/10 flex flex-col overflow-hidden">
+      <h2 className="text-3xl font-black mb-6">Ajustes</h2>
 
-            <div className="space-y-3">
-                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] px-4">Personalização</p>
-                <div className="glass rounded-[2.5rem] border border-white/5 overflow-hidden">
-                    <button onClick={() => setSettingsView('appearance')} className="w-full p-5 flex items-center gap-4 hover:bg-white/5 transition-all text-left border-b border-white/5">
-                        <div className="w-10 h-10 rounded-2xl bg-purple-500/20 flex items-center justify-center text-purple-500"><Palette size={20} /></div>
-                        <div className="flex-1">
-                            <h3 className="font-bold text-sm italic">Design e Cores</h3>
-                            <p className="text-[10px] opacity-40 font-black uppercase tracking-tighter">Temas e efeitos visuais</p>
-                        </div>
-                        <ChevronRight className="opacity-20" size={16} />
-                    </button>
-                    <button className="w-full p-5 flex items-center gap-4 hover:bg-white/5 transition-all text-left">
-                        <div className="w-10 h-10 rounded-2xl bg-pink-500/20 flex items-center justify-center text-pink-500"><Sparkles size={20} /></div>
-                        <div className="flex-1">
-                            <h3 className="font-bold text-sm italic">Laboratório</h3>
-                            <p className="text-[10px] opacity-40 font-black uppercase tracking-tighter">Funcionalidades beta</p>
-                        </div>
-                        <ChevronRight className="opacity-20" size={16} />
-                    </button>
-                </div>
+      <div className="flex-1 overflow-y-auto custom-scroll space-y-6">
+        {/* Perfil */}
+        <div>
+          <p className="text-xs font-black text-white/40 mb-3 uppercase tracking-wider">Conta</p>
+          <button className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition text-xs font-bold">
+            <div className="text-left">
+              <p>Perfil</p>
+              <p className="text-white/50 text-[10px] mt-1">{user?.email}</p>
             </div>
-
-            <button onClick={logout} className="w-full p-6 bg-red-500/10 border border-red-500/20 rounded-[2rem] flex items-center justify-center gap-3 text-red-500 font-black text-xs uppercase tracking-[0.2em] active:scale-95 transition-all">
-                <LogOut size={18} /> Sair da Conta
-            </button>
-            
-            <div className="text-center py-4">
-                <p className="text-[10px] font-black opacity-20 uppercase tracking-[0.5em]">Xalanify v2.0.4</p>
-            </div>
+            <ChevronRight size={14} className="text-white/40" />
+          </button>
         </div>
+
+        {/* Cores */}
+        <div>
+          <p className="text-xs font-black text-white/40 mb-3 uppercase tracking-wider">Cores</p>
+          <div className="grid grid-cols-3 gap-2">
+            {colors.map((color) => (
+              <button
+                key={color.code}
+                onClick={() => setThemeColor(color.code)}
+                className={`w-full aspect-square rounded-2xl transition hover:scale-110 ${
+                  themeColor === color.code ? "ring-2 ring-white scale-105" : ""
+                }`}
+                style={{ backgroundColor: color.code }}
+                title={color.name}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Modo */}
+        <div>
+          <p className="text-xs font-black text-white/40 mb-3 uppercase tracking-wider">Modo</p>
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition">
+            <span className="text-xs font-bold">OLED</span>
+            <button
+              onClick={() => setIsOLED(!isOLED)}
+              className={`w-10 h-6 rounded-full transition flex items-center ${
+                isOLED ? "bg-purple-600" : "bg-white/10"
+              }`}
+            >
+              <div
+                className={`w-4 h-4 bg-white rounded-full transition ${
+                  isOLED ? "translate-x-5" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* Informações */}
+        <div>
+          <p className="text-xs font-black text-white/40 mb-3 uppercase tracking-wider">App</p>
+          <div className="space-y-2">
+            <button className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition text-xs font-bold text-left">
+              <span>Versão</span>
+              <span className="text-white/50">2.0.0</span>
+            </button>
+            <button className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition text-xs font-bold text-left">
+              <span>Desenvolvedor</span>
+              <span className="text-white/50">XAL</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Outros */}
+        <div>
+          <p className="text-xs font-black text-white/40 mb-3 uppercase tracking-wider">Outros</p>
+          <div className="space-y-2">
+            <button className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition text-xs font-bold">
+              <span>Privacidade</span>
+              <ChevronRight size={14} className="text-white/40" />
+            </button>
+            <button className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition text-xs font-bold">
+              <span>Termos</span>
+              <ChevronRight size={14} className="text-white/40" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Logout */}
+      <button className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 transition text-red-400 font-bold text-xs uppercase tracking-wider mt-6">
+        <LogOut size={14} />
+        Sair
+      </button>
+
+      <div className="text-center pt-4 border-t border-white/5 text-[10px] text-white/40 font-bold mt-6">
+        XALANIFY v2.0.0
+      </div>
     </div>
   );
 }
