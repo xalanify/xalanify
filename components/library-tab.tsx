@@ -83,7 +83,7 @@ export default function LibraryTab() {
   // View specific playlist
   if (viewPlaylist) {
     return (
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
         <div className="mb-4 flex items-center gap-3">
           <button onClick={() => setViewPlaylist(null)} className="text-[#a08070]">
             <ChevronRight className="h-6 w-6 rotate-180" />
@@ -97,7 +97,7 @@ export default function LibraryTab() {
             <p className="text-sm">Playlist vazia</p>
           </div>
         ) : (
-          <div className="flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
+          <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
             {viewPlaylist.tracks.map((track: Track) => (
               <button
                 key={track.id}
@@ -127,7 +127,7 @@ export default function LibraryTab() {
   // View liked tracks
   if (viewLiked) {
     return (
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
         <div className="mb-4 flex items-center gap-3">
           <button onClick={() => setViewLiked(false)} className="text-[#a08070]">
             <ChevronRight className="h-6 w-6 rotate-180" />
@@ -141,7 +141,7 @@ export default function LibraryTab() {
             <p className="text-sm">Sem favoritos ainda</p>
           </div>
         ) : (
-          <div className="flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
+          <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
             {likedTracks.map((track: Track) => (
               <button
                 key={track.id}
@@ -180,7 +180,7 @@ export default function LibraryTab() {
 
   // Main library view
   return (
-    <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+    <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-[#f0e0d0]">Biblioteca</h1>
         <div className="h-10 w-10 overflow-hidden rounded-full bg-[rgba(255,255,255,0.1)]">
@@ -190,7 +190,7 @@ export default function LibraryTab() {
         </div>
       </div>
 
-      <div className="flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
+      <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
         {/* Create Playlist */}
         <button
           onClick={() => setShowCreate(true)}

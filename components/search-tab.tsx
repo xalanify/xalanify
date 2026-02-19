@@ -38,7 +38,7 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
   }
 
   return (
-    <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+    <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
       <div className="glass-card-strong flex items-center gap-3 rounded-xl px-4 py-3">
         <Search className="h-5 w-5 shrink-0 text-[#a08070]" />
         <input
@@ -51,7 +51,7 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
         />
       </div>
 
-      <div className="mt-4 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
+      <div className="mt-4 min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
         {searching && (
           <div className="flex items-center justify-center py-20">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#e63946] border-t-transparent" />

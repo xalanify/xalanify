@@ -15,9 +15,7 @@ import TrackMenu from "@/components/track-menu"
 
 function hexToRgb(hex: string) {
   const normalized = hex.replace("#", "")
-  const full = normalized.length === 3
-    ? normalized.split("").map((c) => c + c).join("")
-    : normalized
+  const full = normalized.length === 3 ? normalized.split("").map((c) => c + c).join("") : normalized
 
   const int = Number.parseInt(full, 16)
   const r = (int >> 16) & 255
@@ -47,6 +45,8 @@ function XalanifyApp() {
   const [menuTrack, setMenuTrack] = useState<Track | null>(null)
   const [showSplash, setShowSplash] = useState(true)
   const [accentColor, setAccentColor] = useState("#e63946")
+  const [themeMode, setThemeMode] = useState<"dark" | "puredark" | "light">("dark")
+  const [surfaceEffect, setSurfaceEffect] = useState<"glass" | "solid" | "neon">("glass")
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Track[]>([])
 
@@ -62,11 +62,13 @@ function XalanifyApp() {
 
       try {
         const parsed = JSON.parse(raw)
-        if (parsed.accentColor) {
-          setAccentColor(parsed.accentColor)
-        }
+        if (parsed.accentColor) setAccentColor(parsed.accentColor)
+        if (parsed.themeMode) setThemeMode(parsed.themeMode)
+        if (parsed.surfaceEffect) setSurfaceEffect(parsed.surfaceEffect)
       } catch {
         setAccentColor("#e63946")
+        setThemeMode("dark")
+        setSurfaceEffect("glass")
       }
     }
 
@@ -82,55 +84,67 @@ function XalanifyApp() {
     }
   }, [])
 
-  const contentBottomPadding = useMemo(
-    () => (currentTrack ? "pb-[170px]" : "pb-[88px]"),
-    [currentTrack]
-  )
+  const contentBottomPadding = useMemo(() => (currentTrack ? "pb-[170px]" : "pb-[88px]"), [currentTrack])
 
   const appBackground = useMemo(() => {
     const { r, g, b } = hexToRgb(accentColor)
+
+    if (themeMode === "light") {
+      return `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.2) 0%, #f4f2ef 78%)`
+    }
+
+    if (themeMode === "puredark") {
+      return `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.2) 0%, #000000 78%)`
+    }
+
     return `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.35) 0%, #0a0404 72%)`
-  }, [accentColor])
+  }, [accentColor, themeMode])
 
   const cardGradient = useMemo(() => {
     const { r, g, b } = hexToRgb(accentColor)
+
+    if (themeMode === "light") {
+      return `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 0.32) 0%, rgba(255, 255, 255, 0.96) 100%)`
+    }
+
     return `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 0.34) 0%, rgba(20, 10, 10, 0.95) 100%)`
-  }, [accentColor])
+  }, [accentColor, themeMode])
 
-  if (showSplash || loading) {
-    return <SplashScreen />
-  }
+  const navStyle = useMemo(() => {
+    if (surfaceEffect === "solid") {
+      return {
+        background: cardGradient,
+        boxShadow: "0 12px 24px rgba(0,0,0,0.35)",
+      }
+    }
 
-  if (!user) {
-    return <LoginScreen />
-  }
+    if (surfaceEffect === "neon") {
+      return {
+        background: cardGradient,
+        boxShadow: `0 0 20px ${accentColor}66`,
+      }
+    }
+
+    return {
+      background: cardGradient,
+      boxShadow: "0 8px 24px rgba(0,0,0,0.28)",
+    }
+  }, [surfaceEffect, cardGradient, accentColor])
+
+  if (showSplash || loading) return <SplashScreen />
+  if (!user) return <LoginScreen />
 
   const tabs = [
-    {
-      id: "search" as const,
-      label: "EXPLORAR",
-      icon: Search,
-    },
-    {
-      id: "library" as const,
-      label: "BIBLIOTECA",
-      icon: Music,
-    },
-    {
-      id: "settings" as const,
-      label: "AJUSTES",
-      icon: Settings,
-    },
+    { id: "search" as const, label: "EXPLORAR", icon: Search },
+    { id: "library" as const, label: "BIBLIOTECA", icon: Music },
+    { id: "settings" as const, label: "AJUSTES", icon: Settings },
   ]
 
   return (
-    <div
-      className="relative flex h-dvh flex-col overflow-hidden safe-top"
-      style={{ background: appBackground }}
-    >
+    <div className="relative flex h-dvh min-h-0 flex-col overflow-hidden safe-top" style={{ background: appBackground }}>
       <AudioEngine />
 
-      <div className={`flex-1 overflow-hidden pt-4 ${contentBottomPadding}`}>
+      <div className={`min-h-0 flex-1 overflow-hidden pt-4 ${contentBottomPadding}`}>
         {activeTab === "search" && (
           <SearchTab
             onTrackMenu={setMenuTrack}
@@ -145,16 +159,11 @@ function XalanifyApp() {
       </div>
 
       <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3 safe-bottom">
-        {currentTrack && (
-          <MiniPlayer
-            onExpand={() => setShowFullPlayer(true)}
-            accentColor={accentColor}
-          />
-        )}
+        {currentTrack && <MiniPlayer onExpand={() => setShowFullPlayer(true)} accentColor={accentColor} />}
 
         <nav
-          className="mt-2 flex items-center justify-around rounded-2xl border border-[rgba(255,255,255,0.08)] px-2 py-2.5 shadow-xl backdrop-blur-sm"
-          style={{ background: cardGradient }}
+          className="mt-2 flex items-center justify-around rounded-2xl border border-[rgba(255,255,255,0.1)] px-2 py-2.5"
+          style={navStyle}
         >
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id
@@ -166,10 +175,7 @@ function XalanifyApp() {
                 aria-label={tab.label}
               >
                 <tab.icon className="h-5 w-5" style={{ color: isActive ? accentColor : "#8a7464" }} />
-                <span
-                  className="text-[10px] font-semibold tracking-wider"
-                  style={{ color: isActive ? accentColor : "#8a7464" }}
-                >
+                <span className="text-[10px] font-semibold tracking-wider" style={{ color: isActive ? accentColor : "#8a7464" }}>
                   {tab.label}
                 </span>
               </button>
@@ -178,13 +184,7 @@ function XalanifyApp() {
         </nav>
       </div>
 
-      {showFullPlayer && (
-        <FullPlayer
-          onClose={() => setShowFullPlayer(false)}
-          accentColor={accentColor}
-        />
-      )}
-
+      {showFullPlayer && <FullPlayer onClose={() => setShowFullPlayer(false)} accentColor={accentColor} />}
       {menuTrack && <TrackMenu track={menuTrack} onClose={() => setMenuTrack(null)} />}
     </div>
   )

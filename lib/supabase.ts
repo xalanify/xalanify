@@ -11,6 +11,19 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_A
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+function usernameFromEmail(email?: string | null) {
+  if (!email) return "user"
+  return email.split("@")[0] || "user"
+}
+
+async function getUserEmail(userId: string) {
+  const { data } = await supabase.auth.getUser()
+  if (data.user?.id === userId) {
+    return data.user.email ?? null
+  }
+  return null
+}
+
 // User Functions
 export async function getCurrentUser() {
   const { data } = await supabase.auth.getUser()
@@ -44,20 +57,38 @@ export async function getLikedTracks(userId: string) {
     .from("liked_tracks")
     .select("track_data")
     .eq("user_id", userId)
+    .order("created_at", { ascending: false })
 
   if (error) console.error("Erro ao carregar favoritos:", error)
-  return data?.map((item: any) => item.track_data) || []
+  return data?.map((item: any) => item.track_data).filter(Boolean) || []
 }
 
 export async function addLikedTrack(userId: string, track: any) {
-  const { error } = await supabase.from("liked_tracks").upsert(
-    {
-      user_id: userId,
-      track_id: track.id,
-      track_data: track,
-    },
-    { onConflict: "user_id,track_id" }
-  )
+  const email = await getUserEmail(userId)
+  const username = usernameFromEmail(email)
+
+  const { data: existing, error: existingError } = await supabase
+    .from("liked_tracks")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("track_id", track.id)
+    .maybeSingle()
+
+  if (existingError) {
+    console.error("Erro ao verificar favorito existente:", existingError)
+    return false
+  }
+
+  if (existing) {
+    return true
+  }
+
+  const { error } = await supabase.from("liked_tracks").insert({
+    user_id: userId,
+    username,
+    track_id: track.id,
+    track_data: track,
+  })
 
   if (error) console.error("Erro ao adicionar favorito:", error)
   return !error
@@ -78,7 +109,7 @@ export async function removeLikedTrack(userId: string, trackId: string) {
 export async function getPlaylists(userId: string) {
   const { data: playlists, error } = await supabase
     .from("playlists")
-    .select("id, name, user_id, created_at")
+    .select("id, name, user_id, username, created_at, tracks_json, image_url")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
 
@@ -87,42 +118,26 @@ export async function getPlaylists(userId: string) {
     return []
   }
 
-  if (!playlists?.length) {
-    return []
-  }
-
-  const playlistIds = playlists.map((playlist: any) => playlist.id)
-  const { data: trackRows, error: tracksError } = await supabase
-    .from("playlist_tracks")
-    .select("playlist_id, track_data")
-    .in("playlist_id", playlistIds)
-
-  if (tracksError) {
-    console.error("Erro ao carregar faixas das playlists:", tracksError)
-    return playlists.map((playlist: any) => ({ ...playlist, tracks: [] }))
-  }
-
-  const tracksByPlaylist = new Map<string, any[]>()
-  for (const row of trackRows || []) {
-    const list = tracksByPlaylist.get(row.playlist_id) || []
-    list.push(row.track_data)
-    tracksByPlaylist.set(row.playlist_id, list)
-  }
-
-  return playlists.map((playlist: any) => ({
+  return (playlists || []).map((playlist: any) => ({
     ...playlist,
-    tracks: tracksByPlaylist.get(playlist.id) || [],
+    tracks: Array.isArray(playlist.tracks_json) ? playlist.tracks_json : [],
   }))
 }
 
-export async function createPlaylist(userId: string, name: string) {
+export async function createPlaylist(userId: string, name: string, imageUrl?: string) {
+  const email = await getUserEmail(userId)
+  const username = usernameFromEmail(email)
+
   const { data, error } = await supabase
     .from("playlists")
     .insert({
       user_id: userId,
+      username,
       name,
+      tracks_json: [],
+      image_url: imageUrl || null,
     })
-    .select("id, name, user_id, created_at")
+    .select("id, name, user_id, username, created_at, tracks_json, image_url")
     .single()
 
   if (error) {
@@ -130,12 +145,10 @@ export async function createPlaylist(userId: string, name: string) {
     return null
   }
 
-  return { ...data, tracks: [] }
+  return { ...data, tracks: Array.isArray(data.tracks_json) ? data.tracks_json : [] }
 }
 
 export async function deletePlaylist(playlistId: string) {
-  await supabase.from("playlist_tracks").delete().eq("playlist_id", playlistId)
-
   const { error } = await supabase.from("playlists").delete().eq("id", playlistId)
 
   if (error) console.error("Erro ao deletar playlist:", error)
@@ -143,38 +156,49 @@ export async function deletePlaylist(playlistId: string) {
 }
 
 export async function addTrackToPlaylist(playlistId: string, track: any) {
-  const { data: existing, error: fetchError } = await supabase
-    .from("playlist_tracks")
-    .select("id")
-    .eq("playlist_id", playlistId)
-    .eq("track_id", track.id)
+  const { data: playlist, error: fetchError } = await supabase
+    .from("playlists")
+    .select("tracks_json")
+    .eq("id", playlistId)
     .maybeSingle()
 
-  if (fetchError) {
-    console.error("Erro ao buscar faixa da playlist:", fetchError)
+  if (fetchError || !playlist) {
+    console.error("Erro ao buscar playlist:", fetchError)
     return false
   }
 
-  if (existing) {
-    return true
-  }
+  const tracks = Array.isArray(playlist.tracks_json) ? playlist.tracks_json : []
+  const exists = tracks.some((t: any) => t?.id === track.id)
+  const updatedTracks = exists ? tracks : [...tracks, track]
 
-  const { error } = await supabase.from("playlist_tracks").insert({
-    playlist_id: playlistId,
-    track_id: track.id,
-    track_data: track,
-  })
+  const { error } = await supabase
+    .from("playlists")
+    .update({ tracks_json: updatedTracks })
+    .eq("id", playlistId)
 
   if (error) console.error("Erro ao adicionar à playlist:", error)
   return !error
 }
 
 export async function removeTrackFromPlaylist(playlistId: string, trackId: string) {
+  const { data: playlist, error: fetchError } = await supabase
+    .from("playlists")
+    .select("tracks_json")
+    .eq("id", playlistId)
+    .maybeSingle()
+
+  if (fetchError || !playlist) {
+    console.error("Erro ao buscar playlist:", fetchError)
+    return false
+  }
+
+  const tracks = Array.isArray(playlist.tracks_json) ? playlist.tracks_json : []
+  const updatedTracks = tracks.filter((t: any) => t?.id !== trackId)
+
   const { error } = await supabase
-    .from("playlist_tracks")
-    .delete()
-    .eq("playlist_id", playlistId)
-    .eq("track_id", trackId)
+    .from("playlists")
+    .update({ tracks_json: updatedTracks })
+    .eq("id", playlistId)
 
   if (error) console.error("Erro ao remover da playlist:", error)
   return !error

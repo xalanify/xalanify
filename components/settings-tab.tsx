@@ -15,9 +15,11 @@ import {
   Wrench,
   ListMusic,
   Plus,
+  FlaskConical,
+  Wand2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { addTrackToPlaylist, createPlaylist } from "@/lib/supabase"
+import { addLikedTrack, addTrackToPlaylist, createPlaylist } from "@/lib/supabase"
 import { searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
 
 interface Preferences {
@@ -26,6 +28,8 @@ interface Preferences {
   audioQuality: "auto" | "normal" | "alta"
   compactMode: boolean
   animateBackground: boolean
+  themeMode: "dark" | "puredark" | "light"
+  surfaceEffect: "glass" | "solid" | "neon"
 }
 
 const DEFAULT_PREFERENCES: Preferences = {
@@ -34,11 +38,47 @@ const DEFAULT_PREFERENCES: Preferences = {
   audioQuality: "alta",
   compactMode: false,
   animateBackground: true,
+  themeMode: "dark",
+  surfaceEffect: "glass",
 }
 
 const SETTINGS_STORAGE_KEY = "xalanify.preferences"
 
-type SettingsView = "menu" | "profile" | "customization" | "credits" | "tools" | "playlist_tests"
+type SettingsView =
+  | "menu"
+  | "profile"
+  | "customization"
+  | "credits"
+  | "tools"
+  | "playlist_tests"
+  | "experiments"
+
+const DEMO_TEST_TRACKS = [
+  {
+    id: "demo-track-1",
+    title: "Demo Pulse",
+    artist: "Xalanify Lab",
+    thumbnail: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400",
+    duration: 205,
+    youtubeId: null,
+  },
+  {
+    id: "demo-track-2",
+    title: "Neon Streets",
+    artist: "Xalanify Lab",
+    thumbnail: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400",
+    duration: 188,
+    youtubeId: null,
+  },
+  {
+    id: "demo-track-3",
+    title: "Night Session",
+    artist: "Xalanify Lab",
+    thumbnail: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=400",
+    duration: 233,
+    youtubeId: null,
+  },
+]
 
 export default function SettingsTab() {
   const { user, signOut } = useAuth()
@@ -48,6 +88,7 @@ export default function SettingsTab() {
   const [playlistLoading, setPlaylistLoading] = useState(false)
   const [playlistResults, setPlaylistResults] = useState<PlaylistSuggestion[]>([])
   const [addingPlaylistId, setAddingPlaylistId] = useState<string | null>(null)
+  const [experimentMessage, setExperimentMessage] = useState("")
 
   const isAdmin = user?.email === "adminx@adminx.com"
 
@@ -89,7 +130,7 @@ export default function SettingsTab() {
     if (!user) return
 
     setAddingPlaylistId(item.id)
-    const created = await createPlaylist(user.id, item.title)
+    const created = await createPlaylist(user.id, item.title, item.thumbnail)
 
     if (created?.id && item.previewTracks.length > 0) {
       for (const track of item.previewTracks) {
@@ -100,9 +141,33 @@ export default function SettingsTab() {
     setAddingPlaylistId(null)
   }
 
+  async function handleCreateDemoPlaylist() {
+    if (!user) return
+    setExperimentMessage("A criar playlist demo...")
+
+    const created = await createPlaylist(user.id, "Demo · Novidades de Teste")
+    if (!created?.id) {
+      setExperimentMessage("Não foi possível criar a playlist demo.")
+      return
+    }
+
+    for (const track of DEMO_TEST_TRACKS) {
+      await addTrackToPlaylist(created.id, track)
+    }
+
+    setExperimentMessage("Playlist demo criada com 3 músicas de teste.")
+  }
+
+  async function handleInsertDemoFavorite() {
+    if (!user) return
+    setExperimentMessage("A inserir favorito de teste...")
+    await addLikedTrack(user.id, DEMO_TEST_TRACKS[0])
+    setExperimentMessage("Favorito de teste inserido.")
+  }
+
   if (activeView === "profile") {
     return (
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
         <button onClick={() => setActiveView("menu")} className="mb-4 flex items-center gap-2 text-[#a08070]">
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm">Voltar</span>
@@ -129,7 +194,7 @@ export default function SettingsTab() {
 
   if (activeView === "credits") {
     return (
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
         <button onClick={() => setActiveView("menu")} className="mb-4 flex items-center gap-2 text-[#a08070]">
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm">Voltar</span>
@@ -146,7 +211,7 @@ export default function SettingsTab() {
 
   if (activeView === "tools") {
     return (
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
         <button onClick={() => setActiveView("menu")} className="mb-4 flex items-center gap-2 text-[#a08070]">
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm">Voltar</span>
@@ -154,23 +219,74 @@ export default function SettingsTab() {
 
         <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-[#f0e0d0]"><Wrench className="h-5 w-5" /> Ferramentas de Testes</h2>
 
-        <button
-          onClick={() => setActiveView("playlist_tests")}
-          className="glass-card-strong flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-left"
-        >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(230,57,70,0.2)]">
-            <ListMusic className="h-5 w-5 text-[#e63946]" />
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto hide-scrollbar">
+          <button
+            onClick={() => setActiveView("playlist_tests")}
+            className="glass-card-strong flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-left"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(230,57,70,0.2)]">
+              <ListMusic className="h-5 w-5 text-[#e63946]" />
+            </div>
+            <span className="flex-1 text-sm font-medium text-[#f0e0d0]">Opções de Testes: Pesquisa de Playlist</span>
+            <ChevronRight className="h-5 w-5 text-[#504030]" />
+          </button>
+
+          <button
+            onClick={() => setActiveView("experiments")}
+            className="glass-card-strong flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-left"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(230,57,70,0.2)]">
+              <FlaskConical className="h-5 w-5 text-[#e63946]" />
+            </div>
+            <span className="flex-1 text-sm font-medium text-[#f0e0d0]">Experimentos rápidos (seed/teste)</span>
+            <ChevronRight className="h-5 w-5 text-[#504030]" />
+          </button>
+
+          <div className="glass-card-strong rounded-2xl p-4">
+            <p className="mb-1 text-sm font-semibold text-[#f0e0d0]">Modo laboratório</p>
+            <p className="text-xs text-[#a08070]">Esta secção só aparece para adminx@adminx.com para testar ideias futuras.</p>
           </div>
-          <span className="flex-1 text-sm font-medium text-[#f0e0d0]">Opções de Testes: Pesquisa de Playlist</span>
-          <ChevronRight className="h-5 w-5 text-[#504030]" />
+        </div>
+      </div>
+    )
+  }
+
+  if (activeView === "experiments") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
+        <button onClick={() => setActiveView("tools")} className="mb-4 flex items-center gap-2 text-[#a08070]">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
         </button>
+
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-[#f0e0d0]"><Wand2 className="h-5 w-5" /> Experimentos rápidos</h2>
+
+        <div className="space-y-2">
+          <button
+            onClick={handleCreateDemoPlaylist}
+            className="glass-card-strong flex w-full items-center justify-between rounded-xl px-4 py-3 text-left"
+          >
+            <span className="text-sm text-[#f0e0d0]">Criar playlist demo com 3 faixas</span>
+            <Plus className="h-4 w-4 text-[#e63946]" />
+          </button>
+
+          <button
+            onClick={handleInsertDemoFavorite}
+            className="glass-card-strong flex w-full items-center justify-between rounded-xl px-4 py-3 text-left"
+          >
+            <span className="text-sm text-[#f0e0d0]">Inserir favorito de teste</span>
+            <Plus className="h-4 w-4 text-[#e63946]" />
+          </button>
+        </div>
+
+        {experimentMessage && <p className="mt-3 text-xs text-[#a08070]">{experimentMessage}</p>}
       </div>
     )
   }
 
   if (activeView === "playlist_tests") {
     return (
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
         <button onClick={() => setActiveView("tools")} className="mb-4 flex items-center gap-2 text-[#a08070]">
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm">Voltar</span>
@@ -193,7 +309,7 @@ export default function SettingsTab() {
 
         {playlistLoading && <p className="text-xs text-[#a08070]">A procurar playlists no Spotify e YouTube...</p>}
 
-        <div className="space-y-2 overflow-y-auto hide-scrollbar">
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto hide-scrollbar">
           {playlistResults.map((item) => (
             <div key={`${item.source}-${item.id}`} className="glass-card rounded-xl p-3">
               <div className="mb-2 flex items-center gap-3">
@@ -228,7 +344,7 @@ export default function SettingsTab() {
 
   if (activeView === "customization") {
     return (
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
         <button onClick={() => setActiveView("menu")} className="mb-4 flex items-center gap-2 text-[#a08070]">
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm">Voltar</span>
@@ -236,11 +352,11 @@ export default function SettingsTab() {
 
         <h2 className="mb-4 text-xl font-bold text-[#f0e0d0]">Personalização</h2>
 
-        <div className="space-y-3 overflow-y-auto hide-scrollbar">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto hide-scrollbar">
           <div className="glass-card-strong rounded-2xl p-4">
             <p className="mb-3 flex items-center gap-2 text-sm font-medium text-[#f0e0d0]"><Palette className="h-4 w-4" /> Cor de destaque</p>
-            <div className="flex gap-2">
-              {["#e63946", "#8b5cf6", "#0ea5e9", "#f59e0b", "#10b981"].map((color) => (
+            <div className="flex flex-wrap gap-2">
+              {["#e63946", "#8b5cf6", "#0ea5e9", "#f59e0b", "#10b981", "#ec4899", "#14b8a6", "#f97316"].map((color) => (
                 <button
                   key={color}
                   onClick={() => updatePreference("accentColor", color)}
@@ -253,7 +369,6 @@ export default function SettingsTab() {
                 />
               ))}
             </div>
-            <p className="mt-2 text-xs text-[#706050]">Ao trocar a cor, o tema da app atualiza automaticamente.</p>
           </div>
 
           <div className="glass-card-strong rounded-2xl p-4">
@@ -266,6 +381,44 @@ export default function SettingsTab() {
                   className="rounded-lg px-3 py-2"
                   style={{
                     background: preferences.visualEffects === value ? `${preferences.accentColor}33` : "rgba(255,255,255,0.04)",
+                    color: "#f0e0d0",
+                  }}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="glass-card-strong rounded-2xl p-4">
+            <p className="mb-3 text-sm font-medium text-[#f0e0d0]">Modo de tema</p>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              {(["dark", "puredark", "light"] as const).map((value) => (
+                <button
+                  key={value}
+                  onClick={() => updatePreference("themeMode", value)}
+                  className="rounded-lg px-3 py-2"
+                  style={{
+                    background: preferences.themeMode === value ? `${preferences.accentColor}33` : "rgba(255,255,255,0.04)",
+                    color: "#f0e0d0",
+                  }}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="glass-card-strong rounded-2xl p-4">
+            <p className="mb-3 text-sm font-medium text-[#f0e0d0]">Estilo de superfície</p>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              {(["glass", "solid", "neon"] as const).map((value) => (
+                <button
+                  key={value}
+                  onClick={() => updatePreference("surfaceEffect", value)}
+                  className="rounded-lg px-3 py-2"
+                  style={{
+                    background: preferences.surfaceEffect === value ? `${preferences.accentColor}33` : "rgba(255,255,255,0.04)",
                     color: "#f0e0d0",
                   }}
                 >
@@ -311,7 +464,7 @@ export default function SettingsTab() {
   }
 
   return (
-    <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+    <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
       <h1 className="mb-6 text-3xl font-bold text-[#f0e0d0]">Ajustes</h1>
 
       <div className="glass-card-strong overflow-hidden rounded-2xl">
@@ -361,7 +514,7 @@ export default function SettingsTab() {
         </button>
       </div>
 
-      <p className="mt-8 text-center text-xs tracking-[0.2em] text-[#504030]">XALANIFY V3.0.0</p>
+      <p className="mt-8 text-center text-xs tracking-[0.12em] text-[#e63946]">XALANIFY · Em desenvolvimento</p>
     </div>
   )
 }
