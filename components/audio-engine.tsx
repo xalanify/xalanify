@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import dynamic from "next/dynamic"
 import { usePlayer } from "@/lib/player-context"
 
@@ -15,31 +16,52 @@ export default function AudioEngine() {
     setDuration,
     next,
     playerRef,
+    audioRef,
   } = usePlayer()
 
-  if (!currentTrack?.youtubeId) return null
+  useEffect(() => {
+    if (!audioRef.current || currentTrack?.youtubeId || !currentTrack?.previewUrl) return
+
+    if (isPlaying) {
+      audioRef.current.play().catch(() => {})
+    } else {
+      audioRef.current.pause()
+    }
+  }, [isPlaying, currentTrack, audioRef])
+
+  if (!currentTrack) return null
 
   return (
     <div className="pointer-events-none fixed -left-[9999px] -top-[9999px] h-0 w-0 overflow-hidden opacity-0">
-      <ReactPlayer
-        ref={playerRef}
-        url={`https://www.youtube.com/watch?v=${currentTrack.youtubeId}`}
-        playing={isPlaying}
-        controls={false}
-        width={0}
-        height={0}
-        onProgress={({ playedSeconds }) => setProgress(playedSeconds)}
-        onDuration={(d) => setDuration(d)}
-        onEnded={next}
-        config={{
-          playerVars: {
-            autoplay: 1,
-            controls: 0,
-            disablekb: 1,
-            modestbranding: 1,
-          },
-        }}
-      />
+      {currentTrack.youtubeId ? (
+        <ReactPlayer
+          ref={playerRef}
+          url={`https://www.youtube.com/watch?v=${currentTrack.youtubeId}`}
+          playing={isPlaying}
+          controls={false}
+          width={0}
+          height={0}
+          onProgress={({ playedSeconds }) => setProgress(playedSeconds)}
+          onDuration={(d) => setDuration(d)}
+          onEnded={next}
+          config={{
+            playerVars: {
+              autoplay: 1,
+              controls: 0,
+              disablekb: 1,
+              modestbranding: 1,
+            },
+          }}
+        />
+      ) : currentTrack.previewUrl ? (
+        <audio
+          ref={audioRef}
+          src={currentTrack.previewUrl}
+          onTimeUpdate={(e) => setProgress((e.currentTarget as HTMLAudioElement).currentTime)}
+          onLoadedMetadata={(e) => setDuration((e.currentTarget as HTMLAudioElement).duration || 0)}
+          onEnded={next}
+        />
+      ) : null}
     </div>
   )
 }

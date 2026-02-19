@@ -10,6 +10,7 @@ export interface Track {
   thumbnail: string
   duration: number
   youtubeId: string | null
+  previewUrl?: string | null
 }
 
 interface PlayerContextType {
@@ -28,6 +29,7 @@ interface PlayerContextType {
   setDuration: (d: number) => void
   seekTo: (fraction: number) => void
   playerRef: React.MutableRefObject<any>
+  audioRef: React.MutableRefObject<HTMLAudioElement | null>
 }
 
 const PlayerContext = createContext<PlayerContextType>({} as PlayerContextType)
@@ -39,6 +41,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
   const playerRef = useRef<any>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const play = useCallback(async (track: Track) => {
     let ytId = track.youtubeId
@@ -72,10 +75,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const seekTo = useCallback((fraction: number) => {
+    if (currentTrack?.previewUrl && !currentTrack.youtubeId && audioRef.current && duration > 0) {
+      audioRef.current.currentTime = fraction * duration
+      return
+    }
+
     if (playerRef.current) {
       playerRef.current.seekTo(fraction, "fraction")
     }
-  }, [])
+  }, [audioRef, currentTrack, duration])
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
@@ -126,6 +134,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setDuration,
         seekTo,
         playerRef,
+        audioRef,
       }}
     >
       {children}

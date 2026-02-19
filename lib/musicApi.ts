@@ -56,6 +56,7 @@ export async function searchMusic(query: string) {
       thumbnail: item.album.images[0]?.url || "",
       duration: item.duration_ms / 1000,
       youtubeId: null,
+      previewUrl: item.preview_url || null,
     })) || []
   } catch {
     return []

@@ -103,6 +103,7 @@ export default function SettingsTab() {
   const [myPlaylists, setMyPlaylists] = useState<UserPlaylist[]>([])
   const [shareTargets, setShareTargets] = useState<ShareTarget[]>([])
   const [selectedTargetUserId, setSelectedTargetUserId] = useState("")
+  const [manualTargetUserId, setManualTargetUserId] = useState("")
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("")
   const [sharing, setSharing] = useState(false)
   const [shareMessage, setShareMessage] = useState("")
@@ -202,8 +203,10 @@ export default function SettingsTab() {
   }
 
   async function handleSharePlaylistToUser() {
-    if (!selectedTargetUserId.trim() || !selectedPlaylistId) {
-      setShareMessage("Preenche o User ID de destino e escolhe uma playlist.")
+    const targetUserId = (selectedTargetUserId || manualTargetUserId).trim()
+
+    if (!targetUserId || !selectedPlaylistId) {
+      setShareMessage("Escolhe um utilizador da lista (ou cola um User ID) e seleciona uma playlist.")
       return
     }
 
@@ -216,7 +219,7 @@ export default function SettingsTab() {
     setSharing(true)
     setShareMessage("A enviar playlist para o utilizador...")
 
-    const created = await createPlaylist(selectedTargetUserId.trim(), `Partilhado · ${chosen.name}`)
+    const created = await createPlaylist(targetUserId, `Partilhado · ${chosen.name}`)
 
     if (!created?.id) {
       setShareMessage("Falhou ao criar playlist no utilizador de destino. Verifica as políticas RLS/admin.")
@@ -350,6 +353,17 @@ export default function SettingsTab() {
               <option key={target.user_id} value={target.user_id}>{target.username} · {target.user_id.slice(0, 8)}...</option>
             ))}
           </select>
+
+          {shareTargets.length === 0 && (
+            <p className="text-xs text-[#a08070]">Nenhum utilizador encontrado nas tabelas públicas. Podes colar manualmente o User ID.</p>
+          )}
+
+          <input
+            value={manualTargetUserId}
+            onChange={(e) => setManualTargetUserId(e.target.value)}
+            placeholder="Ou cola aqui um User ID (fallback)"
+            className="glass-card w-full rounded-xl px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
+          />
 
           <select
             value={selectedPlaylistId}
