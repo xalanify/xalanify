@@ -5,17 +5,35 @@ import { usePlayer } from "@/lib/player-context"
 
 interface MiniPlayerProps {
   onExpand: () => void
+  accentColor: string
 }
 
-export default function MiniPlayer({ onExpand }: MiniPlayerProps) {
+function hexToRgb(hex: string) {
+  const normalized = hex.replace("#", "")
+  const full = normalized.length === 3
+    ? normalized.split("").map((c) => c + c).join("")
+    : normalized
+
+  const int = Number.parseInt(full, 16)
+  const r = (int >> 16) & 255
+  const g = (int >> 8) & 255
+  const b = int & 255
+  return { r, g, b }
+}
+
+export default function MiniPlayer({ onExpand, accentColor }: MiniPlayerProps) {
   const { currentTrack, isPlaying, pause, resume, next } = usePlayer()
 
   if (!currentTrack) return null
 
+  const { r, g, b } = hexToRgb(accentColor)
+  const playerBackground = `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 0.35) 0%, rgba(20, 10, 10, 0.95) 100%)`
+
   return (
     <button
       onClick={onExpand}
-      className="glass-card-strong flex w-full items-center gap-3 rounded-2xl p-3 text-left"
+      className="flex w-full items-center gap-3 rounded-2xl border border-[rgba(255,255,255,0.08)] p-3 text-left shadow-xl"
+      style={{ background: playerBackground }}
     >
       <img
         src={currentTrack.thumbnail}

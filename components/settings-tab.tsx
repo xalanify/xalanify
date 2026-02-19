@@ -11,8 +11,14 @@ import {
   Sparkles,
   Volume2,
   SlidersHorizontal,
+  Shield,
+  Wrench,
+  ListMusic,
+  Plus,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { addTrackToPlaylist, createPlaylist } from "@/lib/supabase"
+import { searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
 
 interface Preferences {
   accentColor: string
@@ -32,12 +38,18 @@ const DEFAULT_PREFERENCES: Preferences = {
 
 const SETTINGS_STORAGE_KEY = "xalanify.preferences"
 
-type SettingsView = "menu" | "profile" | "customization" | "credits"
+type SettingsView = "menu" | "profile" | "customization" | "credits" | "tools" | "playlist_tests"
 
 export default function SettingsTab() {
   const { user, signOut } = useAuth()
   const [activeView, setActiveView] = useState<SettingsView>("menu")
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES)
+  const [playlistQuery, setPlaylistQuery] = useState("")
+  const [playlistLoading, setPlaylistLoading] = useState(false)
+  const [playlistResults, setPlaylistResults] = useState<PlaylistSuggestion[]>([])
+  const [addingPlaylistId, setAddingPlaylistId] = useState<string | null>(null)
+
+  const isAdmin = user?.email === "adminx@adminx.com"
 
   useEffect(() => {
     const stored = localStorage.getItem(SETTINGS_STORAGE_KEY)
@@ -53,6 +65,7 @@ export default function SettingsTab() {
 
   useEffect(() => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(preferences))
+    window.dispatchEvent(new Event("xalanify-preferences-changed"))
   }, [preferences])
 
   const initials = useMemo(() => {
@@ -62,6 +75,29 @@ export default function SettingsTab() {
 
   function updatePreference<K extends keyof Preferences>(key: K, value: Preferences[K]) {
     setPreferences((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handlePlaylistSearch() {
+    if (!playlistQuery.trim()) return
+    setPlaylistLoading(true)
+    const items = await searchPlaylistSuggestions(playlistQuery)
+    setPlaylistResults(items)
+    setPlaylistLoading(false)
+  }
+
+  async function handleAddSuggestedPlaylist(item: PlaylistSuggestion) {
+    if (!user) return
+
+    setAddingPlaylistId(item.id)
+    const created = await createPlaylist(user.id, item.title)
+
+    if (created?.id && item.previewTracks.length > 0) {
+      for (const track of item.previewTracks) {
+        await addTrackToPlaylist(created.id, track)
+      }
+    }
+
+    setAddingPlaylistId(null)
   }
 
   if (activeView === "profile") {
@@ -108,6 +144,88 @@ export default function SettingsTab() {
     )
   }
 
+  if (activeView === "tools") {
+    return (
+      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+        <button onClick={() => setActiveView("menu")} className="mb-4 flex items-center gap-2 text-[#a08070]">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-[#f0e0d0]"><Wrench className="h-5 w-5" /> Ferramentas de Testes</h2>
+
+        <button
+          onClick={() => setActiveView("playlist_tests")}
+          className="glass-card-strong flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-left"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(230,57,70,0.2)]">
+            <ListMusic className="h-5 w-5 text-[#e63946]" />
+          </div>
+          <span className="flex-1 text-sm font-medium text-[#f0e0d0]">Opções de Testes: Pesquisa de Playlist</span>
+          <ChevronRight className="h-5 w-5 text-[#504030]" />
+        </button>
+      </div>
+    )
+  }
+
+  if (activeView === "playlist_tests") {
+    return (
+      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+        <button onClick={() => setActiveView("tools")} className="mb-4 flex items-center gap-2 text-[#a08070]">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+
+        <h2 className="mb-4 text-xl font-bold text-[#f0e0d0]">Pesquisa de Playlist (Teste)</h2>
+
+        <div className="glass-card-strong mb-3 flex items-center gap-2 rounded-xl px-3 py-2">
+          <input
+            value={playlistQuery}
+            onChange={(e) => setPlaylistQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handlePlaylistSearch()}
+            placeholder="Pesquisar por artista, estilo, mood..."
+            className="w-full bg-transparent text-sm text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
+          />
+          <button onClick={handlePlaylistSearch} className="rounded-lg bg-[rgba(230,57,70,0.2)] px-3 py-1.5 text-xs text-[#f0e0d0]">
+            Buscar
+          </button>
+        </div>
+
+        {playlistLoading && <p className="text-xs text-[#a08070]">A procurar playlists no Spotify e YouTube...</p>}
+
+        <div className="space-y-2 overflow-y-auto hide-scrollbar">
+          {playlistResults.map((item) => (
+            <div key={`${item.source}-${item.id}`} className="glass-card rounded-xl p-3">
+              <div className="mb-2 flex items-center gap-3">
+                <img src={item.thumbnail} alt={item.title} className="h-12 w-12 rounded-lg object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{item.title}</p>
+                  <p className="truncate text-xs text-[#a08070]">{item.description}</p>
+                  <p className="text-[10px] uppercase tracking-wide text-[#706050]">{item.source} · {item.trackCount} faixas</p>
+                </div>
+                <button
+                  onClick={() => handleAddSuggestedPlaylist(item)}
+                  disabled={addingPlaylistId === item.id}
+                  className="rounded-lg bg-[rgba(230,57,70,0.2)] px-2 py-1 text-xs text-[#f0e0d0] disabled:opacity-40"
+                >
+                  <span className="inline-flex items-center gap-1"><Plus className="h-3.5 w-3.5" /> {addingPlaylistId === item.id ? "A adicionar..." : "Biblioteca"}</span>
+                </button>
+              </div>
+
+              {item.previewTracks.length > 0 && (
+                <div className="space-y-1">
+                  {item.previewTracks.slice(0, 3).map((track) => (
+                    <p key={track.id} className="truncate text-xs text-[#a08070]">• {track.title} — {track.artist}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   if (activeView === "customization") {
     return (
       <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
@@ -135,6 +253,7 @@ export default function SettingsTab() {
                 />
               ))}
             </div>
+            <p className="mt-2 text-xs text-[#706050]">Ao trocar a cor, o tema da app atualiza automaticamente.</p>
           </div>
 
           <div className="glass-card-strong rounded-2xl p-4">
@@ -219,6 +338,16 @@ export default function SettingsTab() {
           <span className="flex-1 text-sm font-medium text-[#f0e0d0]">Créditos</span>
           <ChevronRight className="h-5 w-5 text-[#504030]" />
         </button>
+
+        {isAdmin && (
+          <button onClick={() => setActiveView("tools")} className="flex w-full items-center gap-4 border-t border-[rgba(255,255,255,0.05)] px-5 py-4 text-left">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(230,57,70,0.15)]">
+              <Shield className="h-5 w-5 text-[#e63946]" />
+            </div>
+            <span className="flex-1 text-sm font-medium text-[#f0e0d0]">Ferramentas de Testes</span>
+            <ChevronRight className="h-5 w-5 text-[#504030]" />
+          </button>
+        )}
 
         <button
           onClick={signOut}

@@ -7,11 +7,13 @@ import { usePlayer, type Track } from "@/lib/player-context"
 
 interface SearchTabProps {
   onTrackMenu?: (track: Track) => void
+  query: string
+  setQuery: (value: string) => void
+  results: Track[]
+  setResults: (tracks: Track[]) => void
 }
 
-export default function SearchTab({ onTrackMenu }: SearchTabProps) {
-  const [query, setQuery] = useState("")
-  const [results, setResults] = useState<Track[]>([])
+export default function SearchTab({ onTrackMenu, query, setQuery, results, setResults }: SearchTabProps) {
   const [searching, setSearching] = useState(false)
   const { play, setQueue } = usePlayer()
 
@@ -21,7 +23,7 @@ export default function SearchTab({ onTrackMenu }: SearchTabProps) {
     const tracks = await searchMusic(query)
     setResults(tracks)
     setSearching(false)
-  }, [query])
+  }, [query, setResults])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -37,7 +39,6 @@ export default function SearchTab({ onTrackMenu }: SearchTabProps) {
 
   return (
     <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
-      {/* Search Bar */}
       <div className="glass-card-strong flex items-center gap-3 rounded-xl px-4 py-3">
         <Search className="h-5 w-5 shrink-0 text-[#a08070]" />
         <input
@@ -50,7 +51,6 @@ export default function SearchTab({ onTrackMenu }: SearchTabProps) {
         />
       </div>
 
-      {/* Results */}
       <div className="mt-4 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
         {searching && (
           <div className="flex items-center justify-center py-20">

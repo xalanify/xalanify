@@ -4,10 +4,11 @@ import { Play, Pause, SkipForward, SkipBack, ChevronDown, Heart } from "lucide-r
 import { usePlayer } from "@/lib/player-context"
 import { useAuth } from "@/lib/auth-context"
 import { addLikedTrack } from "@/lib/supabase"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 interface FullPlayerProps {
   onClose: () => void
+  accentColor: string
 }
 
 function formatTime(seconds: number) {
@@ -16,7 +17,20 @@ function formatTime(seconds: number) {
   return `${m}:${s.toString().padStart(2, "0")}`
 }
 
-export default function FullPlayer({ onClose }: FullPlayerProps) {
+function hexToRgb(hex: string) {
+  const normalized = hex.replace("#", "")
+  const full = normalized.length === 3
+    ? normalized.split("").map((c) => c + c).join("")
+    : normalized
+
+  const int = Number.parseInt(full, 16)
+  const r = (int >> 16) & 255
+  const g = (int >> 8) & 255
+  const b = int & 255
+  return { r, g, b }
+}
+
+export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
   const {
     currentTrack,
     isPlaying,
@@ -30,6 +44,16 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
   } = usePlayer()
   const { user } = useAuth()
   const [liked, setLiked] = useState(false)
+
+  const fullBackground = useMemo(() => {
+    const { r, g, b } = hexToRgb(accentColor)
+    return `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.45) 0%, #0a0404 72%)`
+  }, [accentColor])
+
+  const playButtonBackground = useMemo(() => {
+    const { r, g, b } = hexToRgb(accentColor)
+    return `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 1) 0%, rgba(${Math.max(0, r - 40)}, ${Math.max(0, g - 40)}, ${Math.max(0, b - 40)}, 1) 100%)`
+  }, [accentColor])
 
   if (!currentTrack) return null
 
@@ -50,21 +74,19 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
     <div
       className="fixed inset-0 z-50 flex flex-col safe-top safe-bottom"
       style={{
-        background: "linear-gradient(180deg, #2a0e0e 0%, #0a0404 100%)",
+        background: fullBackground,
       }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-4 pb-2">
+      <div className="flex items-center justify-between px-6 pb-2 pt-4">
         <button onClick={onClose} className="p-1 text-[#a08070]" aria-label="Fechar">
           <ChevronDown className="h-7 w-7" />
         </button>
-        <p className="text-xs font-medium tracking-wider text-[#706050] uppercase">
+        <p className="text-xs font-medium uppercase tracking-wider text-[#706050]">
           A Reproduzir
         </p>
         <div className="w-9" />
       </div>
 
-      {/* Artwork */}
       <div className="flex flex-1 flex-col items-center justify-center px-10">
         <div className="aspect-square w-full max-w-[320px] overflow-hidden rounded-3xl shadow-2xl">
           <img
@@ -75,7 +97,6 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
         </div>
       </div>
 
-      {/* Track Info + Controls */}
       <div className="px-8 pb-10">
         <div className="mb-6 flex items-center justify-between">
           <div className="min-w-0 flex-1">
@@ -93,7 +114,6 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
           </button>
         </div>
 
-        {/* Progress */}
         <div className="mb-6">
           <input
             type="range"
@@ -104,7 +124,7 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
             onChange={handleSeek}
             className="w-full"
             style={{
-              background: `linear-gradient(to right, #e63946 ${fraction * 100}%, rgba(255,255,255,0.1) ${fraction * 100}%)`,
+              background: `linear-gradient(to right, ${accentColor} ${fraction * 100}%, rgba(255,255,255,0.1) ${fraction * 100}%)`,
             }}
           />
           <div className="mt-1 flex justify-between text-xs text-[#706050]">
@@ -113,7 +133,6 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
           </div>
         </div>
 
-        {/* Controls */}
         <div className="flex items-center justify-center gap-8">
           <button
             onClick={previous}
@@ -125,9 +144,7 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
           <button
             onClick={isPlaying ? pause : resume}
             className="flex h-16 w-16 items-center justify-center rounded-full text-[#fff]"
-            style={{
-              background: "linear-gradient(135deg, #e63946 0%, #c1121f 100%)",
-            }}
+            style={{ background: playButtonBackground }}
             aria-label={isPlaying ? "Pausar" : "Reproduzir"}
           >
             {isPlaying ? (
