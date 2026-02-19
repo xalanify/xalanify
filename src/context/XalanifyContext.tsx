@@ -28,6 +28,8 @@ interface XalanifyContextType {
   setProgress: (v: number) => void;
   duration: number;
   setDuration: (v: number) => void;
+  isExpanded: boolean;
+  setIsExpanded: (v: boolean) => void;
   themeColor: string;
   setThemeColor: (c: string) => void;
   bgMode: 'vivid' | 'pure' | 'gradient';
@@ -44,6 +46,7 @@ interface XalanifyContextType {
   activeQueue: Track[];
   setActiveQueue: (tracks: Track[]) => void;
   playNext: () => void;
+  playPrevious: () => void;
 }
 
 const XalanifyContext = createContext<XalanifyContextType | undefined>(undefined);
@@ -59,6 +62,8 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   const [themeColor, setThemeColor] = useState("#a855f7");
   const [bgMode, setBgMode] = useState<'vivid' | 'pure' | 'gradient'>('vivid');
   
@@ -82,14 +87,10 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       setLoading(false);
     });
-
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("xalanify_theme", themeColor);
-  }, [themeColor]);
-
+  useEffect(() => { localStorage.setItem("xalanify_theme", themeColor); }, [themeColor]);
   useEffect(() => { if (user) loadData(); }, [user]);
 
   const loadData = async () => {
@@ -103,12 +104,16 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
   const createPlaylist = async (name: string) => {
     if (!user) return;
     const { data } = await supabase.from('playlists').insert({ user_id: user.id, name, tracks_json: [] }).select().single();
-    if (data) setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
+    if (data) {
+      setPlaylists(p => [{ id: data.id, name: data.name, tracks: [] }, ...p]);
+      addLog(`Playlist ${name} criada.`);
+    }
   };
 
   const deletePlaylist = async (id: string) => {
     await supabase.from('playlists').delete().eq('id', id);
     setPlaylists(p => p.filter(x => x.id !== id));
+    addLog("Playlist removida.");
   };
 
   const addTrackToPlaylist = async (playlistId: string, track: Track) => {
@@ -117,6 +122,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     const updated = [...pl.tracks, track];
     await supabase.from('playlists').update({ tracks_json: updated }).eq('id', playlistId);
     setPlaylists(p => p.map(x => x.id === playlistId ? { ...x, tracks: updated } : x));
+    addLog("Track adicionada à playlist.");
   };
 
   const removeTrackFromPlaylist = async (playlistId: string, trackId: string) => {
@@ -125,6 +131,7 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     const updated = pl.tracks.filter(t => t.id !== trackId);
     await supabase.from('playlists').update({ tracks_json: updated }).eq('id', playlistId);
     setPlaylists(p => p.map(x => x.id === playlistId ? { ...x, tracks: updated } : x));
+    addLog("Track removida da playlist.");
   };
 
   const toggleLike = async (track: Track) => {
@@ -142,10 +149,10 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
     <XalanifyContext.Provider value={{
       user, isAdmin: user?.email === "adminx@adminx.com", showDebug, setShowDebug, logs, addLog, perfMetrics,
       currentTrack, setCurrentTrack, isPlaying, setIsPlaying, progress, setProgress, duration, setDuration,
-      themeColor, setThemeColor, bgMode, setBgMode,
+      isExpanded, setIsExpanded, themeColor, setThemeColor, bgMode, setBgMode,
       likedTracks, toggleLike, playlists, createPlaylist, deletePlaylist, addTrackToPlaylist,
       removeTrackFromPlaylist, searchResults, setSearchResults, activeQueue, setActiveQueue,
-      playNext: () => {}
+      playNext: () => {}, playPrevious: () => {}
     }}>
       {loading ? (
         <div className="h-screen bg-black flex items-center justify-center">
@@ -160,10 +167,11 @@ export function XalanifyProvider({ children }: { children: React.ReactNode }) {
           <div className="flex-1 overflow-y-auto relative z-10 custom-scroll pb-40">{children}</div>
           
           {showDebug && user?.email === "adminx@adminx.com" && (
-            <div className="fixed top-4 left-4 z-[200] glass p-4 rounded-3xl text-[8px] font-mono w-48 pointer-events-none">
+            <div className="fixed top-4 left-4 z-[200] glass p-4 rounded-3xl text-[8px] font-mono w-48 pointer-events-none border border-white/10">
+              <p className="text-red-500 font-bold mb-1">X-DEBUG ACTIVE</p>
               <p>RAM: {perfMetrics.memory}</p>
               <p>PING: {perfMetrics.latency}ms</p>
-              <div className="mt-2 opacity-50">{logs[0]}</div>
+              <div className="mt-2 opacity-50 max-h-20 overflow-hidden">{logs[0]}</div>
             </div>
           )}
         </div>
