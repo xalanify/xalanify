@@ -44,7 +44,7 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
     volume,
     setVolume,
   } = usePlayer()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [liked, setLiked] = useState(false)
 
   const fullBackground = useMemo(() => {
@@ -61,7 +61,9 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
 
   async function handleLike() {
     if (!user || !currentTrack) return
+    if (isAdmin) console.info("[admin][full-player] click like", { userId: user.id, trackId: currentTrack.id, trackTitle: currentTrack.title })
     const ok = await addLikedTrack(user.id, currentTrack)
+    if (isAdmin) console.info("[admin][full-player] like result", { ok, userId: user.id, trackId: currentTrack.id })
     if (ok) setLiked(true)
   }
 
@@ -75,6 +77,7 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
       }
 
       const likedNow = await isTrackLiked(user.id, currentTrack.id)
+      if (isAdmin) console.info("[admin][full-player] sync liked state", { userId: user.id, trackId: currentTrack.id, likedNow })
       if (mounted) setLiked(likedNow)
     }
 
@@ -82,7 +85,7 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
     return () => {
       mounted = false
     }
-  }, [user, currentTrack])
+  }, [user, currentTrack, isAdmin])
 
   function handleSeek(e: React.ChangeEvent<HTMLInputElement>) {
     const val = parseFloat(e.target.value)
@@ -181,33 +184,29 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
         <div className="flex items-center justify-center gap-8">
           <button
             onClick={previous}
-            className="p-2 text-[#a08070]"
-            aria-label="Faixa anterior"
+            className="p-3 text-[#f0e0d0]"
+            aria-label="Anterior"
           >
-            <SkipBack className="h-7 w-7" />
+            <SkipBack className="h-7 w-7 fill-current" />
           </button>
-
           <button
             onClick={isPlaying ? pause : resume}
-            className="flex h-16 w-16 items-center justify-center rounded-full shadow-xl"
-            style={{
-              background: playButtonBackground,
-            }}
+            className="flex h-16 w-16 items-center justify-center rounded-full text-[#fff]"
+            style={{ background: playButtonBackground }}
             aria-label={isPlaying ? "Pausar" : "Reproduzir"}
           >
             {isPlaying ? (
-              <Pause className="h-7 w-7 text-white" />
+              <Pause className="h-7 w-7 fill-current" />
             ) : (
-              <Play className="ml-1 h-7 w-7 text-white" />
+              <Play className="ml-1 h-7 w-7 fill-current" />
             )}
           </button>
-
           <button
             onClick={next}
-            className="p-2 text-[#a08070]"
-            aria-label="Próxima faixa"
+            className="p-3 text-[#f0e0d0]"
+            aria-label="Proxima"
           >
-            <SkipForward className="h-7 w-7" />
+            <SkipForward className="h-7 w-7 fill-current" />
           </button>
         </div>
       </div>

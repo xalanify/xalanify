@@ -40,7 +40,7 @@ interface Playlist {
 }
 
 export default function LibraryTab() {
-  const { user, profile } = useAuth()
+  const { user, profile, isAdmin } = useAuth()
   const { play, setQueue } = usePlayer()
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [likedTracks, setLikedTracks] = useState<Track[]>([])
@@ -60,6 +60,14 @@ export default function LibraryTab() {
   const [shareTargets, setShareTargets] = useState<ShareTarget[]>([])
   const [targetMap, setTargetMap] = useState<Record<string, ShareTarget>>({})
   const [shareMsg, setShareMsg] = useState("")
+  const [adminDebug, setAdminDebug] = useState<string[]>([])
+
+  function pushAdminDebug(message: string, payload?: any) {
+    if (!isAdmin) return
+    const line = payload ? `${message} :: ${JSON.stringify(payload)}` : message
+    setAdminDebug((prev) => [line, ...prev].slice(0, 25))
+    console.info("[admin][library]", message, payload || "")
+  }
 
   function isTestPlaylist(playlist: Playlist) {
     return playlist.name.toLowerCase().includes("teste") || playlist.name.toLowerCase().includes("demo")
@@ -110,13 +118,14 @@ export default function LibraryTab() {
 
     if (pl.status === "fulfilled" && lt.status === "fulfilled") {
       console.info("Library loaded", { userId: user.id, playlists: pl.value.length, likedTracks: lt.value.length })
+      pushAdminDebug("Library loaded", { userId: user.id, playlists: pl.value.length, likedTracks: lt.value.length })
       if (pl.value.length === 0 && lt.value.length === 0) {
         setLibraryMsg(`Sem itens na biblioteca para a conta atual (${user.email || user.id}).`)
       } else {
         setLibraryMsg("")
       }
     }
-  }, [user])
+  }, [user, isAdmin])
 
   useEffect(() => {
     loadData()
@@ -124,12 +133,16 @@ export default function LibraryTab() {
 
   async function handleCreate() {
     if (!user || !newName.trim()) return
+    pushAdminDebug("Create playlist click", { userId: user.id, name: newName.trim() })
     const created: any = await createPlaylist(user.id, newName.trim())
     if (created?.existed) {
+      pushAdminDebug("Create playlist result", { existed: true, id: created.id })
       setLibraryMsg("Ja existe uma playlist com esse nome.")
     } else if (created?.id) {
+      pushAdminDebug("Create playlist result", { created: true, id: created.id })
       setLibraryMsg("Playlist criada com sucesso.")
     } else {
+      pushAdminDebug("Create playlist result", { created: false })
       setLibraryMsg("Falha ao criar playlist. Verifica login e politicas RLS no Supabase.")
       return
     }
@@ -139,6 +152,7 @@ export default function LibraryTab() {
   }
 
   async function handleDelete(id: string) {
+    pushAdminDebug("Delete playlist click", { id })
     await deletePlaylist(id)
     setMenuPlaylistId(null)
     loadData()
@@ -146,6 +160,7 @@ export default function LibraryTab() {
 
   async function handleRemoveLiked(trackId: string) {
     if (!user) return
+    pushAdminDebug("Remove liked click", { userId: user.id, trackId })
     await removeLikedTrack(user.id, trackId)
     loadData()
   }
@@ -270,36 +285,35 @@ export default function LibraryTab() {
         ) : (
           <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
             {likedTracks.map((track: Track) => (
-              <div
+              <button
                 key={track.id}
-                className="glass-card flex w-full items-center gap-3 rounded-xl p-3"
+                onClick={() => {
+                  setQueue(likedTracks)
+                  play(track)
+                }}
+                className="glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 active:scale-[0.99]"
               >
+                <img
+                  src={track.thumbnail}
+                  alt={track.title}
+                  className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[#f0e0d0]">{track.title}</p>
+                  <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
+                  {testTrackLabel(track) && <p className="truncate text-[10px] text-[#f59e0b]">({testTrackLabel(track)})</p>}
+                </div>
                 <button
-                  onClick={() => {
-                    setQueue(likedTracks)
-                    play(track)
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleRemoveLiked(track.id)
                   }}
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                >
-                  <img
-                    src={track.thumbnail}
-                    alt={track.title}
-                    className="h-12 w-12 shrink-0 rounded-lg object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[#f0e0d0]">{track.title}</p>
-                    <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
-                    {testTrackLabel(track) && <p className="truncate text-[10px] text-[#f59e0b]">({testTrackLabel(track)})</p>}
-                  </div>
-                </button>
-                <button
-                  onClick={() => handleRemoveLiked(track.id)}
-                  className="rounded-lg p-2 text-[#a08070] transition hover:bg-[rgba(255,255,255,0.06)]"
+                  className="shrink-0 p-1.5 text-[#e63946]"
                   aria-label="Remover dos favoritos"
                 >
-                  <X className="h-4 w-4" />
+                  <Heart className="h-5 w-5 fill-current" />
                 </button>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -308,257 +322,289 @@ export default function LibraryTab() {
   }
 
   if (viewPendingShares) {
-    const currentList = shareView === "pending" ? pendingShares : shareView === "sent" ? sentShares : receivedShares
-
     return (
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
-        <div className="mb-3 flex items-center gap-3">
+        <div className="mb-4 flex items-center gap-3">
           <button onClick={() => setViewPendingShares(false)} className="text-[#a08070]">
             <ChevronRight className="h-6 w-6 rotate-180" />
           </button>
-          <h2 className="text-xl font-bold text-[#f0e0d0]">Partilhas</h2>
+          <h2 className="text-xl font-bold text-[#f0e0d0]">Partilhas Pendentes</h2>
         </div>
 
-        <div className="mb-3 flex gap-2 text-xs">
+        <div className="mb-3 grid grid-cols-3 gap-2">
           <button
-            className={`rounded-full px-3 py-1.5 ${shareView === "pending" ? "bg-[#e63946] text-white" : "bg-[rgba(255,255,255,0.08)] text-[#a08070]"}`}
             onClick={() => setShareView("pending")}
+            className="rounded-lg px-2 py-1.5 text-xs text-[#f0e0d0]"
+            style={{ background: shareView === "pending" ? "rgba(230,57,70,0.25)" : "rgba(255,255,255,0.04)" }}
           >
-            Pendentes ({pendingShares.length})
+            Pendentes
           </button>
           <button
-            className={`rounded-full px-3 py-1.5 ${shareView === "sent" ? "bg-[#e63946] text-white" : "bg-[rgba(255,255,255,0.08)] text-[#a08070]"}`}
-            onClick={() => setShareView("sent")}
-          >
-            Enviadas
-          </button>
-          <button
-            className={`rounded-full px-3 py-1.5 ${shareView === "received" ? "bg-[#e63946] text-white" : "bg-[rgba(255,255,255,0.08)] text-[#a08070]"}`}
             onClick={() => setShareView("received")}
+            className="rounded-lg px-2 py-1.5 text-xs text-[#f0e0d0]"
+            style={{ background: shareView === "received" ? "rgba(230,57,70,0.25)" : "rgba(255,255,255,0.04)" }}
           >
             Recebidas
           </button>
+          <button
+            onClick={() => setShareView("sent")}
+            className="rounded-lg px-2 py-1.5 text-xs text-[#f0e0d0]"
+            style={{ background: shareView === "sent" ? "rgba(230,57,70,0.25)" : "rgba(255,255,255,0.04)" }}
+          >
+            Enviadas
+          </button>
         </div>
 
-        {currentList.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center text-[#706050]">
-            <Inbox className="mb-3 h-10 w-10 opacity-40" />
-            <p className="text-sm">Sem itens</p>
-          </div>
-        ) : (
-          <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
-            {currentList.map((request) => (
-              <div key={request.id} className="glass-card rounded-xl p-3">
-                <div className="mb-2 flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-xs font-semibold text-[#f0e0d0]">
-                    {shareAvatar(request.from_username)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-[#f0e0d0]">
-                      {request.item_type === "playlist" ? "Playlist" : "Musica"} enviada por {request.from_username}
-                    </p>
-                    <p className="truncate text-xs text-[#a08070]">{request.item_title}</p>
-                  </div>
+        <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
+          {shareView === "pending" && pendingShares.map((request) => (
+            <div key={request.id} className="glass-card rounded-xl p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-xs font-semibold text-[#f0e0d0]">
+                  {shareAvatar(request.from_username)}
                 </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{request.item_title}</p>
+                  <p className="truncate text-xs text-[#a08070]">
+                    {request.item_type === "playlist" ? "Playlist" : "Musica"} enviada por {request.from_username}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  onClick={() => handleAcceptShare(request)}
+                  className="rounded-lg bg-[rgba(16,185,129,0.24)] px-2.5 py-1 text-xs text-[#f0e0d0]"
+                >
+                  <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Aceitar</span>
+                </button>
+                <button
+                  onClick={() => handleRejectShare(request.id)}
+                  className="rounded-lg bg-[rgba(230,57,70,0.24)] px-2.5 py-1 text-xs text-[#f0e0d0]"
+                >
+                  Recusar
+                </button>
+              </div>
+            </div>
+          ))}
 
-                {shareView === "pending" ? (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleAcceptShare(request)}
-                      className="flex items-center gap-1 rounded-lg bg-[#e63946] px-3 py-1.5 text-xs font-medium text-white"
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      Aceitar
-                    </button>
-                    <button
-                      onClick={() => handleRejectShare(request.id)}
-                      className="rounded-lg bg-[rgba(255,255,255,0.08)] px-3 py-1.5 text-xs text-[#a08070]"
-                    >
-                      Rejeitar
-                    </button>
-                  </div>
-                ) : shareView === "sent" ? (
-                  <p className="text-xs text-[#a08070]">
+          {shareView === "received" && receivedShares.map((request) => (
+            <div key={request.id} className="glass-card rounded-xl p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-xs font-semibold text-[#f0e0d0]">
+                  {shareAvatar(request.from_username)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{request.item_title}</p>
+                  <p className="truncate text-xs text-[#a08070]">de {request.from_username}</p>
+                </div>
+                <span className="text-[10px] uppercase tracking-wide text-[#a08070]">{request.status}</span>
+              </div>
+            </div>
+          ))}
+
+          {shareView === "sent" && sentShares.map((request) => (
+            <div key={request.id} className="glass-card rounded-xl p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-xs font-semibold text-[#f0e0d0]">
+                  {shareAvatar(request.item_type)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{request.item_title}</p>
+                  <p className="truncate text-xs text-[#a08070]">
                     Para {targetMap[request.to_user_id]?.username || `user ${request.to_user_id.slice(0, 8)}...`}
                   </p>
-                ) : (
-                  <p className="text-xs text-[#a08070]">Estado: {request.status}</p>
-                )}
+                </div>
+                <span className="text-[10px] uppercase tracking-wide text-[#a08070]">{request.status}</span>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
+
+          {shareView === "pending" && pendingShares.length === 0 && <p className="py-20 text-center text-sm text-[#706050]">Sem partilhas pendentes.</p>}
+          {shareView === "received" && receivedShares.length === 0 && <p className="py-20 text-center text-sm text-[#706050]">Sem historico recebido.</p>}
+          {shareView === "sent" && sentShares.length === 0 && <p className="py-20 text-center text-sm text-[#706050]">Sem historico enviado.</p>}
+        </div>
       </div>
     )
   }
 
+  // Main library view
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-[#f0e0d0]">Biblioteca</h2>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="glass-button rounded-full p-2.5 text-[#f0e0d0]"
-          aria-label="Criar playlist"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
-      </div>
-
-      {libraryMsg && (
-        <div className="mb-3 rounded-lg border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-xs text-[#f59e0b]">
-          {libraryMsg}
-        </div>
-      )}
-
-      <button
-        onClick={() => setViewLiked(true)}
-        className="mb-3 flex items-center justify-between rounded-xl bg-gradient-to-r from-[#4a3040] to-[#2a1a2a] px-4 py-3 text-left shadow-lg"
-      >
-        <div className="flex min-w-0 items-center gap-3">
-          <Heart className="h-5 w-5 text-[#e63946]" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[#f0e0d0]">Favoritos</p>
-            <p className="text-xs text-[#a08070]">{likedTracks.length} musicas</p>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-[#f0e0d0]">Biblioteca</h1>
+        <div className="h-10 w-10 overflow-hidden rounded-full bg-[rgba(255,255,255,0.1)]">
+          <div className="flex h-full w-full items-center justify-center text-sm font-medium text-[#a08070]">
+            {user?.email?.charAt(0).toUpperCase() || "U"}
           </div>
         </div>
-        <ChevronRight className="h-5 w-5 text-[#706050]" />
-      </button>
-
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs uppercase tracking-wide text-[#a08070]">Playlists</p>
-        <button
-          onClick={() => setViewPendingShares(true)}
-          className="inline-flex items-center gap-1 rounded-full bg-[rgba(255,255,255,0.08)] px-2.5 py-1 text-[11px] text-[#f0e0d0]"
-        >
-          <Inbox className="h-3.5 w-3.5" />
-          Partilhas {pendingShares.length > 0 ? `(${pendingShares.length})` : ""}
-        </button>
       </div>
 
       <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
-        {playlists.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-[#706050]">
-            <Music className="mb-3 h-10 w-10 opacity-40" />
-            <p className="text-sm">Sem playlists ainda</p>
+        {libraryMsg && <p className="text-xs text-[#f59e0b]">{libraryMsg}</p>}
+        {isAdmin && adminDebug.length > 0 && (
+          <div className="rounded-lg border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.25)] p-2">
+            <p className="mb-1 text-[10px] uppercase tracking-wide text-[#a08070]">Admin debug</p>
+            <div className="max-h-24 space-y-1 overflow-y-auto text-[10px] text-[#d8c8b8]">
+              {adminDebug.map((line, idx) => (
+                <p key={`${idx}-${line}`} className="break-words">{line}</p>
+              ))}
+            </div>
           </div>
-        ) : (
-          playlists.map((pl, idx) => (
-            <div
-              key={pl.id}
-              className={`relative overflow-hidden rounded-xl bg-gradient-to-r ${playlistColors[idx % playlistColors.length]} shadow-lg`}
+        )}
+        {/* Create Playlist */}
+        <button
+          onClick={() => setShowCreate(true)}
+          className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)]">
+            <Plus className="h-5 w-5 text-[#e63946]" />
+          </div>
+          <span className="text-sm font-medium text-[#f0e0d0]">Criar Playlist</span>
+        </button>
+
+        {/* Favoritos */}
+        <button
+          onClick={() => setViewLiked(true)}
+          className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e63946]">
+            <Heart className="h-5 w-5 fill-current text-[#fff]" />
+          </div>
+          <span className="flex-1 text-left text-sm font-medium text-[#f0e0d0]">Favoritos</span>
+          <ChevronRight className="h-5 w-5 text-[#706050]" />
+        </button>
+
+        <button
+          onClick={() => setViewPendingShares(true)}
+          className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)]">
+            <Inbox className="h-5 w-5 text-[#e0b45a]" />
+          </div>
+          <span className="flex-1 text-left text-sm font-medium text-[#f0e0d0]">Partilhas Pendentes</span>
+          {pendingShares.length > 0 && (
+            <span className="rounded-full bg-[rgba(230,57,70,0.2)] px-2 py-0.5 text-[10px] text-[#f0e0d0]">{pendingShares.length}</span>
+          )}
+          <ChevronRight className="h-5 w-5 text-[#706050]" />
+        </button>
+
+        {/* Playlists */}
+        {playlists.map((pl, idx) => (
+          <div key={pl.id} className="relative">
+            <button
+              onClick={() => setViewPlaylist(pl)}
+              className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
             >
-              <button
-                onClick={() => setViewPlaylist(pl)}
-                className="flex w-full items-center justify-between px-4 py-3 text-left"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{pl.name}</p>
-                  <p className="text-xs text-[#a08070]">{pl.tracks.length} musicas</p>
-                  {isTestPlaylist(pl) && (
-                    <p className="mt-0.5 text-[10px] text-[#f59e0b]">playlist de testes</p>
-                  )}
-                </div>
-                <ChevronRight className="h-5 w-5 text-[#706050]" />
-              </button>
-
-              <button
-                onClick={() => setMenuPlaylistId((prev) => (prev === pl.id ? null : pl.id))}
-                className="absolute right-2 top-2 rounded-full p-1.5 text-[#a08070] hover:bg-[rgba(255,255,255,0.08)]"
-                aria-label="Mais opções"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </button>
-
-              {menuPlaylistId === pl.id && (
-                <div className="absolute right-2 top-10 z-10 w-44 rounded-lg border border-[rgba(255,255,255,0.1)] bg-[rgba(15,8,8,0.98)] p-1.5 shadow-2xl">
-                  <button
-                    onClick={() => {
-                      setSharePlaylist(pl)
-                      setShareTargets([])
-                      setShareQuery("")
-                      setShareMsg("")
-                    }}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs text-[#f0e0d0] hover:bg-[rgba(255,255,255,0.08)]"
-                  >
-                    <Send className="h-3.5 w-3.5 text-[#a08070]" />
-                    Partilhar
-                  </button>
-                  <button
-                    onClick={() => handleDelete(pl.id)}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs text-[#f0e0d0] hover:bg-[rgba(255,255,255,0.08)]"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-[#a08070]" />
-                    Apagar
-                  </button>
+              {pl.image_url ? (
+                <img src={pl.image_url} alt={pl.name} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+              ) : (
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${playlistColors[idx % playlistColors.length]}`}
+                >
+                  <Music className="h-5 w-5 text-[#c0a090]" />
                 </div>
               )}
-            </div>
-          ))
-        )}
+              <div className="min-w-0 flex-1 text-left">
+                <span className="block truncate text-sm font-medium text-[#f0e0d0]">{pl.name}</span>
+                {isTestPlaylist(pl) && <span className="block truncate text-[10px] text-[#f59e0b]">(playlist de testes)</span>}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setMenuPlaylistId(menuPlaylistId === pl.id ? null : pl.id)
+                }}
+                className="shrink-0 p-1 text-[#706050]"
+                aria-label="Opcoes da playlist"
+              >
+                <MoreVertical className="h-5 w-5" />
+              </button>
+            </button>
+
+            {menuPlaylistId === pl.id && (
+              <div className="absolute right-4 top-16 z-10 rounded-xl border border-[rgba(255,255,255,0.1)] p-2 shadow-xl"
+                style={{ background: "linear-gradient(135deg, rgba(230,57,70,0.34) 0%, rgba(20,10,10,0.98) 100%)" }}>
+                <button
+                  onClick={() => handleDelete(pl.id)}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-[#e63946] hover:bg-[rgba(255,255,255,0.05)]"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Eliminar
+                </button>
+                <button
+                  onClick={() => {
+                    setSharePlaylist(pl)
+                    setMenuPlaylistId(null)
+                    setShareTargets([])
+                    setShareMsg("")
+                  }}
+                  className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-[#f0e0d0] hover:bg-[rgba(255,255,255,0.05)]"
+                >
+                  <Send className="h-4 w-4" />
+                  Partilhar
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
+      {/* Create Playlist Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setShowCreate(false)}>
-          <div
-            className="w-full max-w-sm rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[rgba(15,8,8,0.98)] p-4 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="mb-2 text-base font-semibold text-[#f0e0d0]">Nova Playlist</h3>
-            <input
-              id="library-new-playlist-name"
-              name="playlist_name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Nome da playlist"
-              className="w-full rounded-lg bg-[rgba(255,255,255,0.08)] px-3 py-2 text-sm text-[#f0e0d0] placeholder-[#a08070] outline-none"
-            />
-            <div className="mt-3 flex justify-end gap-2">
-              <button
-                onClick={() => setShowCreate(false)}
-                className="rounded-lg bg-[rgba(255,255,255,0.08)] px-3 py-2 text-xs text-[#a08070]"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCreate}
-                className="rounded-lg bg-[#e63946] px-3 py-2 text-xs font-medium text-white"
-              >
-                Criar
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.7)] p-6">
+          <div className="glass-card-strong w-full max-w-sm rounded-2xl p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#f0e0d0]">Nova Playlist</h3>
+              <button onClick={() => setShowCreate(false)} className="text-[#706050]">
+                <X className="h-5 w-5" />
               </button>
             </div>
+            <input
+              id="new-playlist-name"
+              name="playlist_name"
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              placeholder="Nome da playlist"
+              autoFocus
+              className="glass-card mb-4 w-full rounded-xl px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
+            />
+            <button
+              onClick={handleCreate}
+              disabled={!newName.trim()}
+              className="w-full rounded-xl py-3 text-sm font-semibold text-[#fff] disabled:opacity-40"
+              style={{ background: "linear-gradient(135deg, #e63946 0%, #c1121f 100%)" }}
+            >
+              Criar
+            </button>
           </div>
         </div>
       )}
 
       {sharePlaylist && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setSharePlaylist(null)}>
-          <div
-            className="w-full max-w-sm rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[rgba(15,8,8,0.98)] p-4 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="mb-2 text-base font-semibold text-[#f0e0d0]">Partilhar Playlist</h3>
-            <p className="mb-2 truncate text-xs text-[#a08070]">{sharePlaylist.name}</p>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.7)] p-6">
+          <div className="glass-card-strong w-full max-w-sm rounded-2xl p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#f0e0d0]">Partilhar Playlist</h3>
+              <button onClick={() => setSharePlaylist(null)} className="text-[#706050]">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mb-3 truncate text-xs text-[#a08070]">Playlist: {sharePlaylist.name}</p>
             <div className="mb-2 flex items-center gap-2">
               <input
-                id="library-share-query"
-                name="share_query"
+                id="share-target-query"
+                name="share_target_query"
                 value={shareQuery}
                 onChange={(e) => setShareQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearchShareTargets()}
-                placeholder="Pesquisar username/email..."
-                className="w-full rounded-lg bg-[rgba(255,255,255,0.08)] px-2 py-1.5 text-xs text-[#f0e0d0] placeholder-[#a08070] outline-none"
+                placeholder="Pesquisar user..."
+                className="glass-card w-full rounded-xl px-3 py-2 text-xs text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
               />
-              <button
-                onClick={handleSearchShareTargets}
-                className="rounded-lg bg-[rgba(255,255,255,0.12)] px-2 py-1.5 text-xs text-[#f0e0d0]"
-              >
+              <button onClick={handleSearchShareTargets} className="rounded-lg bg-[rgba(230,57,70,0.2)] px-3 py-2 text-xs text-[#f0e0d0]">
                 Buscar
               </button>
             </div>
-
-            <div className="max-h-52 space-y-1 overflow-y-auto hide-scrollbar">
+            <div className="max-h-48 space-y-1 overflow-y-auto hide-scrollbar">
               {shareTargets.map((target) => (
                 <button
                   key={target.user_id}
@@ -572,19 +618,8 @@ export default function LibraryTab() {
                   <span className="truncate text-[10px] text-[#a08070]">{target.email || ""}</span>
                 </button>
               ))}
-              {shareTargets.length === 0 && <p className="text-center text-xs text-[#a08070]">Sem resultados.</p>}
             </div>
-
             {shareMsg && <p className="mt-2 text-xs text-[#f59e0b]">{shareMsg}</p>}
-
-            <div className="mt-3 flex justify-end">
-              <button
-                onClick={() => setSharePlaylist(null)}
-                className="rounded-lg bg-[rgba(255,255,255,0.08)] px-3 py-2 text-xs text-[#a08070]"
-              >
-                Fechar
-              </button>
-            </div>
           </div>
         </div>
       )}
