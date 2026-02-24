@@ -61,8 +61,8 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
 
   async function handleLike() {
     if (!user || !currentTrack) return
-    await addLikedTrack(user.id, currentTrack)
-    setLiked(true)
+    const ok = await addLikedTrack(user.id, currentTrack)
+    if (ok) setLiked(true)
   }
 
   useEffect(() => {
@@ -181,29 +181,33 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
         <div className="flex items-center justify-center gap-8">
           <button
             onClick={previous}
-            className="p-3 text-[#f0e0d0]"
-            aria-label="Anterior"
+            className="p-2 text-[#a08070]"
+            aria-label="Faixa anterior"
           >
-            <SkipBack className="h-7 w-7 fill-current" />
+            <SkipBack className="h-7 w-7" />
           </button>
+
           <button
             onClick={isPlaying ? pause : resume}
-            className="flex h-16 w-16 items-center justify-center rounded-full text-[#fff]"
-            style={{ background: playButtonBackground }}
+            className="flex h-16 w-16 items-center justify-center rounded-full shadow-xl"
+            style={{
+              background: playButtonBackground,
+            }}
             aria-label={isPlaying ? "Pausar" : "Reproduzir"}
           >
             {isPlaying ? (
-              <Pause className="h-7 w-7 fill-current" />
+              <Pause className="h-7 w-7 text-white" />
             ) : (
-              <Play className="ml-1 h-7 w-7 fill-current" />
+              <Play className="ml-1 h-7 w-7 text-white" />
             )}
           </button>
+
           <button
             onClick={next}
-            className="p-3 text-[#f0e0d0]"
-            aria-label="Proxima"
+            className="p-2 text-[#a08070]"
+            aria-label="Próxima faixa"
           >
-            <SkipForward className="h-7 w-7 fill-current" />
+            <SkipForward className="h-7 w-7" />
           </button>
         </div>
       </div>

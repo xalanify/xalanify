@@ -27,6 +27,7 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
   const [shareTargets, setShareTargets] = useState<ShareTarget[]>([])
   const [added, setAdded] = useState(false)
   const [shareMsg, setShareMsg] = useState("")
+  const [actionMsg, setActionMsg] = useState("")
 
   useEffect(() => {
     if (user) {
@@ -37,14 +38,28 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
   }, [user])
 
   async function handleLike() {
-    if (!user) return
-    await addLikedTrack(user.id, track)
+    if (!user) {
+      setActionMsg("Inicia sessao para adicionar aos favoritos.")
+      return
+    }
+
+    const ok = await addLikedTrack(user.id, track)
+    if (!ok) {
+      setActionMsg("Falha ao adicionar aos favoritos.")
+      return
+    }
+
     setAdded(true)
     setTimeout(onClose, 500)
   }
 
   async function handleAddToPlaylist(playlistId: string) {
-    await addTrackToPlaylist(playlistId, track)
+    const ok = await addTrackToPlaylist(playlistId, track)
+    if (!ok) {
+      setActionMsg("Falha ao adicionar a playlist.")
+      return
+    }
+
     setAdded(true)
     setTimeout(onClose, 500)
   }
@@ -144,6 +159,7 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
           </div>
         ) : showPlaylists ? (
           <div className="space-y-1">
+            {actionMsg && <p className="px-1 pb-1 text-xs text-[#f59e0b]">{actionMsg}</p>}
             <p className="mb-1 text-[10px] uppercase tracking-wide text-[#a08070]">Escolher Playlist</p>
             {playlists.length === 0 ? (
               <p className="py-2 text-center text-xs text-[#a08070]">Sem playlists. Cria uma na Biblioteca.</p>
@@ -162,6 +178,7 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
           </div>
         ) : (
           <div className="space-y-1">
+            {actionMsg && <p className="px-1 pb-1 text-xs text-[#f59e0b]">{actionMsg}</p>}
             <button
               onClick={handleLike}
               className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-[#f0e0d0] transition-all duration-150 hover:bg-[rgba(255,255,255,0.08)]"
