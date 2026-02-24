@@ -12,28 +12,43 @@ set search_path = public, auth
 as $$
 declare
   me uuid := auth.uid();
+  resolved_email text := coalesce(target_email, auth.jwt() ->> 'email', '');
+  profile_username text;
+  meta_username text := coalesce(auth.jwt() -> 'user_metadata' ->> 'username', '');
   uname text;
 begin
   if me is null then
     raise exception 'not authenticated';
   end if;
 
-  uname := lower(coalesce(target_username, split_part(coalesce(target_email, auth.jwt() ->> 'email', ''), '@', 1)));
-  if uname = '' then
-    return;
-  end if;
+  select coalesce(username, '')
+    into profile_username
+  from public.profiles
+  where user_id = me
+  limit 1;
 
-  update public.playlists
-  set user_id = me,
-      username = uname
-  where user_id is distinct from me
-    and lower(coalesce(username, '')) = uname;
+  for uname in
+    select distinct candidate
+    from unnest(array[
+      lower(nullif(target_username, '')),
+      lower(nullif(profile_username, '')),
+      lower(nullif(meta_username, '')),
+      lower(nullif(split_part(resolved_email, '@', 1), ''))
+    ]) as t(candidate)
+    where candidate is not null and candidate <> ''
+  loop
+    update public.playlists
+    set user_id = me,
+        username = uname
+    where user_id is distinct from me
+      and lower(coalesce(username, '')) = uname;
 
-  update public.liked_tracks
-  set user_id = me,
-      username = uname
-  where user_id is distinct from me
-    and lower(coalesce(username, '')) = uname;
+    update public.liked_tracks
+    set user_id = me,
+        username = uname
+    where user_id is distinct from me
+      and lower(coalesce(username, '')) = uname;
+  end loop;
 end;
 $$;
 

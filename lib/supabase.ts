@@ -16,6 +16,11 @@ function usernameFromEmail(email?: string | null) {
   return email.split("@")[0] || "user"
 }
 
+function normalizeUsernameCandidate(value?: string | null) {
+  const cleaned = (value || "").trim().toLowerCase()
+  return cleaned || null
+}
+
 async function getUserEmail(userId: string) {
   const { data } = await supabase.auth.getUser()
   if (data.user?.id === userId) {
@@ -30,17 +35,44 @@ async function getCurrentUserForId(userId: string) {
   return null
 }
 
+const relinkAttemptedUserIds = new Set<string>()
+
 async function tryRelinkLegacyContent(userId: string) {
+  if (relinkAttemptedUserIds.has(userId)) return
+  relinkAttemptedUserIds.add(userId)
+
   const authUser = await getCurrentUserForId(userId)
   if (!authUser?.email) return
 
-  const fallbackUsername = usernameFromEmail(authUser.email).toLowerCase()
-  const { error } = await supabase.rpc("relink_my_legacy_content", {
-    target_email: authUser.email,
-    target_username: fallbackUsername,
-  })
-  if (error && error.code !== "PGRST202") {
-    console.warn("relink_my_legacy_content failed:", error.message)
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  const candidates = new Set<string>()
+  const maybeCandidates = [
+    usernameFromEmail(authUser.email),
+    (authUser.user_metadata as any)?.username as string | undefined,
+    (profile as any)?.username as string | undefined,
+  ]
+
+  for (const candidate of maybeCandidates) {
+    const normalized = normalizeUsernameCandidate(candidate)
+    if (normalized) candidates.add(normalized)
+  }
+
+  if (candidates.size === 0) return
+
+  for (const candidate of candidates) {
+    const { error } = await supabase.rpc("relink_my_legacy_content", {
+      target_email: authUser.email,
+      target_username: candidate,
+    })
+    if (error && error.code !== "PGRST202") {
+      console.warn("relink_my_legacy_content failed:", error.message)
+      break
+    }
   }
 }
 
