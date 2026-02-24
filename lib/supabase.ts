@@ -111,9 +111,11 @@ export async function removeLikedTrack(userId: string, trackId: string) {
 }
 
 export async function listShareTargets(currentUserId: string) {
-  const [fromPlaylists, fromLikes] = await Promise.all([
-    supabase.from("playlists").select("user_id, username").limit(200),
-    supabase.from("liked_tracks").select("user_id, username").limit(200),
+  const [fromPlaylists, fromLikes, fromProfiles, fromUsers] = await Promise.all([
+    supabase.from("playlists").select("user_id, username").limit(1000),
+    supabase.from("liked_tracks").select("user_id, username").limit(1000),
+    supabase.from("profiles").select("user_id, username").limit(1000),
+    supabase.from("users").select("id, username, email").limit(1000),
   ])
 
   const targets = new Map<string, ShareTarget>()
@@ -130,10 +132,29 @@ export async function listShareTargets(currentUserId: string) {
     }
   }
 
+  for (const row of (fromProfiles.data as any[]) || []) {
+    const userId = row?.user_id
+    if (!userId || userId === currentUserId) continue
+    if (!targets.has(userId)) {
+      targets.set(userId, { user_id: userId, username: row?.username || "user" })
+    }
+  }
+
+  for (const row of (fromUsers.data as any[]) || []) {
+    const userId = row?.id
+    if (!userId || userId === currentUserId) continue
+    if (!targets.has(userId)) {
+      const username = row?.username || usernameFromEmail(row?.email)
+      targets.set(userId, { user_id: userId, username: username || "user" })
+    }
+  }
+
   if (fromPlaylists.error) console.error("Erro ao listar targets em playlists:", fromPlaylists.error)
   if (fromLikes.error) console.error("Erro ao listar targets em liked_tracks:", fromLikes.error)
+  if (fromProfiles.error && fromProfiles.error.code !== "PGRST205") console.error("Erro ao listar targets em profiles:", fromProfiles.error)
+  if (fromUsers.error && fromUsers.error.code !== "PGRST205") console.error("Erro ao listar targets em users:", fromUsers.error)
 
-  return Array.from(targets.values())
+  return Array.from(targets.values()).sort((a, b) => a.username.localeCompare(b.username))
 }
 
 // Playlists

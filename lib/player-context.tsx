@@ -44,13 +44,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const play = useCallback(async (track: Track) => {
+    setProgress(0)
+
+    if (track.previewUrl) {
+      setCurrentTrack({ ...track, youtubeId: null })
+      setIsPlaying(true)
+
+      if (!track.youtubeId) {
+        getYoutubeId(track.title, track.artist).then((ytId) => {
+          if (!ytId) return
+          setCurrentTrack((prev) => (prev?.id === track.id ? { ...prev, youtubeId: ytId } : prev))
+        })
+      }
+      return
+    }
+
     let ytId = track.youtubeId
     if (!ytId) {
       ytId = await getYoutubeId(track.title, track.artist)
     }
+
     setCurrentTrack({ ...track, youtubeId: ytId })
     setIsPlaying(true)
-    setProgress(0)
   }, [])
 
   const pause = useCallback(() => setIsPlaying(false), [])

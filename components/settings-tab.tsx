@@ -90,6 +90,33 @@ const DEMO_TEST_TRACKS = [
   },
 ]
 
+const EXTRA_TEST_TRACKS = [
+  {
+    id: "demo-track-4",
+    title: "Solar Drift",
+    artist: "Xalanify Lab",
+    thumbnail: "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=400",
+    duration: 201,
+    youtubeId: null,
+  },
+  {
+    id: "demo-track-5",
+    title: "Deep Focus",
+    artist: "Xalanify Lab",
+    thumbnail: "https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400",
+    duration: 224,
+    youtubeId: null,
+  },
+  {
+    id: "demo-track-6",
+    title: "Velvet Echo",
+    artist: "Xalanify Lab",
+    thumbnail: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400",
+    duration: 192,
+    youtubeId: null,
+  },
+]
+
 export default function SettingsTab() {
   const { user, signOut } = useAuth()
   const [activeView, setActiveView] = useState<SettingsView>("menu")
@@ -233,6 +260,88 @@ export default function SettingsTab() {
 
     setShareMessage("Playlist partilhada com sucesso para o utilizador de destino.")
     setSharing(false)
+  }
+
+  async function handleCreateMegaDemoPlaylist() {
+    if (!user) return
+    setExperimentMessage("A criar Mega Demo...")
+
+    const created = await createPlaylist(user.id, "Demo · Mega Playlist")
+    if (!created?.id) {
+      setExperimentMessage("Falha ao criar Mega Demo.")
+      return
+    }
+
+    const tracks = [...DEMO_TEST_TRACKS, ...EXTRA_TEST_TRACKS, ...DEMO_TEST_TRACKS, ...EXTRA_TEST_TRACKS]
+    for (const track of tracks) {
+      await addTrackToPlaylist(created.id, track)
+    }
+
+    setExperimentMessage(`Mega Demo criada com ${tracks.length} faixas.`)
+  }
+
+  async function handleCreateFocusMix() {
+    if (!user) return
+    setExperimentMessage("A criar Focus Mix...")
+
+    const created = await createPlaylist(user.id, "Demo · Focus Mix")
+    if (!created?.id) {
+      setExperimentMessage("Falha ao criar Focus Mix.")
+      return
+    }
+
+    for (const track of [EXTRA_TEST_TRACKS[1], DEMO_TEST_TRACKS[2], EXTRA_TEST_TRACKS[0]]) {
+      await addTrackToPlaylist(created.id, track)
+    }
+
+    setExperimentMessage("Focus Mix criada.")
+  }
+
+  async function handleCreateNightDrive() {
+    if (!user) return
+    setExperimentMessage("A criar Night Drive...")
+
+    const created = await createPlaylist(user.id, "Demo · Night Drive")
+    if (!created?.id) {
+      setExperimentMessage("Falha ao criar Night Drive.")
+      return
+    }
+
+    for (const track of [DEMO_TEST_TRACKS[1], EXTRA_TEST_TRACKS[2], DEMO_TEST_TRACKS[0]]) {
+      await addTrackToPlaylist(created.id, track)
+    }
+
+    setExperimentMessage("Night Drive criada.")
+  }
+
+  async function handleCreateTopHitsMock() {
+    if (!user) return
+    setExperimentMessage("A criar Top Hits Mock...")
+
+    const created = await createPlaylist(user.id, "Demo · Top Hits Mock")
+    if (!created?.id) {
+      setExperimentMessage("Falha ao criar Top Hits Mock.")
+      return
+    }
+
+    const tracks = [DEMO_TEST_TRACKS[0], DEMO_TEST_TRACKS[1], DEMO_TEST_TRACKS[2], EXTRA_TEST_TRACKS[0], EXTRA_TEST_TRACKS[1]]
+    for (const track of tracks) {
+      await addTrackToPlaylist(created.id, track)
+    }
+
+    setExperimentMessage("Top Hits Mock criada com 5 faixas.")
+  }
+
+  async function handleSeedAllFavorites() {
+    if (!user) return
+    setExperimentMessage("A inserir 6 favoritos de teste...")
+
+    const tracks = [...DEMO_TEST_TRACKS, ...EXTRA_TEST_TRACKS]
+    for (const track of tracks) {
+      await addLikedTrack(user.id, track)
+    }
+
+    setExperimentMessage("6 favoritos de teste inseridos.")
   }
 
   if (activeView === "profile") {
@@ -415,6 +524,46 @@ export default function SettingsTab() {
             className="glass-card-strong flex w-full items-center justify-between rounded-xl px-4 py-3 text-left"
           >
             <span className="text-sm text-[#f0e0d0]">Inserir favorito de teste</span>
+            <Plus className="h-4 w-4 text-[#e63946]" />
+          </button>
+
+          <button
+            onClick={handleCreateMegaDemoPlaylist}
+            className="glass-card-strong flex w-full items-center justify-between rounded-xl px-4 py-3 text-left"
+          >
+            <span className="text-sm text-[#f0e0d0]">Criar Mega Demo (12+ faixas)</span>
+            <Plus className="h-4 w-4 text-[#e63946]" />
+          </button>
+
+          <button
+            onClick={handleCreateFocusMix}
+            className="glass-card-strong flex w-full items-center justify-between rounded-xl px-4 py-3 text-left"
+          >
+            <span className="text-sm text-[#f0e0d0]">Criar Focus Mix</span>
+            <Plus className="h-4 w-4 text-[#e63946]" />
+          </button>
+
+          <button
+            onClick={handleCreateNightDrive}
+            className="glass-card-strong flex w-full items-center justify-between rounded-xl px-4 py-3 text-left"
+          >
+            <span className="text-sm text-[#f0e0d0]">Criar Night Drive</span>
+            <Plus className="h-4 w-4 text-[#e63946]" />
+          </button>
+
+          <button
+            onClick={handleCreateTopHitsMock}
+            className="glass-card-strong flex w-full items-center justify-between rounded-xl px-4 py-3 text-left"
+          >
+            <span className="text-sm text-[#f0e0d0]">Criar Top Hits Mock (5 faixas)</span>
+            <Plus className="h-4 w-4 text-[#e63946]" />
+          </button>
+
+          <button
+            onClick={handleSeedAllFavorites}
+            className="glass-card-strong flex w-full items-center justify-between rounded-xl px-4 py-3 text-left"
+          >
+            <span className="text-sm text-[#f0e0d0]">Inserir pacote de favoritos (6)</span>
             <Plus className="h-4 w-4 text-[#e63946]" />
           </button>
         </div>

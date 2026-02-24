@@ -55,8 +55,11 @@ export default function AudioEngine() {
         />
       ) : currentTrack.previewUrl ? (
         <audio
+          key={currentTrack.id}
           ref={audioRef}
           src={currentTrack.previewUrl}
+          autoPlay={isPlaying}
+          preload="auto"
           onTimeUpdate={(e) => setProgress((e.currentTarget as HTMLAudioElement).currentTime)}
           onLoadedMetadata={(e) => setDuration((e.currentTarget as HTMLAudioElement).duration || 0)}
           onEnded={next}

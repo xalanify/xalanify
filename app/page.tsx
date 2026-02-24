@@ -133,10 +133,10 @@ function XalanifyApp() {
   ]
 
   return (
-    <div className="relative flex h-dvh min-h-0 flex-col overflow-hidden safe-top" style={{ background: appBackground }}>
+    <div className="relative flex h-dvh min-h-0 flex-col overflow-x-hidden safe-top" style={{ background: appBackground }}>
       <AudioEngine />
 
-      <div className={`min-h-0 flex-1 overflow-hidden pt-4 ${contentBottomPadding}`}>
+      <div className={`min-h-0 flex-1 overflow-y-auto pt-4 ${contentBottomPadding} hide-scrollbar`}>
         {activeTab === "search" && (
           <SearchTab
             onTrackMenu={(track, rect) => {
