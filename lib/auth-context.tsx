@@ -95,13 +95,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await signInWithEmail(email, password)
+    // Ensure profile/admin flags refresh quickly after login.
+    if (!error) await refreshProfile().catch(() => {})
     return { error: error?.message || null }
-  }, [])
+  }, [refreshProfile])
 
   const signUp = useCallback(async (email: string, password: string) => {
     const { error } = await signUpWithEmail(email, password)
+    if (!error) await refreshProfile().catch(() => {})
     return { error: error?.message || null }
-  }, [])
+  }, [refreshProfile])
+
+  useEffect(() => {
+    if (!user?.id) return
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        refreshProfile().catch(() => {})
+      }
+    }
+
+    document.addEventListener("visibilitychange", onVisible)
+    const interval = window.setInterval(() => {
+      refreshProfile().catch(() => {})
+    }, 15000)
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible)
+      window.clearInterval(interval)
+    }
+  }, [user?.id, refreshProfile])
 
   const signOutFn = useCallback(async () => {
     // Logout UI immediately even if remote request hangs/fails.
@@ -113,9 +136,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const emailIsAdminFallback = user?.email === "adminx@adminx.com"
+  const metadataIsAdmin =
+    (user?.app_metadata as any)?.is_admin === true ||
+    (user?.user_metadata as any)?.is_admin === true
+  const profileIsAdmin = profile?.is_admin === true
+  const isAdmin = profileIsAdmin || metadataIsAdmin || emailIsAdminFallback
 
   return (
-    <AuthContext.Provider value={{ user, profile, isAdmin: !!profile?.is_admin || emailIsAdminFallback, loading, signIn, signUp, signOut: signOutFn, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, isAdmin, loading, signIn, signUp, signOut: signOutFn, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )
