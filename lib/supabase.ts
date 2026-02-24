@@ -30,23 +30,7 @@ async function getCurrentUserForId(userId: string) {
   return null
 }
 
-const relinkAttemptedForUser = new Set<string>()
-
-async function getLegacyUsernames(userId: string) {
-  const names = new Set<string>()
-  const authUser = await getCurrentUserForId(userId)
-  if (authUser?.email) names.add(usernameFromEmail(authUser.email).toLowerCase())
-
-  const profile = await getMyProfile(userId).catch(() => null)
-  if (profile?.username) names.add(profile.username.toLowerCase())
-
-  return Array.from(names).filter(Boolean)
-}
-
 async function tryRelinkLegacyContent(userId: string) {
-  if (relinkAttemptedForUser.has(userId)) return
-  relinkAttemptedForUser.add(userId)
-
   const authUser = await getCurrentUserForId(userId)
   if (!authUser?.email) return
 
@@ -202,57 +186,15 @@ export async function getLikedTracks(userId: string) {
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
 
-  let { data, error } = await loadPrimary()
+  await tryRelinkLegacyContent(userId)
+  const { data, error } = await loadPrimary()
 
   if (error) {
     console.error("Erro ao carregar favoritos:", error)
     return []
   }
 
-  const primaryRows = data || []
-  const primary = primaryRows.map((item: any) => item.track_data).filter(Boolean)
-
-  await tryRelinkLegacyContent(userId)
-  ;({ data, error } = await loadPrimary())
-  if (!error) {
-    const afterRelink = data?.map((item: any) => item.track_data).filter(Boolean) || []
-    if (afterRelink.length > 0) return afterRelink
-  }
-
-  const legacyUsernames = await getLegacyUsernames(userId)
-  if (legacyUsernames.length === 0) return primary
-
-  const { data: legacyData, error: legacyError } = await supabase
-    .from("liked_tracks")
-    .select("track_data")
-    .in("username", legacyUsernames)
-    .order("created_at", { ascending: false })
-
-  if (legacyError) {
-    console.error("Erro ao carregar favoritos legacy:", legacyError)
-    return primary
-  }
-
-  let legacyRows = legacyData || []
-  if (legacyRows.length === 0) {
-    const orFilter = legacyUsernames.map((u) => `username.ilike.${u}`).join(",")
-    const { data: ilikeRows } = await supabase
-      .from("liked_tracks")
-      .select("track_data")
-      .or(orFilter)
-      .order("created_at", { ascending: false })
-    legacyRows = ilikeRows || []
-  }
-
-  const merged = new Map<string, any>()
-  for (const track of primary) {
-    if (track?.id) merged.set(track.id, track)
-  }
-  for (const track of legacyRows.map((item: any) => item.track_data).filter(Boolean)) {
-    if (track?.id && !merged.has(track.id)) merged.set(track.id, track)
-  }
-
-  return Array.from(merged.values())
+  return (data || []).map((item: any) => item.track_data).filter(Boolean)
 }
 
 export async function isTrackLiked(userId: string, trackId: string) {
@@ -445,66 +387,18 @@ export async function getPlaylists(userId: string) {
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
 
-  let { data: playlists, error } = await loadPrimary()
+  await tryRelinkLegacyContent(userId)
+  const { data: playlists, error } = await loadPrimary()
 
   if (error) {
     console.error("Erro ao carregar playlists:", error)
     return []
   }
 
-  const primary = (playlists || []).map((playlist: any) => ({
+  return (playlists || []).map((playlist: any) => ({
     ...playlist,
     tracks: Array.isArray(playlist.tracks_json) ? playlist.tracks_json : [],
   }))
-
-  await tryRelinkLegacyContent(userId)
-  ;({ data: playlists, error } = await loadPrimary())
-  if (!error) {
-    const afterRelink = (playlists || []).map((playlist: any) => ({
-      ...playlist,
-      tracks: Array.isArray(playlist.tracks_json) ? playlist.tracks_json : [],
-    }))
-    if (afterRelink.length > 0) return afterRelink
-  }
-
-  const legacyUsernames = await getLegacyUsernames(userId)
-  if (legacyUsernames.length === 0) return primary
-
-  const { data: legacy, error: legacyError } = await supabase
-    .from("playlists")
-    .select("id, name, user_id, username, created_at, tracks_json, image_url")
-    .in("username", legacyUsernames)
-    .order("created_at", { ascending: false })
-
-  if (legacyError) {
-    console.error("Erro ao carregar playlists legacy:", legacyError)
-    return primary
-  }
-
-  let legacyRows = legacy || []
-  if (legacyRows.length === 0) {
-    const orFilter = legacyUsernames.map((u) => `username.ilike.${u}`).join(",")
-    const { data: ilikeRows } = await supabase
-      .from("playlists")
-      .select("id, name, user_id, username, created_at, tracks_json, image_url")
-      .or(orFilter)
-      .order("created_at", { ascending: false })
-    legacyRows = ilikeRows || []
-  }
-
-  const merged = new Map<string, any>()
-  for (const playlist of primary) {
-    merged.set(playlist.id, playlist)
-  }
-
-  for (const playlist of legacyRows.map((entry: any) => ({
-    ...entry,
-    tracks: Array.isArray(entry.tracks_json) ? entry.tracks_json : [],
-  }))) {
-    if (!merged.has(playlist.id)) merged.set(playlist.id, playlist)
-  }
-
-  return Array.from(merged.values())
 }
 
 export async function createPlaylist(userId: string, name: string, imageUrl?: string) {
