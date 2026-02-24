@@ -26,6 +26,23 @@ async function getPreferredUsername(userId: string, email?: string | null) {
   return normalizeUsernameCandidate((profile as any)?.username) || usernameFromEmail(email)
 }
 
+
+async function getUsernameHintsForRead(userId: string) {
+  const authUser = await getCurrentUserForId(userId)
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  const hints = new Set<string>()
+  const fromProfile = normalizeUsernameCandidate((profile as any)?.username)
+  const fromEmail = normalizeUsernameCandidate(usernameFromEmail(authUser?.email ?? null))
+  if (fromProfile) hints.add(fromProfile)
+  if (fromEmail) hints.add(fromEmail)
+  return Array.from(hints)
+}
+
 function normalizeUsernameCandidate(value?: string | null) {
   const cleaned = (value || "").trim().toLowerCase()
   return cleaned || null
@@ -217,6 +234,22 @@ export async function getLikedTracks(userId: string) {
     return []
   }
 
+  // Fallback read for legacy rows still tied by username.
+  if ((data || []).length === 0) {
+    const usernameHints = await getUsernameHintsForRead(userId)
+    if (usernameHints.length > 0) {
+      const byUsername = await supabase
+        .from("liked_tracks")
+        .select("track_data")
+        .in("username", usernameHints)
+        .order("created_at", { ascending: false })
+
+      if (!byUsername.error && (byUsername.data || []).length > 0) {
+        data = byUsername.data
+      }
+    }
+  }
+
   return (data || []).map((item: any) => item.track_data).filter(Boolean)
 }
 
@@ -405,6 +438,22 @@ export async function getPlaylists(userId: string) {
   if (error) {
     console.error("Erro ao carregar playlists:", error)
     return []
+  }
+
+  // Fallback read for legacy rows still tied by username.
+  if ((playlists || []).length === 0) {
+    const usernameHints = await getUsernameHintsForRead(userId)
+    if (usernameHints.length > 0) {
+      const byUsername = await supabase
+        .from("playlists")
+        .select("id, name, user_id, username, created_at, tracks_json, image_url")
+        .in("username", usernameHints)
+        .order("created_at", { ascending: false })
+
+      if (!byUsername.error && (byUsername.data || []).length > 0) {
+        playlists = byUsername.data
+      }
+    }
   }
 
   return (playlists || []).map((playlist: any) => ({

@@ -33,10 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     const current = await getCurrentUser()
-    if (!current) {
-      setProfile(null)
-      return
-    }
+    // Avoid clearing profile on transient auth hydration gaps.
+    if (!current?.id) return
     const p = await getMyProfile(current.id)
     setProfile(p)
   }, [])
@@ -44,8 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true
 
-    getCurrentUser()
-      .then(async (u) => {
+    supabase.auth.getSession()
+      .then(async ({ data }) => {
+        const u = data.session?.user ?? await getCurrentUser()
         if (!mounted) return
         setUser(u ?? null)
         // Never block app boot on profile fetch.
@@ -116,13 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     document.addEventListener("visibilitychange", onVisible)
-    const interval = window.setInterval(() => {
-      refreshProfile().catch(() => {})
-    }, 15000)
-
     return () => {
       document.removeEventListener("visibilitychange", onVisible)
-      window.clearInterval(interval)
     }
   }, [user?.id, refreshProfile])
 
