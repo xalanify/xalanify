@@ -9,6 +9,9 @@ import {
   Trash2,
   Music,
   X,
+  Send,
+  Inbox,
+  Check,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { usePlayer, type Track } from "@/lib/player-context"
@@ -18,6 +21,13 @@ import {
   deletePlaylist,
   getLikedTracks,
   removeLikedTrack,
+  getIncomingShareRequests,
+  acceptShareRequest,
+  rejectShareRequest,
+  searchShareTargets,
+  createShareRequest,
+  type ShareRequest,
+  type ShareTarget,
 } from "@/lib/supabase"
 
 interface Playlist {
@@ -36,7 +46,14 @@ export default function LibraryTab() {
   const [newName, setNewName] = useState("")
   const [viewPlaylist, setViewPlaylist] = useState<Playlist | null>(null)
   const [viewLiked, setViewLiked] = useState(false)
+  const [viewPendingShares, setViewPendingShares] = useState(false)
   const [menuPlaylistId, setMenuPlaylistId] = useState<string | null>(null)
+  const [libraryMsg, setLibraryMsg] = useState("")
+  const [pendingShares, setPendingShares] = useState<ShareRequest[]>([])
+  const [sharePlaylist, setSharePlaylist] = useState<Playlist | null>(null)
+  const [shareQuery, setShareQuery] = useState("")
+  const [shareTargets, setShareTargets] = useState<ShareTarget[]>([])
+  const [shareMsg, setShareMsg] = useState("")
 
   function isTestPlaylist(playlist: Playlist) {
     return playlist.name.toLowerCase().includes("teste") || playlist.name.toLowerCase().includes("demo")
@@ -49,12 +66,14 @@ export default function LibraryTab() {
 
   const loadData = useCallback(async () => {
     if (!user) return
-    const [pl, lt] = await Promise.all([
+    const [pl, lt, incoming] = await Promise.all([
       getPlaylists(user.id),
       getLikedTracks(user.id),
+      getIncomingShareRequests(user.id),
     ])
     setPlaylists(pl.map((playlist: any) => ({ ...playlist, tracks: Array.isArray(playlist.tracks) ? playlist.tracks : [] })))
     setLikedTracks(lt)
+    setPendingShares(incoming)
   }, [user])
 
   useEffect(() => {
@@ -63,7 +82,12 @@ export default function LibraryTab() {
 
   async function handleCreate() {
     if (!user || !newName.trim()) return
-    await createPlaylist(user.id, newName.trim())
+    const created: any = await createPlaylist(user.id, newName.trim())
+    if (created?.existed) {
+      setLibraryMsg("Ja existe uma playlist com esse nome.")
+    } else if (created?.id) {
+      setLibraryMsg("Playlist criada com sucesso.")
+    }
     setNewName("")
     setShowCreate(false)
     loadData()
@@ -78,6 +102,49 @@ export default function LibraryTab() {
   async function handleRemoveLiked(trackId: string) {
     if (!user) return
     await removeLikedTrack(user.id, trackId)
+    loadData()
+  }
+
+  async function handleSearchShareTargets() {
+    if (!user) return
+    const items = await searchShareTargets(user.id, shareQuery)
+    setShareTargets(items)
+  }
+
+  async function handleSharePlaylist(target: ShareTarget) {
+    if (!user || !sharePlaylist) return
+    const fromUsername = user.email?.split("@")[0] || "user"
+    const res = await createShareRequest({
+      fromUserId: user.id,
+      toUserId: target.user_id,
+      fromUsername,
+      itemType: "playlist",
+      itemTitle: sharePlaylist.name,
+      itemPayload: {
+        id: sharePlaylist.id,
+        name: sharePlaylist.name,
+        tracks: sharePlaylist.tracks,
+        image_url: sharePlaylist.image_url || null,
+      },
+    })
+
+    if (res.ok) {
+      setShareMsg(`Playlist enviada para ${target.username}.`)
+      return
+    }
+
+    setShareMsg("Falha ao partilhar. Verifica a tabela share_requests no Supabase.")
+  }
+
+  async function handleAcceptShare(request: ShareRequest) {
+    if (!user) return
+    await acceptShareRequest(user.id, request)
+    loadData()
+  }
+
+  async function handleRejectShare(requestId: string) {
+    if (!user) return
+    await rejectShareRequest(user.id, requestId)
     loadData()
   }
 
@@ -190,6 +257,47 @@ export default function LibraryTab() {
     )
   }
 
+  if (viewPendingShares) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
+        <div className="mb-4 flex items-center gap-3">
+          <button onClick={() => setViewPendingShares(false)} className="text-[#a08070]">
+            <ChevronRight className="h-6 w-6 rotate-180" />
+          </button>
+          <h2 className="text-xl font-bold text-[#f0e0d0]">Partilhas Pendentes</h2>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
+          {pendingShares.map((request) => (
+            <div key={request.id} className="glass-card rounded-xl p-3">
+              <p className="truncate text-sm font-semibold text-[#f0e0d0]">{request.item_title}</p>
+              <p className="truncate text-xs text-[#a08070]">
+                {request.item_type === "playlist" ? "Playlist" : "Musica"} enviada por {request.from_username}
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  onClick={() => handleAcceptShare(request)}
+                  className="rounded-lg bg-[rgba(16,185,129,0.24)] px-2.5 py-1 text-xs text-[#f0e0d0]"
+                >
+                  <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Aceitar</span>
+                </button>
+                <button
+                  onClick={() => handleRejectShare(request.id)}
+                  className="rounded-lg bg-[rgba(230,57,70,0.24)] px-2.5 py-1 text-xs text-[#f0e0d0]"
+                >
+                  Recusar
+                </button>
+              </div>
+            </div>
+          ))}
+          {pendingShares.length === 0 && (
+            <p className="py-20 text-center text-sm text-[#706050]">Sem partilhas pendentes.</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   // Main library view
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
@@ -203,6 +311,7 @@ export default function LibraryTab() {
       </div>
 
       <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
+        {libraryMsg && <p className="text-xs text-[#f59e0b]">{libraryMsg}</p>}
         {/* Create Playlist */}
         <button
           onClick={() => setShowCreate(true)}
@@ -223,6 +332,20 @@ export default function LibraryTab() {
             <Heart className="h-5 w-5 fill-current text-[#fff]" />
           </div>
           <span className="flex-1 text-left text-sm font-medium text-[#f0e0d0]">Favoritos</span>
+          <ChevronRight className="h-5 w-5 text-[#706050]" />
+        </button>
+
+        <button
+          onClick={() => setViewPendingShares(true)}
+          className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)]">
+            <Inbox className="h-5 w-5 text-[#e0b45a]" />
+          </div>
+          <span className="flex-1 text-left text-sm font-medium text-[#f0e0d0]">Partilhas Pendentes</span>
+          {pendingShares.length > 0 && (
+            <span className="rounded-full bg-[rgba(230,57,70,0.2)] px-2 py-0.5 text-[10px] text-[#f0e0d0]">{pendingShares.length}</span>
+          )}
           <ChevronRight className="h-5 w-5 text-[#706050]" />
         </button>
 
@@ -268,6 +391,18 @@ export default function LibraryTab() {
                   <Trash2 className="h-4 w-4" />
                   Eliminar
                 </button>
+                <button
+                  onClick={() => {
+                    setSharePlaylist(pl)
+                    setMenuPlaylistId(null)
+                    setShareTargets([])
+                    setShareMsg("")
+                  }}
+                  className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-[#f0e0d0] hover:bg-[rgba(255,255,255,0.05)]"
+                >
+                  <Send className="h-4 w-4" />
+                  Partilhar
+                </button>
               </div>
             )}
           </div>
@@ -301,6 +436,45 @@ export default function LibraryTab() {
             >
               Criar
             </button>
+          </div>
+        </div>
+      )}
+
+      {sharePlaylist && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.7)] p-6">
+          <div className="glass-card-strong w-full max-w-sm rounded-2xl p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#f0e0d0]">Partilhar Playlist</h3>
+              <button onClick={() => setSharePlaylist(null)} className="text-[#706050]">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mb-3 truncate text-xs text-[#a08070]">Playlist: {sharePlaylist.name}</p>
+            <div className="mb-2 flex items-center gap-2">
+              <input
+                value={shareQuery}
+                onChange={(e) => setShareQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearchShareTargets()}
+                placeholder="Pesquisar user..."
+                className="glass-card w-full rounded-xl px-3 py-2 text-xs text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
+              />
+              <button onClick={handleSearchShareTargets} className="rounded-lg bg-[rgba(230,57,70,0.2)] px-3 py-2 text-xs text-[#f0e0d0]">
+                Buscar
+              </button>
+            </div>
+            <div className="max-h-48 space-y-1 overflow-y-auto hide-scrollbar">
+              {shareTargets.map((target) => (
+                <button
+                  key={target.user_id}
+                  onClick={() => handleSharePlaylist(target)}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-[#f0e0d0] hover:bg-[rgba(255,255,255,0.08)]"
+                >
+                  <Send className="h-4 w-4 text-[#a08070]" />
+                  <span className="truncate">{target.username}</span>
+                </button>
+              ))}
+            </div>
+            {shareMsg && <p className="mt-2 text-xs text-[#f59e0b]">{shareMsg}</p>}
           </div>
         </div>
       )}

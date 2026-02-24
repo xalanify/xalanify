@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Heart, Plus, X, Music } from "lucide-react"
+import { Heart, Plus, X, Music, Send } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { addLikedTrack, getPlaylists, addTrackToPlaylist } from "@/lib/supabase"
+import { addLikedTrack, getPlaylists, addTrackToPlaylist, searchShareTargets, createShareRequest, type ShareTarget } from "@/lib/supabase"
 import type { Track } from "@/lib/player-context"
 
 interface Playlist {
@@ -22,7 +22,11 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
   const { user } = useAuth()
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [showPlaylists, setShowPlaylists] = useState(false)
+  const [showShare, setShowShare] = useState(false)
+  const [shareQuery, setShareQuery] = useState("")
+  const [shareTargets, setShareTargets] = useState<ShareTarget[]>([])
   const [added, setAdded] = useState(false)
+  const [shareMsg, setShareMsg] = useState("")
 
   useEffect(() => {
     if (user) {
@@ -43,6 +47,33 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
     await addTrackToPlaylist(playlistId, track)
     setAdded(true)
     setTimeout(onClose, 500)
+  }
+
+  async function handleSearchTargets() {
+    if (!user) return
+    const results = await searchShareTargets(user.id, shareQuery)
+    setShareTargets(results)
+  }
+
+  async function handleShare(toUserId: string, username: string) {
+    if (!user) return
+    const fromUsername = user.email?.split("@")[0] || "user"
+    const res = await createShareRequest({
+      fromUserId: user.id,
+      toUserId,
+      fromUsername,
+      itemType: "track",
+      itemTitle: track.title,
+      itemPayload: track,
+    })
+
+    if (res.ok) {
+      setShareMsg(`Musica enviada para ${username}.`)
+      setTimeout(onClose, 800)
+      return
+    }
+
+    setShareMsg("Falha ao partilhar. Verifica a tabela share_requests no Supabase.")
   }
 
   const menuPosition = useMemo(() => {
@@ -79,6 +110,32 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
 
         {added ? (
           <div className="py-3 text-center text-sm text-[#f0e0d0]">Adicionado com sucesso!</div>
+        ) : showShare ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                value={shareQuery}
+                onChange={(e) => setShareQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearchTargets()}
+                placeholder="Pesquisar user..."
+                className="w-full rounded-lg bg-[rgba(255,255,255,0.08)] px-2 py-1.5 text-xs text-[#f0e0d0] placeholder-[#a08070] outline-none"
+              />
+              <button onClick={handleSearchTargets} className="rounded-lg bg-[rgba(255,255,255,0.12)] px-2 py-1.5 text-xs text-[#f0e0d0]">
+                Buscar
+              </button>
+            </div>
+            {shareTargets.map((target) => (
+              <button
+                key={target.user_id}
+                onClick={() => handleShare(target.user_id, target.username)}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-[#f0e0d0] hover:bg-[rgba(255,255,255,0.08)]"
+              >
+                <Send className="h-4 w-4 text-[#a08070]" />
+                <span className="truncate">{target.username}</span>
+              </button>
+            ))}
+            {shareMsg && <p className="text-xs text-[#f59e0b]">{shareMsg}</p>}
+          </div>
         ) : showPlaylists ? (
           <div className="space-y-1">
             <p className="mb-1 text-[10px] uppercase tracking-wide text-[#a08070]">Escolher Playlist</p>
@@ -112,6 +169,13 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
             >
               <Plus className="h-4 w-4 text-[#a08070]" />
               <span>Adicionar a Playlist</span>
+            </button>
+            <button
+              onClick={() => setShowShare(true)}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-[#f0e0d0] transition-all duration-150 hover:bg-[rgba(255,255,255,0.08)]"
+            >
+              <Send className="h-4 w-4 text-[#a08070]" />
+              <span>Partilhar Musica</span>
             </button>
           </div>
         )}

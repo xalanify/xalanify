@@ -3,8 +3,8 @@
 import { Play, Pause, SkipForward, SkipBack, ChevronDown, Heart, Volume2, VolumeX } from "lucide-react"
 import { usePlayer } from "@/lib/player-context"
 import { useAuth } from "@/lib/auth-context"
-import { addLikedTrack } from "@/lib/supabase"
-import { useMemo, useState } from "react"
+import { addLikedTrack, isTrackLiked } from "@/lib/supabase"
+import { useEffect, useMemo, useState } from "react"
 
 interface FullPlayerProps {
   onClose: () => void
@@ -64,6 +64,25 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
     await addLikedTrack(user.id, currentTrack)
     setLiked(true)
   }
+
+  useEffect(() => {
+    let mounted = true
+
+    async function syncLikedState() {
+      if (!user || !currentTrack) {
+        if (mounted) setLiked(false)
+        return
+      }
+
+      const likedNow = await isTrackLiked(user.id, currentTrack.id)
+      if (mounted) setLiked(likedNow)
+    }
+
+    syncLikedState()
+    return () => {
+      mounted = false
+    }
+  }, [user, currentTrack])
 
   function handleSeek(e: React.ChangeEvent<HTMLInputElement>) {
     const val = parseFloat(e.target.value)
@@ -136,7 +155,13 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
         </div>
 
         <div className="mb-6 flex items-center gap-3">
-          {volume <= 0.01 ? <VolumeX className="h-4 w-4 text-[#a08070]" /> : <Volume2 className="h-4 w-4 text-[#a08070]" />}
+          <button
+            onClick={() => setVolume(volume <= 0.01 ? 0.85 : 0)}
+            className="p-1 text-[#a08070]"
+            aria-label="Ativar ou silenciar volume"
+          >
+            {volume <= 0.01 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
           <input
             type="range"
             min={0}

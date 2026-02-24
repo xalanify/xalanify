@@ -168,6 +168,7 @@ export default function SettingsTab() {
   const [smartSuggestions, setSmartSuggestions] = useState<Track[]>([])
   const [smartPlaylists, setSmartPlaylists] = useState<SmartPlaylistResult[]>([])
   const [smartLoading, setSmartLoading] = useState(false)
+  const [smartMode, setSmartMode] = useState<"tracks" | "playlists" | "both">("both")
   const [addingSmartTrackId, setAddingSmartTrackId] = useState<string | null>(null)
   const [addingSmartPlaylistId, setAddingSmartPlaylistId] = useState<string | null>(null)
   const [smartMessage, setSmartMessage] = useState("")
@@ -241,9 +242,12 @@ export default function SettingsTab() {
 
     setAddingPlaylistId(item.id)
     setPlaylistActionMessage("A adicionar playlist de testes na biblioteca...")
-    const created = await createPlaylist(user.id, `Teste Playlist · ${item.title}`, item.thumbnail)
+    const created: any = await createPlaylist(user.id, `Teste Playlist · ${item.title}`, item.thumbnail)
 
     if (created?.id && item.previewTracks.length > 0) {
+      if (created?.existed) {
+        setPlaylistActionMessage("Playlist ja existia. Vou apenas garantir que as faixas estao atualizadas.")
+      }
       for (const track of item.previewTracks) {
         await addTrackToPlaylist(created.id, asTestTrack(track as Track))
       }
@@ -417,12 +421,15 @@ export default function SettingsTab() {
     const allTracks: Track[] = []
     const allPlaylists: PlaylistSuggestion[] = []
     for (const q of queries) {
-      const [tracksRes, playlistsRes] = await Promise.all([
-        searchMusic(q),
-        searchPlaylistSuggestions(q),
-      ])
-      allTracks.push(...tracksRes.slice(0, 12))
-      allPlaylists.push(...playlistsRes.slice(0, 4))
+      if (smartMode === "tracks" || smartMode === "both") {
+        const tracksRes = await searchMusic(q)
+        allTracks.push(...tracksRes.slice(0, 12))
+      }
+
+      if (smartMode === "playlists" || smartMode === "both") {
+        const playlistsRes = await searchPlaylistSuggestions(q)
+        allPlaylists.push(...playlistsRes.slice(0, 4))
+      }
     }
 
     const dedup = new Map<string, Track>()
@@ -458,8 +465,8 @@ export default function SettingsTab() {
       })
     }
 
-    setSmartSuggestions(Array.from(dedup.values()).slice(0, 40))
-    setSmartPlaylists(Array.from(playlistsDedup.values()).slice(0, 12))
+    setSmartSuggestions(smartMode === "playlists" ? [] : Array.from(dedup.values()).slice(0, 40))
+    setSmartPlaylists(smartMode === "tracks" ? [] : Array.from(playlistsDedup.values()).slice(0, 12))
     setSmartLoading(false)
   }
 
@@ -474,7 +481,7 @@ export default function SettingsTab() {
   async function handleAddSmartPlaylist(item: SmartPlaylistResult) {
     if (!user) return
     setAddingSmartPlaylistId(item.id)
-    const created = await createPlaylist(user.id, `Teste Playlist · ${item.title}`, item.thumbnail)
+    const created: any = await createPlaylist(user.id, `Teste Playlist · ${item.title}`, item.thumbnail)
     if (created?.id) {
       for (const track of item.tracks) {
         await addTrackToPlaylist(created.id, asTestTrack(track, "musica de playlist de testes"))
@@ -735,6 +742,30 @@ export default function SettingsTab() {
         </button>
 
         <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-[#f0e0d0]"><Bot className="h-5 w-5" /> Descoberta inteligente (teste)</h2>
+
+        <div className="mb-3 grid grid-cols-3 gap-2">
+          <button
+            onClick={() => setSmartMode("tracks")}
+            className="rounded-lg px-3 py-2 text-xs"
+            style={{ background: smartMode === "tracks" ? "rgba(230,57,70,0.28)" : "rgba(255,255,255,0.04)", color: "#f0e0d0" }}
+          >
+            So musicas
+          </button>
+          <button
+            onClick={() => setSmartMode("playlists")}
+            className="rounded-lg px-3 py-2 text-xs"
+            style={{ background: smartMode === "playlists" ? "rgba(230,57,70,0.28)" : "rgba(255,255,255,0.04)", color: "#f0e0d0" }}
+          >
+            So playlists
+          </button>
+          <button
+            onClick={() => setSmartMode("both")}
+            className="rounded-lg px-3 py-2 text-xs"
+            style={{ background: smartMode === "both" ? "rgba(230,57,70,0.28)" : "rgba(255,255,255,0.04)", color: "#f0e0d0" }}
+          >
+            Ambos
+          </button>
+        </div>
 
         <button
           onClick={handleSmartDiscovery}
@@ -1095,3 +1126,4 @@ export default function SettingsTab() {
     </div>
   )
 }
+

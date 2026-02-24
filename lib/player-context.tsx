@@ -100,6 +100,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    const stored = localStorage.getItem("xalanify.volume")
+    if (!stored) return
+    const parsed = Number(stored)
+    if (!Number.isNaN(parsed)) {
+      setVolumeState(Math.max(0, Math.min(1, parsed)))
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem("xalanify.volume", String(volume))
+  }, [volume])
+
+  useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
 
     if (!currentTrack) {
@@ -112,23 +125,39 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       artist: currentTrack.artist,
       album: "Xalanify",
       artwork: [
-        { src: currentTrack.thumbnail, sizes: "96x96", type: "image/png" },
-        { src: currentTrack.thumbnail, sizes: "128x128", type: "image/png" },
-        { src: currentTrack.thumbnail, sizes: "192x192", type: "image/png" },
-        { src: currentTrack.thumbnail, sizes: "256x256", type: "image/png" },
+        { src: currentTrack.thumbnail, sizes: "96x96", type: "image/jpeg" },
+        { src: currentTrack.thumbnail, sizes: "128x128", type: "image/jpeg" },
+        { src: currentTrack.thumbnail, sizes: "192x192", type: "image/jpeg" },
+        { src: currentTrack.thumbnail, sizes: "256x256", type: "image/jpeg" },
       ],
     })
 
-    navigator.mediaSession.setActionHandler("play", () => setIsPlaying(true))
-    navigator.mediaSession.setActionHandler("pause", () => setIsPlaying(false))
-    navigator.mediaSession.setActionHandler("nexttrack", () => next())
-    navigator.mediaSession.setActionHandler("previoustrack", () => previous())
+    try { navigator.mediaSession.setActionHandler("play", () => setIsPlaying(true)) } catch {}
+    try { navigator.mediaSession.setActionHandler("pause", () => setIsPlaying(false)) } catch {}
+    try { navigator.mediaSession.setActionHandler("nexttrack", () => next()) } catch {}
+    try { navigator.mediaSession.setActionHandler("previoustrack", () => previous()) } catch {}
+    try { navigator.mediaSession.setActionHandler("seekbackward", () => previous()) } catch {}
+    try { navigator.mediaSession.setActionHandler("seekforward", () => next()) } catch {}
   }, [currentTrack, next, previous])
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused"
   }, [isPlaying])
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
+    if (!("setPositionState" in navigator.mediaSession)) return
+    if (!duration || !Number.isFinite(duration)) return
+
+    try {
+      navigator.mediaSession.setPositionState({
+        duration,
+        position: Math.min(Math.max(progress, 0), duration),
+        playbackRate: 1,
+      })
+    } catch {}
+  }, [progress, duration])
 
   return (
     <PlayerContext.Provider

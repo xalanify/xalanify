@@ -27,6 +27,19 @@ async function getUserEmail(userId: string) {
 export interface ShareTarget {
   user_id: string
   username: string
+  email?: string | null
+}
+
+export interface ShareRequest {
+  id: string
+  from_user_id: string
+  to_user_id: string
+  from_username: string
+  item_type: "track" | "playlist"
+  item_title: string
+  item_payload: any
+  status: "pending" | "accepted" | "rejected"
+  created_at: string
 }
 
 // User Functions
@@ -66,6 +79,22 @@ export async function getLikedTracks(userId: string) {
 
   if (error) console.error("Erro ao carregar favoritos:", error)
   return data?.map((item: any) => item.track_data).filter(Boolean) || []
+}
+
+export async function isTrackLiked(userId: string, trackId: string) {
+  const { data, error } = await supabase
+    .from("liked_tracks")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("track_id", trackId)
+    .maybeSingle()
+
+  if (error) {
+    console.error("Erro ao verificar favorito:", error)
+    return false
+  }
+
+  return !!data
 }
 
 export async function addLikedTrack(userId: string, track: any) {
@@ -124,13 +153,13 @@ export async function listShareTargets(currentUserId: string, isAdmin = false) {
 
   for (const row of fromPlaylists.data || []) {
     if (!row.user_id || row.user_id === currentUserId) continue
-    targets.set(row.user_id, { user_id: row.user_id, username: row.username || "user" })
+    targets.set(row.user_id, { user_id: row.user_id, username: row.username || "user", email: null })
   }
 
   for (const row of fromLikes.data || []) {
     if (!row.user_id || row.user_id === currentUserId) continue
     if (!targets.has(row.user_id)) {
-      targets.set(row.user_id, { user_id: row.user_id, username: row.username || "user" })
+      targets.set(row.user_id, { user_id: row.user_id, username: row.username || "user", email: null })
     }
   }
 
@@ -138,7 +167,7 @@ export async function listShareTargets(currentUserId: string, isAdmin = false) {
     const userId = row?.user_id
     if (!userId || userId === currentUserId) continue
     if (!targets.has(userId)) {
-      targets.set(userId, { user_id: userId, username: row?.username || "user" })
+      targets.set(userId, { user_id: userId, username: row?.username || "user", email: null })
     }
   }
 
@@ -147,7 +176,7 @@ export async function listShareTargets(currentUserId: string, isAdmin = false) {
     if (!userId || userId === currentUserId) continue
     if (!targets.has(userId)) {
       const username = row?.username || usernameFromEmail(row?.email)
-      targets.set(userId, { user_id: userId, username: username || "user" })
+      targets.set(userId, { user_id: userId, username: username || "user", email: row?.email || null })
     }
   }
 
@@ -156,7 +185,7 @@ export async function listShareTargets(currentUserId: string, isAdmin = false) {
     if (!userId || userId === currentUserId) continue
     if (!targets.has(userId)) {
       const username = row?.username || usernameFromEmail(row?.email)
-      targets.set(userId, { user_id: userId, username: username || "user" })
+      targets.set(userId, { user_id: userId, username: username || "user", email: row?.email || null })
     }
   }
 
@@ -165,7 +194,7 @@ export async function listShareTargets(currentUserId: string, isAdmin = false) {
     if (!userId || userId === currentUserId) continue
     if (!targets.has(userId)) {
       const username = row?.username || usernameFromEmail(row?.email)
-      targets.set(userId, { user_id: userId, username: username || "user" })
+      targets.set(userId, { user_id: userId, username: username || "user", email: row?.email || null })
     }
   }
 
@@ -177,6 +206,21 @@ export async function listShareTargets(currentUserId: string, isAdmin = false) {
   if (fromRpc?.error && fromRpc.error.code !== "PGRST202") console.error("Erro ao listar targets via rpc:", fromRpc.error)
 
   return Array.from(targets.values()).sort((a, b) => a.username.localeCompare(b.username))
+}
+
+export async function searchShareTargets(currentUserId: string, query: string) {
+  const targets = await listShareTargets(currentUserId, false)
+  const needle = query.trim().toLowerCase()
+
+  if (!needle) return targets.slice(0, 20)
+
+  return targets
+    .filter((target) =>
+      target.username.toLowerCase().includes(needle) ||
+      (target.email || "").toLowerCase().includes(needle) ||
+      target.user_id.toLowerCase().includes(needle)
+    )
+    .slice(0, 20)
 }
 
 // Playlists
@@ -201,13 +245,27 @@ export async function getPlaylists(userId: string) {
 export async function createPlaylist(userId: string, name: string, imageUrl?: string) {
   const email = await getUserEmail(userId)
   const username = usernameFromEmail(email)
+  const normalized = name.trim()
+
+  if (!normalized) return null
+
+  const { data: existing, error: existingError } = await supabase
+    .from("playlists")
+    .select("id, name, user_id, username, created_at, tracks_json, image_url")
+    .eq("user_id", userId)
+    .ilike("name", normalized)
+    .maybeSingle()
+
+  if (!existingError && existing) {
+    return { ...existing, existed: true, tracks: Array.isArray(existing.tracks_json) ? existing.tracks_json : [] }
+  }
 
   const { data, error } = await supabase
     .from("playlists")
     .insert({
       user_id: userId,
       username,
-      name,
+      name: normalized,
       tracks_json: [],
       image_url: imageUrl || null,
     })
@@ -219,7 +277,26 @@ export async function createPlaylist(userId: string, name: string, imageUrl?: st
     return null
   }
 
-  return { ...data, tracks: Array.isArray(data.tracks_json) ? data.tracks_json : [] }
+  return { ...data, existed: false, tracks: Array.isArray(data.tracks_json) ? data.tracks_json : [] }
+}
+
+export async function createPlaylistFromShare(userId: string, name: string, imageUrl?: string) {
+  const baseName = name.trim() || "Playlist Partilhada"
+  const existing = await getPlaylists(userId)
+  const names = new Set(existing.map((playlist: any) => (playlist.name || "").toLowerCase()))
+
+  if (!names.has(baseName.toLowerCase())) {
+    return createPlaylist(userId, baseName, imageUrl)
+  }
+
+  let idx = 2
+  let candidate = `${baseName} (${idx})`
+  while (names.has(candidate.toLowerCase())) {
+    idx += 1
+    candidate = `${baseName} (${idx})`
+  }
+
+  return createPlaylist(userId, candidate, imageUrl)
 }
 
 export async function deletePlaylist(playlistId: string) {
@@ -250,7 +327,7 @@ export async function addTrackToPlaylist(playlistId: string, track: any) {
     .update({ tracks_json: updatedTracks })
     .eq("id", playlistId)
 
-  if (error) console.error("Erro ao adicionar à playlist:", error)
+  if (error) console.error("Erro ao adicionar a playlist:", error)
   return !error
 }
 
@@ -276,4 +353,109 @@ export async function removeTrackFromPlaylist(playlistId: string, trackId: strin
 
   if (error) console.error("Erro ao remover da playlist:", error)
   return !error
+}
+
+export async function createShareRequest(params: {
+  fromUserId: string
+  toUserId: string
+  fromUsername: string
+  itemType: "track" | "playlist"
+  itemTitle: string
+  itemPayload: any
+}) {
+  const { fromUserId, toUserId, fromUsername, itemType, itemTitle, itemPayload } = params
+  const payloadId = itemPayload?.id || null
+
+  const { data: existing } = await supabase
+    .from("share_requests")
+    .select("id, item_payload")
+    .eq("from_user_id", fromUserId)
+    .eq("to_user_id", toUserId)
+    .eq("item_type", itemType)
+    .eq("item_title", itemTitle)
+    .eq("status", "pending")
+    .limit(20)
+
+  if ((existing || []).some((row: any) => (row?.item_payload?.id || null) === payloadId)) {
+    return { ok: false as const, reason: "Pedido de partilha ja pendente para este conteudo." }
+  }
+
+  const { error } = await supabase.from("share_requests").insert({
+    from_user_id: fromUserId,
+    to_user_id: toUserId,
+    from_username: fromUsername,
+    item_type: itemType,
+    item_title: itemTitle,
+    item_payload: itemPayload,
+    status: "pending",
+  })
+
+  if (error) {
+    console.error("Erro ao criar pedido de partilha:", error)
+    return { ok: false as const, reason: error.message }
+  }
+
+  return { ok: true as const }
+}
+
+export async function getIncomingShareRequests(userId: string): Promise<ShareRequest[]> {
+  const { data, error } = await supabase
+    .from("share_requests")
+    .select("id, from_user_id, to_user_id, from_username, item_type, item_title, item_payload, status, created_at")
+    .eq("to_user_id", userId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    if (error.code !== "PGRST205") console.error("Erro ao carregar partilhas pendentes:", error)
+    return []
+  }
+
+  return (data || []) as ShareRequest[]
+}
+
+export async function acceptShareRequest(userId: string, request: ShareRequest) {
+  if (request.to_user_id !== userId) return false
+
+  if (request.item_type === "track") {
+    await addLikedTrack(userId, request.item_payload)
+  } else {
+    const payload = request.item_payload || {}
+    const playlistName = payload.name || request.item_title || "Playlist Partilhada"
+    const created = await createPlaylistFromShare(userId, playlistName, payload.image_url || null)
+
+    if (created?.id && Array.isArray(payload.tracks)) {
+      for (const track of payload.tracks) {
+        await addTrackToPlaylist(created.id, track)
+      }
+    }
+  }
+
+  const { error } = await supabase
+    .from("share_requests")
+    .update({ status: "accepted" })
+    .eq("id", request.id)
+    .eq("to_user_id", userId)
+
+  if (error) {
+    console.error("Erro ao aceitar partilha:", error)
+    return false
+  }
+
+  return true
+}
+
+export async function rejectShareRequest(userId: string, requestId: string) {
+  const { error } = await supabase
+    .from("share_requests")
+    .update({ status: "rejected" })
+    .eq("id", requestId)
+    .eq("to_user_id", userId)
+
+  if (error) {
+    console.error("Erro ao rejeitar partilha:", error)
+    return false
+  }
+
+  return true
 }

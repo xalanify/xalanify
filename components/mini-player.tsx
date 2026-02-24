@@ -32,29 +32,26 @@ export default function MiniPlayer({ onExpand, accentColor }: MiniPlayerProps) {
   const playerBackground = `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 0.35) 0%, rgba(20, 10, 10, 0.95) 100%)`
 
   return (
-    <button
-      onClick={onExpand}
+    <div
       className="flex w-full items-center gap-3 rounded-2xl border border-[rgba(255,255,255,0.08)] p-3 text-left shadow-xl"
       style={{ background: playerBackground }}
     >
-      <img
-        src={currentTrack.thumbnail}
-        alt={currentTrack.title}
-        className="h-11 w-11 shrink-0 rounded-xl object-cover"
-      />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-[#f0e0d0]">
-          {currentTrack.title}
-        </p>
-        <p className="truncate text-xs text-[#a08070]">{currentTrack.artist}</p>
-      </div>
+      <button onClick={onExpand} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <img
+          src={currentTrack.thumbnail}
+          alt={currentTrack.title}
+          className="h-11 w-11 shrink-0 rounded-xl object-cover"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-[#f0e0d0]">{currentTrack.title}</p>
+          <p className="truncate text-xs text-[#a08070]">{currentTrack.artist}</p>
+        </div>
+      </button>
+
       <div className="flex shrink-0 items-center gap-1">
         <div className="relative">
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setShowVolume((prev) => !prev)
-            }}
+            onClick={() => setShowVolume((prev) => !prev)}
             className="p-2 text-[#f0e0d0]"
             aria-label="Volume"
           >
@@ -62,9 +59,8 @@ export default function MiniPlayer({ onExpand, accentColor }: MiniPlayerProps) {
           </button>
           {showVolume && (
             <div
-              className="absolute bottom-[120%] right-0 w-28 rounded-lg border border-[rgba(255,255,255,0.1)] p-2"
+              className="absolute bottom-[120%] right-0 z-20 w-28 rounded-lg border border-[rgba(255,255,255,0.1)] p-2"
               style={{ background: "rgba(20, 10, 10, 0.96)" }}
-              onClick={(e) => e.stopPropagation()}
             >
               <input
                 type="range"
@@ -79,31 +75,23 @@ export default function MiniPlayer({ onExpand, accentColor }: MiniPlayerProps) {
             </div>
           )}
         </div>
+
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            isPlaying ? pause() : resume()
-          }}
+          onClick={() => (isPlaying ? pause() : resume())}
           className="p-2 text-[#f0e0d0]"
           aria-label={isPlaying ? "Pausar" : "Reproduzir"}
         >
-          {isPlaying ? (
-            <Pause className="h-5 w-5 fill-current" />
-          ) : (
-            <Play className="h-5 w-5 fill-current" />
-          )}
+          {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}
         </button>
+
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            next()
-          }}
+          onClick={next}
           className="p-2 text-[#f0e0d0]"
           aria-label="Proxima"
         >
           <SkipForward className="h-5 w-5 fill-current" />
         </button>
       </div>
-    </button>
+    </div>
   )
 }
