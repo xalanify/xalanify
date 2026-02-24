@@ -217,31 +217,31 @@ export async function addLikedTrack(userId: string, track: any) {
   const email = await getUserEmail(userId)
   const username = usernameFromEmail(email)
 
-  const { data: existing, error: existingError } = await supabase
-    .from("liked_tracks")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("track_id", track.id)
-    .maybeSingle()
-
-  if (existingError) {
-    console.error("Erro ao verificar favorito existente:", existingError)
-    return false
-  }
-
-  if (existing) {
-    return true
-  }
-
-  const { error } = await supabase.from("liked_tracks").insert({
+  const row = {
     user_id: userId,
     username,
     track_id: track.id,
     track_data: track,
-  })
+  }
 
-  if (error) console.error("Erro ao adicionar favorito:", error)
-  return !error
+  const { error: upsertError } = await supabase
+    .from("liked_tracks")
+    .upsert(row, { onConflict: "user_id,track_id" })
+
+  if (!upsertError) return true
+
+  // Fallback for databases without a unique index on (user_id, track_id).
+  if (upsertError.code === "42P10") {
+    const { error: insertError } = await supabase.from("liked_tracks").insert(row)
+    if (insertError) {
+      console.error("Erro ao adicionar favorito:", insertError)
+      return false
+    }
+    return true
+  }
+
+  console.error("Erro ao adicionar favorito (upsert):", upsertError)
+  return false
 }
 
 export async function removeLikedTrack(userId: string, trackId: string) {

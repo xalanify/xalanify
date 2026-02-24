@@ -24,7 +24,7 @@ import {
   PaletteIcon,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { addLikedTrack, addTrackToPlaylist, createPlaylist, getLikedTracks, getPlaylists, listShareTargets, updateMyUsername, type ShareTarget } from "@/lib/supabase"
+import { addLikedTrack, addTrackToPlaylist, createPlaylist, createShareRequest, getLikedTracks, getPlaylists, listShareTargets, updateMyUsername, type ShareTarget } from "@/lib/supabase"
 import { searchMusic, searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
 import { usePlayer, type Track } from "@/lib/player-context"
 
@@ -322,6 +322,11 @@ export default function SettingsTab() {
   }
 
   async function handleSharePlaylistToUser() {
+    if (!user) {
+      setShareMessage("Sessao invalida. Faz login novamente.")
+      return
+    }
+
     const targetUserId = (selectedTargetUserId || manualTargetUserId).trim()
 
     if (!targetUserId || !selectedPlaylistId) {
@@ -331,26 +336,34 @@ export default function SettingsTab() {
 
     const chosen = myPlaylists.find((p) => p.id === selectedPlaylistId)
     if (!chosen) {
-      setShareMessage("Playlist não encontrada.")
+      setShareMessage("Playlist nao encontrada.")
       return
     }
 
     setSharing(true)
-    setShareMessage("A enviar playlist para o utilizador...")
+    setShareMessage("A enviar pedido de partilha...")
 
-    const created = await createPlaylist(targetUserId, `Partilhado · ${chosen.name}`)
+    const fromUsername = profile?.username || user.email?.split("@")[0] || "user"
+    const result = await createShareRequest({
+      fromUserId: user.id,
+      toUserId: targetUserId,
+      fromUsername,
+      itemType: "playlist",
+      itemTitle: chosen.name,
+      itemPayload: {
+        id: chosen.id,
+        name: chosen.name,
+        tracks: chosen.tracks,
+      },
+    })
 
-    if (!created?.id) {
-      setShareMessage("Falhou ao criar playlist no utilizador de destino. Verifica as políticas RLS/admin.")
+    if (!result.ok) {
+      setShareMessage(result.reason || "Falha ao criar pedido de partilha.")
       setSharing(false)
       return
     }
 
-    for (const track of chosen.tracks) {
-      await addTrackToPlaylist(created.id, track)
-    }
-
-    setShareMessage("Playlist partilhada com sucesso para o utilizador de destino.")
+    setShareMessage("Pedido de partilha enviado. O utilizador deve aceitar na biblioteca.")
     setSharing(false)
   }
 
@@ -1186,5 +1199,6 @@ export default function SettingsTab() {
     </div>
   )
 }
+
 
 
