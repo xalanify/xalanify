@@ -1,6 +1,6 @@
 "use client"
 
-import { Play, Pause, SkipForward, SkipBack, ChevronDown, Heart } from "lucide-react"
+import { Play, Pause, SkipForward, SkipBack, ChevronDown, Heart, Volume2, VolumeX } from "lucide-react"
 import { usePlayer } from "@/lib/player-context"
 import { useAuth } from "@/lib/auth-context"
 import { addLikedTrack } from "@/lib/supabase"
@@ -41,6 +41,8 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
     progress,
     duration,
     seekTo,
+    volume,
+    setVolume,
   } = usePlayer()
   const { user } = useAuth()
   const [liked, setLiked] = useState(false)
@@ -131,6 +133,20 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
             <span>{formatTime(progress)}</span>
             <span>{formatTime(duration)}</span>
           </div>
+        </div>
+
+        <div className="mb-6 flex items-center gap-3">
+          {volume <= 0.01 ? <VolumeX className="h-4 w-4 text-[#a08070]" /> : <Volume2 className="h-4 w-4 text-[#a08070]" />}
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={volume}
+            onChange={(e) => setVolume(Number(e.target.value))}
+            className="w-full"
+            aria-label="Controlo de volume"
+          />
         </div>
 
         <div className="flex items-center justify-center gap-8">

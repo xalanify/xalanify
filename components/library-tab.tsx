@@ -24,6 +24,7 @@ interface Playlist {
   id: string
   name: string
   tracks: Track[]
+  image_url?: string | null
 }
 
 export default function LibraryTab() {
@@ -36,6 +37,15 @@ export default function LibraryTab() {
   const [viewPlaylist, setViewPlaylist] = useState<Playlist | null>(null)
   const [viewLiked, setViewLiked] = useState(false)
   const [menuPlaylistId, setMenuPlaylistId] = useState<string | null>(null)
+
+  function isTestPlaylist(playlist: Playlist) {
+    return playlist.name.toLowerCase().includes("teste") || playlist.name.toLowerCase().includes("demo")
+  }
+
+  function testTrackLabel(track: Track) {
+    if (!track.isTestContent) return null
+    return track.testLabel || "musica de testes"
+  }
 
   const loadData = useCallback(async () => {
     if (!user) return
@@ -115,6 +125,7 @@ export default function LibraryTab() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-[#f0e0d0]">{track.title}</p>
                   <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
+                  {testTrackLabel(track) && <p className="truncate text-[10px] text-[#f59e0b]">({testTrackLabel(track)})</p>}
                 </div>
               </button>
             ))}
@@ -159,6 +170,7 @@ export default function LibraryTab() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-[#f0e0d0]">{track.title}</p>
                   <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
+                  {testTrackLabel(track) && <p className="truncate text-[10px] text-[#f59e0b]">({testTrackLabel(track)})</p>}
                 </div>
                 <button
                   onClick={(e) => {
@@ -221,14 +233,19 @@ export default function LibraryTab() {
               onClick={() => setViewPlaylist(pl)}
               className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
             >
-              <div
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${playlistColors[idx % playlistColors.length]}`}
-              >
-                <Music className="h-5 w-5 text-[#c0a090]" />
+              {pl.image_url ? (
+                <img src={pl.image_url} alt={pl.name} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+              ) : (
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${playlistColors[idx % playlistColors.length]}`}
+                >
+                  <Music className="h-5 w-5 text-[#c0a090]" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1 text-left">
+                <span className="block truncate text-sm font-medium text-[#f0e0d0]">{pl.name}</span>
+                {isTestPlaylist(pl) && <span className="block truncate text-[10px] text-[#f59e0b]">(playlist de testes)</span>}
               </div>
-              <span className="flex-1 text-left text-sm font-medium text-[#f0e0d0]">
-                {pl.name}
-              </span>
               <button
                 onClick={(e) => {
                   e.stopPropagation()

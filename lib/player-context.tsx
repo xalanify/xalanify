@@ -11,6 +11,9 @@ export interface Track {
   duration: number
   youtubeId: string | null
   previewUrl?: string | null
+  source?: "spotify" | "youtube" | "itunes"
+  isTestContent?: boolean
+  testLabel?: string
 }
 
 interface PlayerContextType {
@@ -19,6 +22,7 @@ interface PlayerContextType {
   queue: Track[]
   progress: number
   duration: number
+  volume: number
   play: (track: Track) => void
   pause: () => void
   resume: () => void
@@ -28,6 +32,7 @@ interface PlayerContextType {
   setProgress: (p: number) => void
   setDuration: (d: number) => void
   seekTo: (fraction: number) => void
+  setVolume: (value: number) => void
   playerRef: React.MutableRefObject<any>
   audioRef: React.MutableRefObject<HTMLAudioElement | null>
 }
@@ -40,25 +45,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [queue, setQueueState] = useState<Track[]>([])
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [volume, setVolumeState] = useState(0.85)
   const playerRef = useRef<any>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const play = useCallback(async (track: Track) => {
     setProgress(0)
 
-    if (track.previewUrl) {
-      // Keep preview playback stable (avoid switching source a second later).
-      setCurrentTrack({ ...track, youtubeId: null })
-      setIsPlaying(true)
-      return
-    }
-
     let ytId = track.youtubeId
     if (!ytId) {
       ytId = await getYoutubeId(track.title, track.artist)
     }
 
-    setCurrentTrack({ ...track, youtubeId: ytId })
+    // Prefer full-length playback via YouTube whenever possible.
+    setCurrentTrack({ ...track, youtubeId: ytId ?? null })
     setIsPlaying(true)
   }, [])
 
@@ -93,6 +93,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       playerRef.current.seekTo(fraction, "fraction")
     }
   }, [audioRef, currentTrack, duration])
+
+  const setVolume = useCallback((value: number) => {
+    const nextValue = Math.max(0, Math.min(1, value))
+    setVolumeState(nextValue)
+  }, [])
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
@@ -133,6 +138,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         queue,
         progress,
         duration,
+        volume,
         play,
         pause,
         resume,
@@ -142,6 +148,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setProgress,
         setDuration,
         seekTo,
+        setVolume,
         playerRef,
         audioRef,
       }}

@@ -26,7 +26,7 @@ import {
 import { useAuth } from "@/lib/auth-context"
 import { addLikedTrack, addTrackToPlaylist, createPlaylist, getLikedTracks, getPlaylists, listShareTargets, type ShareTarget } from "@/lib/supabase"
 import { searchMusic, searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
-import type { Track } from "@/lib/player-context"
+import { usePlayer, type Track } from "@/lib/player-context"
 
 interface Preferences {
   accentColor: string
@@ -43,6 +43,15 @@ interface Preferences {
 interface UserPlaylist {
   id: string
   name: string
+  tracks: Track[]
+}
+
+interface SmartPlaylistResult {
+  id: string
+  title: string
+  description: string
+  thumbnail: string
+  trackCount: number
   tracks: Track[]
 }
 
@@ -79,6 +88,8 @@ const DEMO_TEST_TRACKS = [
     thumbnail: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400",
     duration: 205,
     youtubeId: null,
+    isTestContent: true,
+    testLabel: "musica de testes",
   },
   {
     id: "demo-track-2",
@@ -87,6 +98,8 @@ const DEMO_TEST_TRACKS = [
     thumbnail: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400",
     duration: 188,
     youtubeId: null,
+    isTestContent: true,
+    testLabel: "musica de testes",
   },
   {
     id: "demo-track-3",
@@ -95,6 +108,8 @@ const DEMO_TEST_TRACKS = [
     thumbnail: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=400",
     duration: 233,
     youtubeId: null,
+    isTestContent: true,
+    testLabel: "musica de testes",
   },
 ]
 
@@ -106,6 +121,8 @@ const EXTRA_TEST_TRACKS = [
     thumbnail: "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=400",
     duration: 201,
     youtubeId: null,
+    isTestContent: true,
+    testLabel: "musica de testes",
   },
   {
     id: "demo-track-5",
@@ -114,6 +131,8 @@ const EXTRA_TEST_TRACKS = [
     thumbnail: "https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400",
     duration: 224,
     youtubeId: null,
+    isTestContent: true,
+    testLabel: "musica de testes",
   },
   {
     id: "demo-track-6",
@@ -122,17 +141,21 @@ const EXTRA_TEST_TRACKS = [
     thumbnail: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400",
     duration: 192,
     youtubeId: null,
+    isTestContent: true,
+    testLabel: "musica de testes",
   },
 ]
 
 export default function SettingsTab() {
   const { user, signOut } = useAuth()
+  const { play, setQueue } = usePlayer()
   const [activeView, setActiveView] = useState<SettingsView>("menu")
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES)
   const [playlistQuery, setPlaylistQuery] = useState("")
   const [playlistLoading, setPlaylistLoading] = useState(false)
   const [playlistResults, setPlaylistResults] = useState<PlaylistSuggestion[]>([])
   const [addingPlaylistId, setAddingPlaylistId] = useState<string | null>(null)
+  const [playlistActionMessage, setPlaylistActionMessage] = useState("")
   const [experimentMessage, setExperimentMessage] = useState("")
 
   const [myPlaylists, setMyPlaylists] = useState<UserPlaylist[]>([])
@@ -143,7 +166,11 @@ export default function SettingsTab() {
   const [sharing, setSharing] = useState(false)
   const [shareMessage, setShareMessage] = useState("")
   const [smartSuggestions, setSmartSuggestions] = useState<Track[]>([])
+  const [smartPlaylists, setSmartPlaylists] = useState<SmartPlaylistResult[]>([])
   const [smartLoading, setSmartLoading] = useState(false)
+  const [addingSmartTrackId, setAddingSmartTrackId] = useState<string | null>(null)
+  const [addingSmartPlaylistId, setAddingSmartPlaylistId] = useState<string | null>(null)
+  const [smartMessage, setSmartMessage] = useState("")
 
   const isAdmin = user?.email === "adminx@adminx.com"
 
@@ -177,7 +204,7 @@ export default function SettingsTab() {
       )
     })
 
-    listShareTargets(user.id).then((targets) => {
+    listShareTargets(user.id, isAdmin).then((targets) => {
       setShareTargets(targets)
       setSelectedTargetUserId((prev) => prev || targets[0]?.user_id || "")
     })
@@ -192,9 +219,18 @@ export default function SettingsTab() {
     setPreferences((prev) => ({ ...prev, [key]: value }))
   }
 
+  function asTestTrack(track: Track, label = "musica de testes"): Track {
+    return {
+      ...track,
+      isTestContent: true,
+      testLabel: label,
+    }
+  }
+
   async function handlePlaylistSearch() {
     if (!playlistQuery.trim()) return
     setPlaylistLoading(true)
+    setPlaylistActionMessage("")
     const items = await searchPlaylistSuggestions(playlistQuery)
     setPlaylistResults(items)
     setPlaylistLoading(false)
@@ -204,12 +240,16 @@ export default function SettingsTab() {
     if (!user) return
 
     setAddingPlaylistId(item.id)
-    const created = await createPlaylist(user.id, item.title, item.thumbnail)
+    setPlaylistActionMessage("A adicionar playlist de testes na biblioteca...")
+    const created = await createPlaylist(user.id, `Teste Playlist · ${item.title}`, item.thumbnail)
 
     if (created?.id && item.previewTracks.length > 0) {
       for (const track of item.previewTracks) {
-        await addTrackToPlaylist(created.id, track)
+        await addTrackToPlaylist(created.id, asTestTrack(track as Track))
       }
+      setPlaylistActionMessage("Playlist adicionada com sucesso na biblioteca.")
+    } else {
+      setPlaylistActionMessage("Nao foi possivel adicionar esta playlist.")
     }
 
     setAddingPlaylistId(null)
@@ -219,14 +259,14 @@ export default function SettingsTab() {
     if (!user) return
     setExperimentMessage("A criar playlist demo...")
 
-    const created = await createPlaylist(user.id, "Demo · Novidades de Teste")
+    const created = await createPlaylist(user.id, "Teste Playlist · Novidades")
     if (!created?.id) {
       setExperimentMessage("Não foi possível criar a playlist demo.")
       return
     }
 
     for (const track of DEMO_TEST_TRACKS) {
-      await addTrackToPlaylist(created.id, track)
+      await addTrackToPlaylist(created.id, asTestTrack(track as Track))
     }
 
     setExperimentMessage("Playlist demo criada com 3 músicas de teste.")
@@ -235,7 +275,7 @@ export default function SettingsTab() {
   async function handleInsertDemoFavorite() {
     if (!user) return
     setExperimentMessage("A inserir favorito de teste...")
-    await addLikedTrack(user.id, DEMO_TEST_TRACKS[0])
+    await addLikedTrack(user.id, asTestTrack(DEMO_TEST_TRACKS[0] as Track))
     setExperimentMessage("Favorito de teste inserido.")
   }
 
@@ -276,7 +316,7 @@ export default function SettingsTab() {
     if (!user) return
     setExperimentMessage("A criar Mega Demo...")
 
-    const created = await createPlaylist(user.id, "Demo · Mega Playlist")
+    const created = await createPlaylist(user.id, "Teste Playlist · Mega")
     if (!created?.id) {
       setExperimentMessage("Falha ao criar Mega Demo.")
       return
@@ -284,7 +324,7 @@ export default function SettingsTab() {
 
     const tracks = [...DEMO_TEST_TRACKS, ...EXTRA_TEST_TRACKS, ...DEMO_TEST_TRACKS, ...EXTRA_TEST_TRACKS]
     for (const track of tracks) {
-      await addTrackToPlaylist(created.id, track)
+      await addTrackToPlaylist(created.id, asTestTrack(track as Track))
     }
 
     setExperimentMessage(`Mega Demo criada com ${tracks.length} faixas.`)
@@ -294,14 +334,14 @@ export default function SettingsTab() {
     if (!user) return
     setExperimentMessage("A criar Focus Mix...")
 
-    const created = await createPlaylist(user.id, "Demo · Focus Mix")
+    const created = await createPlaylist(user.id, "Teste Playlist · Focus Mix")
     if (!created?.id) {
       setExperimentMessage("Falha ao criar Focus Mix.")
       return
     }
 
     for (const track of [EXTRA_TEST_TRACKS[1], DEMO_TEST_TRACKS[2], EXTRA_TEST_TRACKS[0]]) {
-      await addTrackToPlaylist(created.id, track)
+      await addTrackToPlaylist(created.id, asTestTrack(track as Track))
     }
 
     setExperimentMessage("Focus Mix criada.")
@@ -311,14 +351,14 @@ export default function SettingsTab() {
     if (!user) return
     setExperimentMessage("A criar Night Drive...")
 
-    const created = await createPlaylist(user.id, "Demo · Night Drive")
+    const created = await createPlaylist(user.id, "Teste Playlist · Night Drive")
     if (!created?.id) {
       setExperimentMessage("Falha ao criar Night Drive.")
       return
     }
 
     for (const track of [DEMO_TEST_TRACKS[1], EXTRA_TEST_TRACKS[2], DEMO_TEST_TRACKS[0]]) {
-      await addTrackToPlaylist(created.id, track)
+      await addTrackToPlaylist(created.id, asTestTrack(track as Track))
     }
 
     setExperimentMessage("Night Drive criada.")
@@ -328,7 +368,7 @@ export default function SettingsTab() {
     if (!user) return
     setExperimentMessage("A criar Top Hits Mock...")
 
-    const created = await createPlaylist(user.id, "Demo · Top Hits Mock")
+    const created = await createPlaylist(user.id, "Teste Playlist · Top Hits Mock")
     if (!created?.id) {
       setExperimentMessage("Falha ao criar Top Hits Mock.")
       return
@@ -336,7 +376,7 @@ export default function SettingsTab() {
 
     const tracks = [DEMO_TEST_TRACKS[0], DEMO_TEST_TRACKS[1], DEMO_TEST_TRACKS[2], EXTRA_TEST_TRACKS[0], EXTRA_TEST_TRACKS[1]]
     for (const track of tracks) {
-      await addTrackToPlaylist(created.id, track)
+      await addTrackToPlaylist(created.id, asTestTrack(track as Track))
     }
 
     setExperimentMessage("Top Hits Mock criada com 5 faixas.")
@@ -348,7 +388,7 @@ export default function SettingsTab() {
 
     const tracks = [...DEMO_TEST_TRACKS, ...EXTRA_TEST_TRACKS]
     for (const track of tracks) {
-      await addLikedTrack(user.id, track)
+      await addLikedTrack(user.id, asTestTrack(track as Track))
     }
 
     setExperimentMessage("6 favoritos de teste inseridos.")
@@ -357,6 +397,7 @@ export default function SettingsTab() {
   async function handleSmartDiscovery() {
     if (!user) return
     setSmartLoading(true)
+    setSmartMessage("")
 
     const [liked, playlists] = await Promise.all([getLikedTracks(user.id), getPlaylists(user.id)])
 
@@ -373,19 +414,76 @@ export default function SettingsTab() {
     }
 
     const queries = Array.from(seeds).slice(0, 4)
-    const all: Track[] = []
+    const allTracks: Track[] = []
+    const allPlaylists: PlaylistSuggestion[] = []
     for (const q of queries) {
-      const res = await searchMusic(q)
-      all.push(...res.slice(0, 12))
+      const [tracksRes, playlistsRes] = await Promise.all([
+        searchMusic(q),
+        searchPlaylistSuggestions(q),
+      ])
+      allTracks.push(...tracksRes.slice(0, 12))
+      allPlaylists.push(...playlistsRes.slice(0, 4))
     }
 
     const dedup = new Map<string, Track>()
-    for (const t of all) {
+    for (const t of allTracks) {
       dedup.set(t.id, t)
     }
 
+    const playlistsDedup = new Map<string, SmartPlaylistResult>()
+    for (const item of allPlaylists) {
+      const tracks = (item.previewTracks || []).map((entry) =>
+        asTestTrack(
+          {
+            id: `${item.source}-${entry.id}`,
+            title: entry.title,
+            artist: entry.artist,
+            thumbnail: entry.thumbnail || item.thumbnail,
+            duration: entry.duration || 0,
+            youtubeId: entry.youtubeId,
+            previewUrl: entry.previewUrl || null,
+            source: item.source,
+          },
+          "musica de playlist de testes"
+        )
+      )
+
+      playlistsDedup.set(`${item.source}-${item.id}`, {
+        id: `${item.source}-${item.id}`,
+        title: item.title,
+        description: item.description,
+        thumbnail: item.thumbnail,
+        trackCount: item.trackCount,
+        tracks,
+      })
+    }
+
     setSmartSuggestions(Array.from(dedup.values()).slice(0, 40))
+    setSmartPlaylists(Array.from(playlistsDedup.values()).slice(0, 12))
     setSmartLoading(false)
+  }
+
+  async function handleAddSmartTrack(track: Track) {
+    if (!user) return
+    setAddingSmartTrackId(track.id)
+    const ok = await addLikedTrack(user.id, asTestTrack(track))
+    setAddingSmartTrackId(null)
+    setSmartMessage(ok ? "Musica adicionada a biblioteca (Favoritos)." : "Nao foi possivel adicionar a musica.")
+  }
+
+  async function handleAddSmartPlaylist(item: SmartPlaylistResult) {
+    if (!user) return
+    setAddingSmartPlaylistId(item.id)
+    const created = await createPlaylist(user.id, `Teste Playlist · ${item.title}`, item.thumbnail)
+    if (created?.id) {
+      for (const track of item.tracks) {
+        await addTrackToPlaylist(created.id, asTestTrack(track, "musica de playlist de testes"))
+      }
+      setSmartMessage("Playlist adicionada a biblioteca com sucesso.")
+    } else {
+      setSmartMessage("Nao foi possivel adicionar a playlist.")
+    }
+    setAddingSmartPlaylistId(null)
   }
 
   if (activeView === "profile") {
@@ -519,7 +617,7 @@ export default function SettingsTab() {
           </select>
 
           {shareTargets.length === 0 && (
-            <p className="text-xs text-[#a08070]">Nenhum utilizador encontrado nas tabelas públicas. Podes colar manualmente o User ID.</p>
+            <p className="text-xs text-[#a08070]">Nenhum utilizador encontrado nas tabelas públicas. Podes colar manualmente o User ID ou criar a funcao SQL `list_share_targets` no Supabase para admin.</p>
           )}
 
           <input
@@ -647,15 +745,77 @@ export default function SettingsTab() {
           {smartLoading ? "A gerar recomendações..." : "Gerar recomendações com base em favoritos + biblioteca"}
         </button>
 
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto hide-scrollbar">
-          {smartSuggestions.map((track) => (
-            <div key={track.id} className="glass-card rounded-xl p-3">
-              <p className="truncate text-sm font-semibold text-[#f0e0d0]">{track.title}</p>
-              <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
+        {smartMessage && <p className="mb-3 text-xs text-[#f59e0b]">{smartMessage}</p>}
+
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto hide-scrollbar">
+          {smartSuggestions.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs uppercase tracking-wide text-[#a08070]">Musicas recomendadas</p>
+              <div className="space-y-2">
+                {smartSuggestions.map((track) => (
+                  <div key={track.id} className="glass-card rounded-xl p-3">
+                    <button
+                      onClick={() => {
+                        setQueue(smartSuggestions)
+                        play(track)
+                      }}
+                      className="flex w-full items-center gap-3 text-left"
+                    >
+                      <img src={track.thumbnail} alt={track.title} className="h-12 w-12 rounded-lg object-cover" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-[#f0e0d0]">{track.title}</p>
+                        <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => handleAddSmartTrack(track)}
+                      disabled={addingSmartTrackId === track.id}
+                      className="mt-2 rounded-lg bg-[rgba(230,57,70,0.2)] px-2.5 py-1 text-xs text-[#f0e0d0] disabled:opacity-40"
+                    >
+                      {addingSmartTrackId === track.id ? "A adicionar..." : "Adicionar musica a biblioteca"}
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-          {!smartLoading && smartSuggestions.length === 0 && (
-            <p className="py-10 text-center text-xs text-[#a08070]">Gera recomendações para ver resultados.</p>
+          )}
+
+          {smartPlaylists.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs uppercase tracking-wide text-[#a08070]">Playlists recomendadas</p>
+              <div className="space-y-2">
+                {smartPlaylists.map((item) => (
+                  <div key={item.id} className="glass-card rounded-xl p-3">
+                    <button
+                      onClick={() => {
+                        if (item.tracks.length === 0) return
+                        setQueue(item.tracks)
+                        play(item.tracks[0])
+                      }}
+                      className="flex w-full items-center gap-3 text-left"
+                    >
+                      <img src={item.thumbnail} alt={item.title} className="h-12 w-12 rounded-lg object-cover" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-[#f0e0d0]">{item.title}</p>
+                        <p className="truncate text-xs text-[#a08070]">{item.description}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-[#706050]">{item.trackCount} faixas</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => handleAddSmartPlaylist(item)}
+                      disabled={addingSmartPlaylistId === item.id}
+                      className="mt-2 rounded-lg bg-[rgba(230,57,70,0.2)] px-2.5 py-1 text-xs text-[#f0e0d0] disabled:opacity-40"
+                    >
+                      {addingSmartPlaylistId === item.id ? "A adicionar..." : "Adicionar playlist a biblioteca"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!smartLoading && smartSuggestions.length === 0 && smartPlaylists.length === 0 && (
+            <p className="py-10 text-center text-xs text-[#a08070]">Gera recomendacoes para ver resultados.</p>
           )}
         </div>
       </div>
@@ -686,6 +846,7 @@ export default function SettingsTab() {
         </div>
 
         {playlistLoading && <p className="text-xs text-[#a08070]">A procurar playlists no Spotify e YouTube...</p>}
+        {playlistActionMessage && <p className="mb-2 text-xs text-[#f59e0b]">{playlistActionMessage}</p>}
 
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto hide-scrollbar">
           {playlistResults.map((item) => (

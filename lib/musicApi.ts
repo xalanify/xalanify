@@ -9,6 +9,9 @@ export interface PlaylistTrackPreview {
   duration: number
   youtubeId: string | null
   previewUrl?: string | null
+  source?: "spotify" | "youtube" | "itunes"
+  isTestContent?: boolean
+  testLabel?: string
 }
 
 export interface PlaylistSuggestion {
@@ -50,10 +53,11 @@ async function searchMusicFromITunes(query: string) {
       id: `itunes-${item.trackId}`,
       title: item.trackName || "Faixa",
       artist: item.artistName || "Desconhecido",
-      thumbnail: item.artworkUrl100 || item.artworkUrl60 || "",
+      thumbnail: (item.artworkUrl100 || item.artworkUrl60 || "").replace("100x100bb", "600x600bb"),
       duration: Math.floor((item.trackTimeMillis || 0) / 1000),
       youtubeId: null,
       previewUrl: item.previewUrl || null,
+      source: "itunes" as const,
     }))
   } catch {
     return []
@@ -77,19 +81,15 @@ export async function searchMusic(query: string) {
       id: item.id,
       title: item.name,
       artist: item.artists[0].name,
-      thumbnail: item.album.images[0]?.url || "",
+      thumbnail: item.album.images?.[0]?.url || item.album.images?.[1]?.url || item.album.images?.[2]?.url || "",
       duration: item.duration_ms / 1000,
       youtubeId: null,
       previewUrl: item.preview_url || null,
+      source: "spotify" as const,
     })) || []
 
-    const hasPreview = tracks.some((track: any) => !!track.previewUrl)
-    if (!hasPreview) {
-      const fallback = await searchMusicFromITunes(query)
-      if (fallback.length > 0) return fallback
-    }
-
-    return tracks
+    if (tracks.length > 0) return tracks
+    return searchMusicFromITunes(query)
   } catch {
     return searchMusicFromITunes(query)
   }

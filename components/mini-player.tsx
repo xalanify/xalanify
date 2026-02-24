@@ -1,6 +1,7 @@
 "use client"
 
-import { Play, Pause, SkipForward } from "lucide-react"
+import { Play, Pause, SkipForward, Volume2, VolumeX } from "lucide-react"
+import { useState } from "react"
 import { usePlayer } from "@/lib/player-context"
 
 interface MiniPlayerProps {
@@ -22,7 +23,8 @@ function hexToRgb(hex: string) {
 }
 
 export default function MiniPlayer({ onExpand, accentColor }: MiniPlayerProps) {
-  const { currentTrack, isPlaying, pause, resume, next } = usePlayer()
+  const { currentTrack, isPlaying, pause, resume, next, volume, setVolume } = usePlayer()
+  const [showVolume, setShowVolume] = useState(false)
 
   if (!currentTrack) return null
 
@@ -47,6 +49,36 @@ export default function MiniPlayer({ onExpand, accentColor }: MiniPlayerProps) {
         <p className="truncate text-xs text-[#a08070]">{currentTrack.artist}</p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowVolume((prev) => !prev)
+            }}
+            className="p-2 text-[#f0e0d0]"
+            aria-label="Volume"
+          >
+            {volume <= 0.01 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </button>
+          {showVolume && (
+            <div
+              className="absolute bottom-[120%] right-0 w-28 rounded-lg border border-[rgba(255,255,255,0.1)] p-2"
+              style={{ background: "rgba(20, 10, 10, 0.96)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={volume}
+                onChange={(e) => setVolume(Number(e.target.value))}
+                className="w-full"
+                aria-label="Controlo de volume"
+              />
+            </div>
+          )}
+        </div>
         <button
           onClick={(e) => {
             e.stopPropagation()

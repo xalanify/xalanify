@@ -17,6 +17,7 @@ export default function AudioEngine() {
     next,
     playerRef,
     audioRef,
+    volume,
   } = usePlayer()
 
   useEffect(() => {
@@ -29,6 +30,11 @@ export default function AudioEngine() {
     }
   }, [isPlaying, currentTrack, audioRef])
 
+  useEffect(() => {
+    if (!audioRef.current) return
+    audioRef.current.volume = volume
+  }, [volume, audioRef])
+
   if (!currentTrack) return null
 
   return (
@@ -38,6 +44,8 @@ export default function AudioEngine() {
           ref={playerRef}
           url={`https://www.youtube.com/watch?v=${currentTrack.youtubeId}`}
           playing={isPlaying}
+          volume={volume}
+          muted={volume <= 0}
           controls={false}
           width={0}
           height={0}
