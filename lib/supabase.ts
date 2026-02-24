@@ -156,8 +156,12 @@ export async function signUpWithEmail(email: string, password: string) {
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut()
-  return error
+  const { error } = await supabase.auth.signOut({ scope: "global" })
+  if (!error) return null
+
+  console.warn("Global signOut failed, falling back to local signOut:", error.message)
+  const { error: localError } = await supabase.auth.signOut({ scope: "local" })
+  return localError || null
 }
 
 // Liked Tracks

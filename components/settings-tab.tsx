@@ -175,6 +175,7 @@ export default function SettingsTab() {
   const [usernameInput, setUsernameInput] = useState("")
   const [savingUsername, setSavingUsername] = useState(false)
   const [profileMessage, setProfileMessage] = useState("")
+  const [signingOut, setSigningOut] = useState(false)
 
   useEffect(() => {
     const stored = localStorage.getItem(SETTINGS_STORAGE_KEY)
@@ -254,6 +255,15 @@ export default function SettingsTab() {
     await refreshProfile()
     setProfileMessage("Username atualizado com sucesso.")
     setSavingUsername(false)
+  }
+
+  async function handleSignOut() {
+    setSigningOut(true)
+    try {
+      await signOut()
+    } finally {
+      setSigningOut(false)
+    }
   }
 
   async function handlePlaylistSearch() {
@@ -1160,13 +1170,14 @@ export default function SettingsTab() {
         )}
 
         <button
-          onClick={signOut}
-          className="flex w-full items-center gap-4 border-t border-[rgba(255,255,255,0.05)] px-5 py-4 text-left transition-colors active:bg-[rgba(255,255,255,0.05)]"
+          onClick={handleSignOut}
+          disabled={signingOut}
+          className="flex w-full items-center gap-4 border-t border-[rgba(255,255,255,0.05)] px-5 py-4 text-left transition-colors active:bg-[rgba(255,255,255,0.05)] disabled:opacity-60"
         >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(230,57,70,0.15)]">
             <LogOut className="h-5 w-5 text-[#e63946]" />
           </div>
-          <span className="flex-1 text-sm font-medium text-[#e63946]">Terminar Sessão</span>
+          <span className="flex-1 text-sm font-medium text-[#e63946]">{signingOut ? "A terminar..." : "Terminar Sessão"}</span>
           <ChevronRight className="h-5 w-5 text-[#504030]" />
         </button>
       </div>
