@@ -4,8 +4,10 @@
 begin;
 
 -- 1) Basic grants for client role
+grant usage on schema public to authenticated;
 grant select, insert, update, delete on table public.playlists to authenticated;
 grant select, insert, update, delete on table public.liked_tracks to authenticated;
+grant execute on function public.relink_my_legacy_content(text, text) to authenticated;
 
 -- 2) RLS by UUID owner
 alter table public.playlists enable row level security;
@@ -72,4 +74,3 @@ create unique index if not exists liked_tracks_user_track_unique
   on public.liked_tracks (user_id, track_id);
 
 commit;
-
