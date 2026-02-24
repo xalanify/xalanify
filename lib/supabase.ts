@@ -51,10 +51,13 @@ async function tryRelinkLegacyContent(userId: string) {
   if (!authUser?.email) return
 
   const fallbackUsername = usernameFromEmail(authUser.email).toLowerCase()
-  await supabase.rpc("relink_my_legacy_content", {
+  const { error } = await supabase.rpc("relink_my_legacy_content", {
     target_email: authUser.email,
     target_username: fallbackUsername,
-  }).catch(() => {})
+  })
+  if (error && error.code !== "PGRST202") {
+    console.warn("relink_my_legacy_content failed:", error.message)
+  }
 }
 
 export interface ShareTarget {
