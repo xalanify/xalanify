@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supaSignOut().catch(() => {})
   }, [])
 
-  const emailIsAdminFallback = user?.email === "adminx@admin.com"
+  const emailIsAdminFallback = user?.email === "adminx@adminx.com"
   const metadataIsAdmin =
     (user?.app_metadata as any)?.is_admin === true ||
     (user?.user_metadata as any)?.is_admin === true

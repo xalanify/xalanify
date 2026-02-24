@@ -80,7 +80,7 @@ export async function getMyProfile(userId: string): Promise<UserProfile | null> 
     username,
     email: authUser.email ?? null,
     avatar_url: null,
-    is_admin: metadataIsAdmin || authUser.email === "adminx@admin.com",
+    is_admin: metadataIsAdmin || authUser.email === "adminx@adminx.com",
   }
 }
 
