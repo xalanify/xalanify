@@ -26,6 +26,8 @@ import {
   rejectShareRequest,
   searchShareTargets,
   createShareRequest,
+  getSentShareRequests,
+  getReceivedShareHistory,
   type ShareRequest,
   type ShareTarget,
 } from "@/lib/supabase"
@@ -38,7 +40,7 @@ interface Playlist {
 }
 
 export default function LibraryTab() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { play, setQueue } = usePlayer()
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [likedTracks, setLikedTracks] = useState<Track[]>([])
@@ -47,12 +49,16 @@ export default function LibraryTab() {
   const [viewPlaylist, setViewPlaylist] = useState<Playlist | null>(null)
   const [viewLiked, setViewLiked] = useState(false)
   const [viewPendingShares, setViewPendingShares] = useState(false)
+  const [shareView, setShareView] = useState<"pending" | "sent" | "received">("pending")
   const [menuPlaylistId, setMenuPlaylistId] = useState<string | null>(null)
   const [libraryMsg, setLibraryMsg] = useState("")
   const [pendingShares, setPendingShares] = useState<ShareRequest[]>([])
+  const [sentShares, setSentShares] = useState<ShareRequest[]>([])
+  const [receivedShares, setReceivedShares] = useState<ShareRequest[]>([])
   const [sharePlaylist, setSharePlaylist] = useState<Playlist | null>(null)
   const [shareQuery, setShareQuery] = useState("")
   const [shareTargets, setShareTargets] = useState<ShareTarget[]>([])
+  const [targetMap, setTargetMap] = useState<Record<string, ShareTarget>>({})
   const [shareMsg, setShareMsg] = useState("")
 
   function isTestPlaylist(playlist: Playlist) {
@@ -66,14 +72,22 @@ export default function LibraryTab() {
 
   const loadData = useCallback(async () => {
     if (!user) return
-    const [pl, lt, incoming] = await Promise.all([
+    const [pl, lt, incoming, sent, received, knownTargets] = await Promise.all([
       getPlaylists(user.id),
       getLikedTracks(user.id),
       getIncomingShareRequests(user.id),
+      getSentShareRequests(user.id),
+      getReceivedShareHistory(user.id),
+      searchShareTargets(user.id, ""),
     ])
     setPlaylists(pl.map((playlist: any) => ({ ...playlist, tracks: Array.isArray(playlist.tracks) ? playlist.tracks : [] })))
     setLikedTracks(lt)
     setPendingShares(incoming)
+    setSentShares(sent)
+    setReceivedShares(received)
+    const map: Record<string, ShareTarget> = {}
+    for (const target of knownTargets) map[target.user_id] = target
+    setTargetMap(map)
   }, [user])
 
   useEffect(() => {
@@ -111,9 +125,13 @@ export default function LibraryTab() {
     setShareTargets(items)
   }
 
+  function shareAvatar(name: string) {
+    return (name || "U").trim().charAt(0).toUpperCase()
+  }
+
   async function handleSharePlaylist(target: ShareTarget) {
     if (!user || !sharePlaylist) return
-    const fromUsername = user.email?.split("@")[0] || "user"
+    const fromUsername = profile?.username || user.email?.split("@")[0] || "user"
     const res = await createShareRequest({
       fromUserId: user.id,
       toUserId: target.user_id,
@@ -267,13 +285,44 @@ export default function LibraryTab() {
           <h2 className="text-xl font-bold text-[#f0e0d0]">Partilhas Pendentes</h2>
         </div>
 
+        <div className="mb-3 grid grid-cols-3 gap-2">
+          <button
+            onClick={() => setShareView("pending")}
+            className="rounded-lg px-2 py-1.5 text-xs text-[#f0e0d0]"
+            style={{ background: shareView === "pending" ? "rgba(230,57,70,0.25)" : "rgba(255,255,255,0.04)" }}
+          >
+            Pendentes
+          </button>
+          <button
+            onClick={() => setShareView("received")}
+            className="rounded-lg px-2 py-1.5 text-xs text-[#f0e0d0]"
+            style={{ background: shareView === "received" ? "rgba(230,57,70,0.25)" : "rgba(255,255,255,0.04)" }}
+          >
+            Recebidas
+          </button>
+          <button
+            onClick={() => setShareView("sent")}
+            className="rounded-lg px-2 py-1.5 text-xs text-[#f0e0d0]"
+            style={{ background: shareView === "sent" ? "rgba(230,57,70,0.25)" : "rgba(255,255,255,0.04)" }}
+          >
+            Enviadas
+          </button>
+        </div>
+
         <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
-          {pendingShares.map((request) => (
+          {shareView === "pending" && pendingShares.map((request) => (
             <div key={request.id} className="glass-card rounded-xl p-3">
-              <p className="truncate text-sm font-semibold text-[#f0e0d0]">{request.item_title}</p>
-              <p className="truncate text-xs text-[#a08070]">
-                {request.item_type === "playlist" ? "Playlist" : "Musica"} enviada por {request.from_username}
-              </p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-xs font-semibold text-[#f0e0d0]">
+                  {shareAvatar(request.from_username)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{request.item_title}</p>
+                  <p className="truncate text-xs text-[#a08070]">
+                    {request.item_type === "playlist" ? "Playlist" : "Musica"} enviada por {request.from_username}
+                  </p>
+                </div>
+              </div>
               <div className="mt-2 flex items-center gap-2">
                 <button
                   onClick={() => handleAcceptShare(request)}
@@ -290,9 +339,42 @@ export default function LibraryTab() {
               </div>
             </div>
           ))}
-          {pendingShares.length === 0 && (
-            <p className="py-20 text-center text-sm text-[#706050]">Sem partilhas pendentes.</p>
-          )}
+
+          {shareView === "received" && receivedShares.map((request) => (
+            <div key={request.id} className="glass-card rounded-xl p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-xs font-semibold text-[#f0e0d0]">
+                  {shareAvatar(request.from_username)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{request.item_title}</p>
+                  <p className="truncate text-xs text-[#a08070]">de {request.from_username}</p>
+                </div>
+                <span className="text-[10px] uppercase tracking-wide text-[#a08070]">{request.status}</span>
+              </div>
+            </div>
+          ))}
+
+          {shareView === "sent" && sentShares.map((request) => (
+            <div key={request.id} className="glass-card rounded-xl p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-xs font-semibold text-[#f0e0d0]">
+                  {shareAvatar(request.item_type)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{request.item_title}</p>
+                  <p className="truncate text-xs text-[#a08070]">
+                    Para {targetMap[request.to_user_id]?.username || `user ${request.to_user_id.slice(0, 8)}...`}
+                  </p>
+                </div>
+                <span className="text-[10px] uppercase tracking-wide text-[#a08070]">{request.status}</span>
+              </div>
+            </div>
+          ))}
+
+          {shareView === "pending" && pendingShares.length === 0 && <p className="py-20 text-center text-sm text-[#706050]">Sem partilhas pendentes.</p>}
+          {shareView === "received" && receivedShares.length === 0 && <p className="py-20 text-center text-sm text-[#706050]">Sem historico recebido.</p>}
+          {shareView === "sent" && sentShares.length === 0 && <p className="py-20 text-center text-sm text-[#706050]">Sem historico enviado.</p>}
         </div>
       </div>
     )
@@ -469,8 +551,11 @@ export default function LibraryTab() {
                   onClick={() => handleSharePlaylist(target)}
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-[#f0e0d0] hover:bg-[rgba(255,255,255,0.08)]"
                 >
-                  <Send className="h-4 w-4 text-[#a08070]" />
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-[10px] font-semibold text-[#f0e0d0]">
+                    {shareAvatar(target.username)}
+                  </div>
                   <span className="truncate">{target.username}</span>
+                  <span className="truncate text-[10px] text-[#a08070]">{target.email || ""}</span>
                 </button>
               ))}
             </div>

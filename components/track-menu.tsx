@@ -19,7 +19,7 @@ interface TrackMenuProps {
 }
 
 export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps) {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [showPlaylists, setShowPlaylists] = useState(false)
   const [showShare, setShowShare] = useState(false)
@@ -53,11 +53,12 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
     if (!user) return
     const results = await searchShareTargets(user.id, shareQuery)
     setShareTargets(results)
+    if (results.length === 0) setShareMsg("Nenhum utilizador encontrado.")
   }
 
   async function handleShare(toUserId: string, username: string) {
     if (!user) return
-    const fromUsername = user.email?.split("@")[0] || "user"
+    const fromUsername = profile?.username || user.email?.split("@")[0] || "user"
     const res = await createShareRequest({
       fromUserId: user.id,
       toUserId,
@@ -130,8 +131,11 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
                 onClick={() => handleShare(target.user_id, target.username)}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-[#f0e0d0] hover:bg-[rgba(255,255,255,0.08)]"
               >
-                <Send className="h-4 w-4 text-[#a08070]" />
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-[10px] font-semibold text-[#f0e0d0]">
+                  {(target.username || "U").charAt(0).toUpperCase()}
+                </div>
                 <span className="truncate">{target.username}</span>
+                <span className="truncate text-[10px] text-[#a08070]">{target.email || ""}</span>
               </button>
             ))}
             {shareMsg && <p className="text-xs text-[#f59e0b]">{shareMsg}</p>}

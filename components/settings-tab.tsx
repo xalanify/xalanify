@@ -147,7 +147,7 @@ const EXTRA_TEST_TRACKS = [
 ]
 
 export default function SettingsTab() {
-  const { user, signOut } = useAuth()
+  const { user, profile, isAdmin, signOut } = useAuth()
   const { play, setQueue } = usePlayer()
   const [activeView, setActiveView] = useState<SettingsView>("menu")
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES)
@@ -172,8 +172,6 @@ export default function SettingsTab() {
   const [addingSmartTrackId, setAddingSmartTrackId] = useState<string | null>(null)
   const [addingSmartPlaylistId, setAddingSmartPlaylistId] = useState<string | null>(null)
   const [smartMessage, setSmartMessage] = useState("")
-
-  const isAdmin = user?.email === "adminx@adminx.com"
 
   useEffect(() => {
     const stored = localStorage.getItem(SETTINGS_STORAGE_KEY)
@@ -212,9 +210,10 @@ export default function SettingsTab() {
   }, [user, isAdmin, activeView])
 
   const initials = useMemo(() => {
+    if (profile?.username) return profile.username.charAt(0).toUpperCase()
     if (!user?.email) return "X"
     return user.email.charAt(0).toUpperCase()
-  }, [user?.email])
+  }, [profile?.username, user?.email])
 
   function updatePreference<K extends keyof Preferences>(key: K, value: Preferences[K]) {
     setPreferences((prev) => ({ ...prev, [key]: value }))
@@ -594,7 +593,7 @@ export default function SettingsTab() {
 
           <div className="glass-card-strong rounded-2xl p-4">
             <p className="mb-1 text-sm font-semibold text-[#f0e0d0]">Modo laboratório</p>
-            <p className="text-xs text-[#a08070]">Esta secção só aparece para adminx@adminx.com para testar ideias futuras.</p>
+            <p className="text-xs text-[#a08070]">Esta secção só aparece para contas com permissao de admin no perfil.</p>
           </div>
         </div>
       </div>

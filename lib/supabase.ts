@@ -30,6 +30,14 @@ export interface ShareTarget {
   email?: string | null
 }
 
+export interface UserProfile {
+  user_id: string
+  username: string
+  email: string | null
+  avatar_url?: string | null
+  is_admin?: boolean
+}
+
 export interface ShareRequest {
   id: string
   from_user_id: string
@@ -46,6 +54,21 @@ export interface ShareRequest {
 export async function getCurrentUser() {
   const { data } = await supabase.auth.getUser()
   return data.user
+}
+
+export async function getMyProfile(userId: string): Promise<UserProfile | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("user_id, username, email, avatar_url, is_admin")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  if (error) {
+    if (error.code !== "PGRST205") console.error("Erro ao carregar profile:", error)
+    return null
+  }
+
+  return (data as UserProfile) || null
 }
 
 export async function signInWithEmail(email: string, password: string) {
@@ -140,34 +163,38 @@ export async function removeLikedTrack(userId: string, trackId: string) {
 }
 
 export async function listShareTargets(currentUserId: string, isAdmin = false) {
-  const [fromPlaylists, fromLikes, fromProfiles, fromUsers, fromUsersPublic, fromRpc] = await Promise.all([
-    supabase.from("playlists").select("user_id, username").limit(1000),
-    supabase.from("liked_tracks").select("user_id, username").limit(1000),
-    supabase.from("profiles").select("user_id, username").limit(1000),
-    supabase.from("users").select("id, username, email").limit(1000),
+  const [fromProfiles, fromUsersPublic, fromRpc, fromPlaylists, fromLikes, fromUsers] = await Promise.all([
+    supabase.from("profiles").select("user_id, username, email").limit(1000),
     supabase.from("users_public").select("id, username, email").limit(1000),
     isAdmin ? supabase.rpc("list_share_targets", { exclude_user_id: currentUserId }) : Promise.resolve({ data: null, error: null } as any),
+    supabase.from("playlists").select("user_id, username").limit(1000),
+    supabase.from("liked_tracks").select("user_id, username").limit(1000),
+    supabase.from("users").select("id, username, email").limit(1000),
   ])
 
   const targets = new Map<string, ShareTarget>()
 
-  for (const row of fromPlaylists.data || []) {
-    if (!row.user_id || row.user_id === currentUserId) continue
-    targets.set(row.user_id, { user_id: row.user_id, username: row.username || "user", email: null })
+  for (const row of (fromProfiles.data as any[]) || []) {
+    const userId = row?.user_id
+    if (!userId || userId === currentUserId) continue
+    targets.set(userId, {
+      user_id: userId,
+      username: row?.username || usernameFromEmail(row?.email),
+      email: row?.email || null,
+    })
   }
 
-  for (const row of fromLikes.data || []) {
+  for (const row of fromPlaylists.data || []) {
     if (!row.user_id || row.user_id === currentUserId) continue
     if (!targets.has(row.user_id)) {
       targets.set(row.user_id, { user_id: row.user_id, username: row.username || "user", email: null })
     }
   }
 
-  for (const row of (fromProfiles.data as any[]) || []) {
-    const userId = row?.user_id
-    if (!userId || userId === currentUserId) continue
-    if (!targets.has(userId)) {
-      targets.set(userId, { user_id: userId, username: row?.username || "user", email: null })
+  for (const row of fromLikes.data || []) {
+    if (!row.user_id || row.user_id === currentUserId) continue
+    if (!targets.has(row.user_id)) {
+      targets.set(row.user_id, { user_id: row.user_id, username: row.username || "user", email: null })
     }
   }
 
@@ -209,17 +236,51 @@ export async function listShareTargets(currentUserId: string, isAdmin = false) {
 }
 
 export async function searchShareTargets(currentUserId: string, query: string) {
-  const targets = await listShareTargets(currentUserId, false)
-  const needle = query.trim().toLowerCase()
+  const rawNeedle = query.trim()
+  const fromProfiles = await supabase
+    .from("profiles")
+    .select("user_id, username, email")
+    .neq("user_id", currentUserId)
+    .or(`username.ilike.%${rawNeedle}%,email.ilike.%${rawNeedle}%`)
+    .limit(30)
+
+  const fromList = await listShareTargets(currentUserId, false)
+  const directTargets = ((fromProfiles.data as any[]) || []).map((row) => ({
+    user_id: row.user_id,
+    username: row.username || usernameFromEmail(row.email),
+    email: row.email || null,
+  })) as ShareTarget[]
+
+  const merged = new Map<string, ShareTarget>()
+  for (const t of [...directTargets, ...fromList]) {
+    merged.set(t.user_id, t)
+  }
+
+  const targets = Array.from(merged.values())
+  const needle = rawNeedle.toLowerCase()
 
   if (!needle) return targets.slice(0, 20)
 
   return targets
-    .filter((target) =>
-      target.username.toLowerCase().includes(needle) ||
-      (target.email || "").toLowerCase().includes(needle) ||
-      target.user_id.toLowerCase().includes(needle)
-    )
+    .map((target) => {
+      const username = target.username.toLowerCase()
+      const email = (target.email || "").toLowerCase()
+      const userId = target.user_id.toLowerCase()
+
+      let score = 0
+      if (username === needle) score += 100
+      if (username.startsWith(needle)) score += 40
+      if (username.includes(needle)) score += 20
+      if (email.startsWith(needle)) score += 15
+      if (email.includes(needle)) score += 10
+      if (userId.startsWith(needle)) score += 8
+      if (userId.includes(needle)) score += 4
+
+      return { target, score }
+    })
+    .filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score || a.target.username.localeCompare(b.target.username))
+    .map((row) => row.target)
     .slice(0, 20)
 }
 
@@ -408,6 +469,36 @@ export async function getIncomingShareRequests(userId: string): Promise<ShareReq
 
   if (error) {
     if (error.code !== "PGRST205") console.error("Erro ao carregar partilhas pendentes:", error)
+    return []
+  }
+
+  return (data || []) as ShareRequest[]
+}
+
+export async function getSentShareRequests(userId: string): Promise<ShareRequest[]> {
+  const { data, error } = await supabase
+    .from("share_requests")
+    .select("id, from_user_id, to_user_id, from_username, item_type, item_title, item_payload, status, created_at")
+    .eq("from_user_id", userId)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    if (error.code !== "PGRST205") console.error("Erro ao carregar partilhas enviadas:", error)
+    return []
+  }
+
+  return (data || []) as ShareRequest[]
+}
+
+export async function getReceivedShareHistory(userId: string): Promise<ShareRequest[]> {
+  const { data, error } = await supabase
+    .from("share_requests")
+    .select("id, from_user_id, to_user_id, from_username, item_type, item_title, item_payload, status, created_at")
+    .eq("to_user_id", userId)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    if (error.code !== "PGRST205") console.error("Erro ao carregar historico recebido:", error)
     return []
   }
 

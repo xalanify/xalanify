@@ -169,7 +169,7 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
             step={0.01}
             value={volume}
             onChange={(e) => setVolume(Number(e.target.value))}
-            className="w-full"
+            className="xala-volume-slider w-full"
             aria-label="Controlo de volume"
           />
         </div>
