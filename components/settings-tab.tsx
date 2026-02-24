@@ -567,11 +567,12 @@ export default function SettingsTab() {
             A tua sessão está sincronizada com Supabase. Usa "Terminar Sessão" para sair em segurança.
           </p>
           <div className="mt-4 space-y-2">
-            <label className="block text-xs text-[#a08070]">Username</label>
+            <label htmlFor="profile-username" className="block text-xs text-[#a08070]">Username</label>
             <div className="flex items-center gap-2">
               <input
                 id="profile-username"
                 name="username"
+                autoComplete="username"
                 value={usernameInput}
                 onChange={(e) => setUsernameInput(e.target.value)}
                 placeholder="teu_username"

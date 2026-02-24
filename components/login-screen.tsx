@@ -47,6 +47,7 @@ export default function LoginScreen() {
             id="auth-email"
             name="email"
             type="email"
+            autoComplete="username"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -59,6 +60,7 @@ export default function LoginScreen() {
             id="auth-password"
             name="password"
             type="password"
+            autoComplete={isSignUp ? "new-password" : "current-password"}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

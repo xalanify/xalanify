@@ -72,7 +72,7 @@ export default function LibraryTab() {
 
   const loadData = useCallback(async () => {
     if (!user) return
-    const [pl, lt, incoming, sent, received, knownTargets] = await Promise.all([
+    const [pl, lt, incoming, sent, received, knownTargets] = await Promise.allSettled([
       getPlaylists(user.id),
       getLikedTracks(user.id),
       getIncomingShareRequests(user.id),
@@ -80,14 +80,42 @@ export default function LibraryTab() {
       getReceivedShareHistory(user.id),
       searchShareTargets(user.id, ""),
     ])
-    setPlaylists(pl.map((playlist: any) => ({ ...playlist, tracks: Array.isArray(playlist.tracks) ? playlist.tracks : [] })))
-    setLikedTracks(lt)
-    setPendingShares(incoming)
-    setSentShares(sent)
-    setReceivedShares(received)
+
+    if (pl.status === "fulfilled") {
+      setPlaylists(pl.value.map((playlist: any) => ({ ...playlist, tracks: Array.isArray(playlist.tracks) ? playlist.tracks : [] })))
+    } else {
+      console.error("Falha ao carregar playlists:", pl.reason)
+      setPlaylists([])
+    }
+
+    if (lt.status === "fulfilled") {
+      setLikedTracks(lt.value)
+    } else {
+      console.error("Falha ao carregar favoritos:", lt.reason)
+      setLikedTracks([])
+    }
+
+    if (incoming.status === "fulfilled") setPendingShares(incoming.value)
+    else setPendingShares([])
+    if (sent.status === "fulfilled") setSentShares(sent.value)
+    else setSentShares([])
+    if (received.status === "fulfilled") setReceivedShares(received.value)
+    else setReceivedShares([])
+
     const map: Record<string, ShareTarget> = {}
-    for (const target of knownTargets) map[target.user_id] = target
+    if (knownTargets.status === "fulfilled") {
+      for (const target of knownTargets.value) map[target.user_id] = target
+    }
     setTargetMap(map)
+
+    if (pl.status === "fulfilled" && lt.status === "fulfilled") {
+      console.info("Library loaded", { userId: user.id, playlists: pl.value.length, likedTracks: lt.value.length })
+      if (pl.value.length === 0 && lt.value.length === 0) {
+        setLibraryMsg(`Sem itens na biblioteca para a conta atual (${user.email || user.id}).`)
+      } else {
+        setLibraryMsg("")
+      }
+    }
   }, [user])
 
   useEffect(() => {
