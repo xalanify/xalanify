@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Search, Settings, Music } from "lucide-react"
+import { Search, Settings, Music, Compass, Library, SlidersHorizontal, Sparkles, Disc3, Wrench } from "lucide-react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { PlayerProvider, usePlayer, type Track } from "@/lib/player-context"
 import LoginScreen from "@/components/login-screen"
@@ -47,7 +47,9 @@ function XalanifyApp() {
   const [showSplash, setShowSplash] = useState(true)
   const [accentColor, setAccentColor] = useState("#e63946")
   const [themeMode, setThemeMode] = useState<"dark" | "puredark" | "light">("dark")
-  const [surfaceEffect, setSurfaceEffect] = useState<"glass" | "solid" | "neon">("glass")
+  const [surfaceEffect, setSurfaceEffect] = useState<"glass" | "solid" | "neon" | "hybrid">("glass")
+  const [accentStyle, setAccentStyle] = useState<"solid" | "chrome" | "gold" | "rainbow">("solid")
+  const [iconPack, setIconPack] = useState<"classic" | "modern" | "bold">("classic")
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Track[]>([])
 
@@ -66,10 +68,14 @@ function XalanifyApp() {
         if (parsed.accentColor) setAccentColor(parsed.accentColor)
         if (parsed.themeMode) setThemeMode(parsed.themeMode)
         if (parsed.surfaceEffect) setSurfaceEffect(parsed.surfaceEffect)
+        if (parsed.accentStyle) setAccentStyle(parsed.accentStyle)
+        if (parsed.iconPack) setIconPack(parsed.iconPack)
       } catch {
         setAccentColor("#e63946")
         setThemeMode("dark")
         setSurfaceEffect("glass")
+        setAccentStyle("solid")
+        setIconPack("classic")
       }
     }
 
@@ -112,25 +118,53 @@ function XalanifyApp() {
   }, [accentColor, themeMode])
 
   const navStyle = useMemo(() => {
+    let background = cardGradient
+    let boxShadow = "0 8px 24px rgba(0,0,0,0.28)"
+
+    if (accentStyle === "chrome") {
+      background = "linear-gradient(135deg, #dfe3ea 0%, #8f98a6 32%, #f7f9fb 50%, #7f8794 68%, #d9dee6 100%)"
+    }
+
+    if (accentStyle === "gold") {
+      background = "linear-gradient(135deg, #7a5a13 0%, #d7b24b 30%, #ffe08a 50%, #b78822 70%, #6e4f11 100%)"
+    }
+
+    if (accentStyle === "rainbow") {
+      background = "linear-gradient(135deg, #ff4d6d 0%, #f59e0b 20%, #10b981 40%, #0ea5e9 60%, #8b5cf6 80%, #ec4899 100%)"
+    }
+
     if (surfaceEffect === "solid") {
-      return { background: cardGradient, boxShadow: "0 12px 24px rgba(0,0,0,0.35)" }
+      boxShadow = "0 12px 24px rgba(0,0,0,0.35)"
+    } else if (surfaceEffect === "neon") {
+      boxShadow = `0 0 20px ${accentColor}66`
+    } else if (surfaceEffect === "hybrid") {
+      boxShadow = `0 0 14px ${accentColor}55, 0 10px 20px rgba(0,0,0,0.25)`
     }
 
-    if (surfaceEffect === "neon") {
-      return { background: cardGradient, boxShadow: `0 0 20px ${accentColor}66` }
-    }
-
-    return { background: cardGradient, boxShadow: "0 8px 24px rgba(0,0,0,0.28)" }
-  }, [surfaceEffect, cardGradient, accentColor])
+    return { background, boxShadow }
+  }, [surfaceEffect, cardGradient, accentColor, accentStyle])
 
   if (showSplash || loading) return <SplashScreen />
   if (!user) return <LoginScreen />
 
-  const tabs = [
-    { id: "search" as const, label: "EXPLORAR", icon: Search },
-    { id: "library" as const, label: "BIBLIOTECA", icon: Music },
-    { id: "settings" as const, label: "AJUSTES", icon: Settings },
-  ]
+  const tabs =
+    iconPack === "modern"
+      ? [
+          { id: "search" as const, label: "EXPLORAR", icon: Compass },
+          { id: "library" as const, label: "BIBLIOTECA", icon: Library },
+          { id: "settings" as const, label: "AJUSTES", icon: SlidersHorizontal },
+        ]
+      : iconPack === "bold"
+      ? [
+          { id: "search" as const, label: "EXPLORAR", icon: Sparkles },
+          { id: "library" as const, label: "BIBLIOTECA", icon: Disc3 },
+          { id: "settings" as const, label: "AJUSTES", icon: Wrench },
+        ]
+      : [
+          { id: "search" as const, label: "EXPLORAR", icon: Search },
+          { id: "library" as const, label: "BIBLIOTECA", icon: Music },
+          { id: "settings" as const, label: "AJUSTES", icon: Settings },
+        ]
 
   return (
     <div className="relative flex h-dvh min-h-0 flex-col overflow-x-hidden safe-top" style={{ background: appBackground }}>
@@ -157,7 +191,7 @@ function XalanifyApp() {
         {currentTrack && <MiniPlayer onExpand={() => setShowFullPlayer(true)} accentColor={accentColor} />}
 
         <nav
-          className="mt-2 flex items-center justify-around rounded-2xl border border-[rgba(255,255,255,0.1)] px-2 py-2.5"
+          className={`mt-2 flex items-center justify-around rounded-2xl border border-[rgba(255,255,255,0.1)] px-2 py-2.5 ${accentStyle === "rainbow" ? "rainbow-shift" : ""}` }
           style={navStyle}
         >
           {tabs.map((tab) => {

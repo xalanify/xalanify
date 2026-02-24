@@ -141,3 +141,15 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   cursor: pointer;
 }
+
+
+@keyframes rainbowShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.rainbow-shift {
+  background-size: 220% 220% !important;
+  animation: rainbowShift 8s ease infinite;
+}

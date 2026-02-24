@@ -19,10 +19,13 @@ import {
   Wand2,
   Send,
   UserRound,
+  Brain,
+  Bot,
+  PaletteIcon,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { addLikedTrack, addTrackToPlaylist, createPlaylist, getPlaylists, listShareTargets, type ShareTarget } from "@/lib/supabase"
-import { searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
+import { addLikedTrack, addTrackToPlaylist, createPlaylist, getLikedTracks, getPlaylists, listShareTargets, type ShareTarget } from "@/lib/supabase"
+import { searchMusic, searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
 import type { Track } from "@/lib/player-context"
 
 interface Preferences {
@@ -32,7 +35,9 @@ interface Preferences {
   compactMode: boolean
   animateBackground: boolean
   themeMode: "dark" | "puredark" | "light"
-  surfaceEffect: "glass" | "solid" | "neon"
+  surfaceEffect: "glass" | "solid" | "neon" | "hybrid"
+  accentStyle: "solid" | "chrome" | "gold" | "rainbow"
+  iconPack: "classic" | "modern" | "bold"
 }
 
 interface UserPlaylist {
@@ -49,6 +54,8 @@ const DEFAULT_PREFERENCES: Preferences = {
   animateBackground: true,
   themeMode: "dark",
   surfaceEffect: "glass",
+  accentStyle: "solid",
+  iconPack: "classic",
 }
 
 const SETTINGS_STORAGE_KEY = "xalanify.preferences"
@@ -62,6 +69,7 @@ type SettingsView =
   | "playlist_tests"
   | "experiments"
   | "share_tests"
+  | "smart_discovery_tests"
 
 const DEMO_TEST_TRACKS = [
   {
@@ -134,6 +142,8 @@ export default function SettingsTab() {
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("")
   const [sharing, setSharing] = useState(false)
   const [shareMessage, setShareMessage] = useState("")
+  const [smartSuggestions, setSmartSuggestions] = useState<Track[]>([])
+  const [smartLoading, setSmartLoading] = useState(false)
 
   const isAdmin = user?.email === "adminx@adminx.com"
 
@@ -344,6 +354,40 @@ export default function SettingsTab() {
     setExperimentMessage("6 favoritos de teste inseridos.")
   }
 
+  async function handleSmartDiscovery() {
+    if (!user) return
+    setSmartLoading(true)
+
+    const [liked, playlists] = await Promise.all([getLikedTracks(user.id), getPlaylists(user.id)])
+
+    const seeds = new Set<string>()
+    for (const track of liked.slice(0, 5)) {
+      if (track.artist) seeds.add(track.artist)
+      if (track.title) seeds.add(track.title.split(" ").slice(0, 2).join(" "))
+    }
+
+    for (const playlist of playlists.slice(0, 3)) {
+      for (const track of (playlist.tracks || []).slice(0, 3)) {
+        if (track.artist) seeds.add(track.artist)
+      }
+    }
+
+    const queries = Array.from(seeds).slice(0, 4)
+    const all: Track[] = []
+    for (const q of queries) {
+      const res = await searchMusic(q)
+      all.push(...res.slice(0, 12))
+    }
+
+    const dedup = new Map<string, Track>()
+    for (const t of all) {
+      dedup.set(t.id, t)
+    }
+
+    setSmartSuggestions(Array.from(dedup.values()).slice(0, 40))
+    setSmartLoading(false)
+  }
+
   if (activeView === "profile") {
     return (
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
@@ -429,6 +473,17 @@ export default function SettingsTab() {
               <FlaskConical className="h-5 w-5 text-[#e63946]" />
             </div>
             <span className="flex-1 text-sm font-medium text-[#f0e0d0]">Experimentos rápidos (seed/teste)</span>
+            <ChevronRight className="h-5 w-5 text-[#504030]" />
+          </button>
+
+          <button
+            onClick={() => setActiveView("smart_discovery_tests")}
+            className="glass-card-strong flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-left"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(230,57,70,0.2)]">
+              <Brain className="h-5 w-5 text-[#e63946]" />
+            </div>
+            <span className="flex-1 text-sm font-medium text-[#f0e0d0]">Página inteligente por gostos (teste)</span>
             <ChevronRight className="h-5 w-5 text-[#504030]" />
           </button>
 
@@ -573,6 +628,40 @@ export default function SettingsTab() {
     )
   }
 
+  if (activeView === "smart_discovery_tests") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
+        <button onClick={() => setActiveView("tools")} className="mb-4 flex items-center gap-2 text-[#a08070]">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-[#f0e0d0]"><Bot className="h-5 w-5" /> Descoberta inteligente (teste)</h2>
+
+        <button
+          onClick={handleSmartDiscovery}
+          disabled={smartLoading}
+          className="mb-3 w-full rounded-xl py-3 text-sm font-semibold text-[#fff] disabled:opacity-40"
+          style={{ background: "linear-gradient(135deg, #e63946 0%, #c1121f 100%)" }}
+        >
+          {smartLoading ? "A gerar recomendações..." : "Gerar recomendações com base em favoritos + biblioteca"}
+        </button>
+
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto hide-scrollbar">
+          {smartSuggestions.map((track) => (
+            <div key={track.id} className="glass-card rounded-xl p-3">
+              <p className="truncate text-sm font-semibold text-[#f0e0d0]">{track.title}</p>
+              <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
+            </div>
+          ))}
+          {!smartLoading && smartSuggestions.length === 0 && (
+            <p className="py-10 text-center text-xs text-[#a08070]">Gera recomendações para ver resultados.</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   if (activeView === "playlist_tests") {
     return (
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
@@ -701,13 +790,51 @@ export default function SettingsTab() {
           <div className="glass-card-strong rounded-2xl p-4">
             <p className="mb-3 text-sm font-medium text-[#f0e0d0]">Estilo de superfície</p>
             <div className="grid grid-cols-3 gap-2 text-xs">
-              {(["glass", "solid", "neon"] as const).map((value) => (
+              {(["glass", "solid", "neon", "hybrid"] as const).map((value) => (
                 <button
                   key={value}
                   onClick={() => updatePreference("surfaceEffect", value)}
                   className="rounded-lg px-3 py-2"
                   style={{
                     background: preferences.surfaceEffect === value ? `${preferences.accentColor}33` : "rgba(255,255,255,0.04)",
+                    color: "#f0e0d0",
+                  }}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="glass-card-strong rounded-2xl p-4">
+            <p className="mb-3 flex items-center gap-2 text-sm font-medium text-[#f0e0d0]"><PaletteIcon className="h-4 w-4" /> Efeito de cor</p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {(["solid", "chrome", "gold", "rainbow"] as const).map((value) => (
+                <button
+                  key={value}
+                  onClick={() => updatePreference("accentStyle", value)}
+                  className="rounded-lg px-3 py-2"
+                  style={{
+                    background: preferences.accentStyle === value ? `${preferences.accentColor}33` : "rgba(255,255,255,0.04)",
+                    color: "#f0e0d0",
+                  }}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="glass-card-strong rounded-2xl p-4">
+            <p className="mb-3 text-sm font-medium text-[#f0e0d0]">Pacote de ícones</p>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              {(["classic", "modern", "bold"] as const).map((value) => (
+                <button
+                  key={value}
+                  onClick={() => updatePreference("iconPack", value)}
+                  className="rounded-lg px-3 py-2"
+                  style={{
+                    background: preferences.iconPack === value ? `${preferences.accentColor}33` : "rgba(255,255,255,0.04)",
                     color: "#f0e0d0",
                   }}
                 >

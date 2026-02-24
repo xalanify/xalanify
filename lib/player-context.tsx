@@ -47,15 +47,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setProgress(0)
 
     if (track.previewUrl) {
+      // Keep preview playback stable (avoid switching source a second later).
       setCurrentTrack({ ...track, youtubeId: null })
       setIsPlaying(true)
-
-      if (!track.youtubeId) {
-        getYoutubeId(track.title, track.artist).then((ytId) => {
-          if (!ytId) return
-          setCurrentTrack((prev) => (prev?.id === track.id ? { ...prev, youtubeId: ytId } : prev))
-        })
-      }
       return
     }
 
