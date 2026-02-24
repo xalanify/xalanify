@@ -16,6 +16,44 @@ function usernameFromEmail(email?: string | null) {
   return email.split("@")[0] || "user"
 }
 
+async function getPreferredUsername(userId: string, email?: string | null) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  return normalizeUsernameCandidate((profile as any)?.username) || usernameFromEmail(email)
+}
+
+async function getIdentityHints(userId: string) {
+  const authUser = await getCurrentUserForId(userId)
+  const email = authUser?.email ?? null
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  const candidates = new Set<string>()
+  const maybeCandidates = [
+    usernameFromEmail(email),
+    (authUser?.user_metadata as any)?.username as string | undefined,
+    (profile as any)?.username as string | undefined,
+  ]
+
+  for (const candidate of maybeCandidates) {
+    const normalized = normalizeUsernameCandidate(candidate)
+    if (normalized) candidates.add(normalized)
+  }
+
+  return {
+    email,
+    preferredUsername: normalizeUsernameCandidate((profile as any)?.username) || usernameFromEmail(email),
+    usernameCandidates: Array.from(candidates),
+  }
+}
+
 function normalizeUsernameCandidate(value?: string | null) {
   const cleaned = (value || "").trim().toLowerCase()
   return cleaned || null
@@ -41,37 +79,38 @@ async function tryRelinkLegacyContent(userId: string) {
   if (relinkAttemptedUserIds.has(userId)) return
   relinkAttemptedUserIds.add(userId)
 
-  const authUser = await getCurrentUserForId(userId)
-  if (!authUser?.email) return
+  const identity = await getIdentityHints(userId)
+  if (!identity.email || identity.usernameCandidates.length === 0) return
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("username")
-    .eq("user_id", userId)
-    .maybeSingle()
-
-  const candidates = new Set<string>()
-  const maybeCandidates = [
-    usernameFromEmail(authUser.email),
-    (authUser.user_metadata as any)?.username as string | undefined,
-    (profile as any)?.username as string | undefined,
-  ]
-
-  for (const candidate of maybeCandidates) {
-    const normalized = normalizeUsernameCandidate(candidate)
-    if (normalized) candidates.add(normalized)
-  }
-
-  if (candidates.size === 0) return
-
-  for (const candidate of candidates) {
+  for (const candidate of identity.usernameCandidates) {
+    // Preferred server-side migration path.
     const { error } = await supabase.rpc("relink_my_legacy_content", {
-      target_email: authUser.email,
+      target_email: identity.email,
       target_username: candidate,
     })
     if (error && error.code !== "PGRST202") {
       console.warn("relink_my_legacy_content failed:", error.message)
-      break
+    }
+
+    // Client-side best-effort fallback for projects without RPC.
+    const [plRelink, ltRelink] = await Promise.all([
+      supabase
+        .from("playlists")
+        .update({ user_id: userId, username: identity.preferredUsername })
+        .eq("username", candidate)
+        .neq("user_id", userId),
+      supabase
+        .from("liked_tracks")
+        .update({ user_id: userId, username: identity.preferredUsername })
+        .eq("username", candidate)
+        .neq("user_id", userId),
+    ])
+
+    if (plRelink.error && plRelink.error.code !== "42501") {
+      console.warn("Playlist relink fallback failed:", plRelink.error.message)
+    }
+    if (ltRelink.error && ltRelink.error.code !== "42501") {
+      console.warn("Liked relink fallback failed:", ltRelink.error.message)
     }
   }
 }
@@ -219,11 +258,24 @@ export async function getLikedTracks(userId: string) {
     .order("created_at", { ascending: false })
 
   await tryRelinkLegacyContent(userId)
-  const { data, error } = await loadPrimary()
+  let { data, error } = await loadPrimary()
 
   if (error) {
     console.error("Erro ao carregar favoritos:", error)
     return []
+  }
+
+  if (!data?.length) {
+    const hints = await getIdentityHints(userId)
+    if (hints.usernameCandidates.length > 0) {
+      const { data: byUsername, error: usernameError } = await supabase
+        .from("liked_tracks")
+        .select("track_data")
+        .in("username", hints.usernameCandidates)
+        .order("created_at", { ascending: false })
+
+      if (!usernameError && byUsername?.length) data = byUsername
+    }
   }
 
   return (data || []).map((item: any) => item.track_data).filter(Boolean)
@@ -247,7 +299,7 @@ export async function isTrackLiked(userId: string, trackId: string) {
 
 export async function addLikedTrack(userId: string, track: any) {
   const email = await getUserEmail(userId)
-  const username = usernameFromEmail(email)
+  const username = await getPreferredUsername(userId, email)
 
   const row = {
     user_id: userId,
@@ -420,11 +472,24 @@ export async function getPlaylists(userId: string) {
     .order("created_at", { ascending: false })
 
   await tryRelinkLegacyContent(userId)
-  const { data: playlists, error } = await loadPrimary()
+  let { data: playlists, error } = await loadPrimary()
 
   if (error) {
     console.error("Erro ao carregar playlists:", error)
     return []
+  }
+
+  if (!playlists?.length) {
+    const hints = await getIdentityHints(userId)
+    if (hints.usernameCandidates.length > 0) {
+      const byUsername = await supabase
+        .from("playlists")
+        .select("id, name, user_id, username, created_at, tracks_json, image_url")
+        .in("username", hints.usernameCandidates)
+        .order("created_at", { ascending: false })
+
+      if (!byUsername.error && byUsername.data?.length) playlists = byUsername.data
+    }
   }
 
   return (playlists || []).map((playlist: any) => ({
@@ -435,7 +500,7 @@ export async function getPlaylists(userId: string) {
 
 export async function createPlaylist(userId: string, name: string, imageUrl?: string) {
   const email = await getUserEmail(userId)
-  const username = usernameFromEmail(email)
+  const username = await getPreferredUsername(userId, email)
   const normalized = name.trim()
 
   if (!normalized) return null
