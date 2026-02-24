@@ -24,7 +24,7 @@ import {
   PaletteIcon,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { addLikedTrack, addTrackToPlaylist, createPlaylist, getLikedTracks, getPlaylists, listShareTargets, type ShareTarget } from "@/lib/supabase"
+import { addLikedTrack, addTrackToPlaylist, createPlaylist, getLikedTracks, getPlaylists, listShareTargets, updateMyUsername, type ShareTarget } from "@/lib/supabase"
 import { searchMusic, searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
 import { usePlayer, type Track } from "@/lib/player-context"
 
@@ -147,7 +147,7 @@ const EXTRA_TEST_TRACKS = [
 ]
 
 export default function SettingsTab() {
-  const { user, profile, isAdmin, signOut } = useAuth()
+  const { user, profile, isAdmin, signOut, refreshProfile } = useAuth()
   const { play, setQueue } = usePlayer()
   const [activeView, setActiveView] = useState<SettingsView>("menu")
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES)
@@ -172,6 +172,9 @@ export default function SettingsTab() {
   const [addingSmartTrackId, setAddingSmartTrackId] = useState<string | null>(null)
   const [addingSmartPlaylistId, setAddingSmartPlaylistId] = useState<string | null>(null)
   const [smartMessage, setSmartMessage] = useState("")
+  const [usernameInput, setUsernameInput] = useState("")
+  const [savingUsername, setSavingUsername] = useState(false)
+  const [profileMessage, setProfileMessage] = useState("")
 
   useEffect(() => {
     const stored = localStorage.getItem(SETTINGS_STORAGE_KEY)
@@ -209,6 +212,16 @@ export default function SettingsTab() {
     })
   }, [user, isAdmin, activeView])
 
+  useEffect(() => {
+    if (profile?.username) {
+      setUsernameInput(profile.username)
+      return
+    }
+    if (user?.email) {
+      setUsernameInput(user.email.split("@")[0] || "")
+    }
+  }, [profile?.username, user?.email])
+
   const initials = useMemo(() => {
     if (profile?.username) return profile.username.charAt(0).toUpperCase()
     if (!user?.email) return "X"
@@ -225,6 +238,22 @@ export default function SettingsTab() {
       isTestContent: true,
       testLabel: label,
     }
+  }
+
+  async function handleSaveUsername() {
+    if (!user) return
+    setSavingUsername(true)
+    setProfileMessage("")
+    const res = await updateMyUsername(user.id, usernameInput)
+    if (!res.ok) {
+      setProfileMessage(res.reason || "Nao foi possivel atualizar o username.")
+      setSavingUsername(false)
+      return
+    }
+
+    await refreshProfile()
+    setProfileMessage("Username atualizado com sucesso.")
+    setSavingUsername(false)
   }
 
   async function handlePlaylistSearch() {
@@ -514,6 +543,27 @@ export default function SettingsTab() {
           <p className="text-xs text-[#706050]">
             A tua sessão está sincronizada com Supabase. Usa "Terminar Sessão" para sair em segurança.
           </p>
+          <div className="mt-4 space-y-2">
+            <label className="block text-xs text-[#a08070]">Username</label>
+            <div className="flex items-center gap-2">
+              <input
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                placeholder="teu_username"
+                className="glass-card w-full rounded-xl px-3 py-2 text-sm text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
+              />
+              <button
+                onClick={handleSaveUsername}
+                disabled={savingUsername || !usernameInput.trim()}
+                className="rounded-xl px-3 py-2 text-xs font-semibold text-[#fff] disabled:opacity-40"
+                style={{ background: "linear-gradient(135deg, #e63946 0%, #c1121f 100%)" }}
+              >
+                {savingUsername ? "A guardar..." : "Guardar"}
+              </button>
+            </div>
+            <p className="text-[11px] text-[#706050]">Permitido: letras, numeros, _, . e - (3 a 24 chars).</p>
+            {profileMessage && <p className="text-xs text-[#f59e0b]">{profileMessage}</p>}
+          </div>
         </div>
       </div>
     )
@@ -1125,4 +1175,5 @@ export default function SettingsTab() {
     </div>
   )
 }
+
 

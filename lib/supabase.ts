@@ -24,6 +24,12 @@ async function getUserEmail(userId: string) {
   return null
 }
 
+async function getCurrentUserForId(userId: string) {
+  const { data } = await supabase.auth.getUser()
+  if (data.user?.id === userId) return data.user
+  return null
+}
+
 export interface ShareTarget {
   user_id: string
   username: string
@@ -68,7 +74,69 @@ export async function getMyProfile(userId: string): Promise<UserProfile | null> 
     return null
   }
 
-  return (data as UserProfile) || null
+  if (data) return data as UserProfile
+
+  const authUser = await getCurrentUserForId(userId)
+  if (!authUser) return null
+
+  const fallbackUsername = usernameFromEmail(authUser.email)
+  const { data: inserted, error: insertError } = await supabase
+    .from("profiles")
+    .upsert({
+      user_id: userId,
+      username: fallbackUsername,
+      email: authUser.email ?? null,
+    })
+    .select("user_id, username, email, avatar_url, is_admin")
+    .maybeSingle()
+
+  if (insertError) {
+    if (insertError.code !== "PGRST205") console.error("Erro ao criar profile fallback:", insertError)
+    return null
+  }
+
+  return (inserted as UserProfile) || {
+    user_id: userId,
+    username: fallbackUsername,
+    email: authUser.email ?? null,
+    avatar_url: null,
+    is_admin: authUser.email === "adminx@adminx.com",
+  }
+}
+
+export async function updateMyUsername(userId: string, username: string) {
+  const cleaned = username.trim().toLowerCase()
+  if (!cleaned) return { ok: false as const, reason: "Username vazio." }
+  if (!/^[a-z0-9_.-]{3,24}$/.test(cleaned)) {
+    return { ok: false as const, reason: "Use 3-24 caracteres: letras, numeros, _, . ou -." }
+  }
+
+  const authUser = await getCurrentUserForId(userId)
+  const email = authUser?.email ?? null
+
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .eq("username", cleaned)
+    .neq("user_id", userId)
+    .maybeSingle()
+
+  if (existing?.user_id) {
+    return { ok: false as const, reason: "Esse username ja esta em uso." }
+  }
+
+  const { error } = await supabase.from("profiles").upsert({
+    user_id: userId,
+    username: cleaned,
+    email,
+  })
+
+  if (error) {
+    console.error("Erro ao atualizar username:", error)
+    return { ok: false as const, reason: error.message }
+  }
+
+  return { ok: true as const }
 }
 
 export async function signInWithEmail(email: string, password: string) {
@@ -100,8 +168,28 @@ export async function getLikedTracks(userId: string) {
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
 
-  if (error) console.error("Erro ao carregar favoritos:", error)
-  return data?.map((item: any) => item.track_data).filter(Boolean) || []
+  if (error) {
+    console.error("Erro ao carregar favoritos:", error)
+    return []
+  }
+
+  const primary = data?.map((item: any) => item.track_data).filter(Boolean) || []
+  if (primary.length > 0) return primary
+
+  const authUser = await getCurrentUserForId(userId)
+  const fallbackUsername = usernameFromEmail(authUser?.email)
+  const { data: legacyData, error: legacyError } = await supabase
+    .from("liked_tracks")
+    .select("track_data")
+    .eq("username", fallbackUsername)
+    .order("created_at", { ascending: false })
+
+  if (legacyError) {
+    console.error("Erro ao carregar favoritos legacy:", legacyError)
+    return primary
+  }
+
+  return (legacyData || []).map((item: any) => item.track_data).filter(Boolean)
 }
 
 export async function isTrackLiked(userId: string, trackId: string) {
@@ -299,7 +387,26 @@ export async function getPlaylists(userId: string) {
     return []
   }
 
-  return (playlists || []).map((playlist: any) => ({
+  const primary = (playlists || []).map((playlist: any) => ({
+    ...playlist,
+    tracks: Array.isArray(playlist.tracks_json) ? playlist.tracks_json : [],
+  }))
+  if (primary.length > 0) return primary
+
+  const authUser = await getCurrentUserForId(userId)
+  const fallbackUsername = usernameFromEmail(authUser?.email)
+  const { data: legacy, error: legacyError } = await supabase
+    .from("playlists")
+    .select("id, name, user_id, username, created_at, tracks_json, image_url")
+    .eq("username", fallbackUsername)
+    .order("created_at", { ascending: false })
+
+  if (legacyError) {
+    console.error("Erro ao carregar playlists legacy:", legacyError)
+    return primary
+  }
+
+  return (legacy || []).map((playlist: any) => ({
     ...playlist,
     tracks: Array.isArray(playlist.tracks_json) ? playlist.tracks_json : [],
   }))
