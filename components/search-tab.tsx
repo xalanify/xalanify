@@ -42,6 +42,8 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
       <div className="glass-card-strong flex items-center gap-3 rounded-xl px-4 py-3">
         <Search className="h-5 w-5 shrink-0 text-[#a08070]" />
         <input
+          id="search-query"
+          name="query"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}

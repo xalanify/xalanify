@@ -13,6 +13,35 @@ grant execute on function public.relink_my_legacy_content(text, text) to authent
 alter table public.playlists enable row level security;
 alter table public.liked_tracks enable row level security;
 
+-- Remove any previous policies to avoid conflicts from old migrations.
+do $$
+declare
+  r record;
+begin
+  for r in
+    select policyname
+    from pg_policies
+    where schemaname = 'public' and tablename = 'playlists'
+  loop
+    execute format('drop policy if exists %I on public.playlists', r.policyname);
+  end loop;
+end
+$$;
+
+do $$
+declare
+  r record;
+begin
+  for r in
+    select policyname
+    from pg_policies
+    where schemaname = 'public' and tablename = 'liked_tracks'
+  loop
+    execute format('drop policy if exists %I on public.liked_tracks', r.policyname);
+  end loop;
+end
+$$;
+
 drop policy if exists "playlists_select_own" on public.playlists;
 create policy "playlists_select_own"
   on public.playlists

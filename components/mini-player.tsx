@@ -63,6 +63,8 @@ export default function MiniPlayer({ onExpand, accentColor }: MiniPlayerProps) {
               style={{ background: "rgba(20, 10, 10, 0.96)" }}
             >
               <input
+                id="mini-player-volume"
+                name="mini_volume"
                 type="range"
                 min={0}
                 max={1}

@@ -44,6 +44,8 @@ export default function LoginScreen() {
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
         <div>
           <input
+            id="auth-email"
+            name="email"
             type="email"
             placeholder="Email"
             value={email}
@@ -54,6 +56,8 @@ export default function LoginScreen() {
         </div>
         <div>
           <input
+            id="auth-password"
+            name="password"
             type="password"
             placeholder="Password"
             value={password}

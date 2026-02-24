@@ -115,6 +115,8 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <input
+                id="track-menu-share-query"
+                name="share_query"
                 value={shareQuery}
                 onChange={(e) => setShareQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearchTargets()}

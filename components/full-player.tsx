@@ -137,6 +137,8 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
 
         <div className="mb-6">
           <input
+            id="player-seek"
+            name="seek"
             type="range"
             min={0}
             max={1}
@@ -163,6 +165,8 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
             {volume <= 0.01 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
           </button>
           <input
+            id="player-volume"
+            name="volume"
             type="range"
             min={0}
             max={1}

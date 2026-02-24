@@ -502,6 +502,8 @@ export default function LibraryTab() {
               </button>
             </div>
             <input
+              id="new-playlist-name"
+              name="playlist_name"
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -534,6 +536,8 @@ export default function LibraryTab() {
             <p className="mb-3 truncate text-xs text-[#a08070]">Playlist: {sharePlaylist.name}</p>
             <div className="mb-2 flex items-center gap-2">
               <input
+                id="share-target-query"
+                name="share_target_query"
                 value={shareQuery}
                 onChange={(e) => setShareQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearchShareTargets()}

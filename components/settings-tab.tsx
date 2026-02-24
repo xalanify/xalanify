@@ -570,6 +570,8 @@ export default function SettingsTab() {
             <label className="block text-xs text-[#a08070]">Username</label>
             <div className="flex items-center gap-2">
               <input
+                id="profile-username"
+                name="username"
                 value={usernameInput}
                 onChange={(e) => setUsernameInput(e.target.value)}
                 placeholder="teu_username"
@@ -700,6 +702,8 @@ export default function SettingsTab() {
           )}
 
           <input
+            id="share-target-user-id"
+            name="target_user_id"
             value={manualTargetUserId}
             onChange={(e) => setManualTargetUserId(e.target.value)}
             placeholder="Ou cola aqui um User ID (fallback)"
@@ -937,6 +941,8 @@ export default function SettingsTab() {
 
         <div className="glass-card-strong mb-3 flex items-center gap-2 rounded-xl px-3 py-2">
           <input
+            id="playlist-tests-query"
+            name="playlist_query"
             value={playlistQuery}
             onChange={(e) => setPlaylistQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handlePlaylistSearch()}
