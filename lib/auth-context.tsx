@@ -104,14 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOutFn = useCallback(async () => {
-    try {
-      await supaSignOut()
-    } finally {
-      // Ensure local UI always leaves authenticated state.
-      setUser(null)
-      setProfile(null)
-      setLoading(false)
-    }
+    // Logout UI immediately even if remote request hangs/fails.
+    setUser(null)
+    setProfile(null)
+    setLoading(false)
+
+    await supaSignOut().catch(() => {})
   }, [])
 
   const emailIsAdminFallback = user?.email === "adminx@adminx.com"

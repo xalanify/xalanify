@@ -30,6 +30,22 @@ async function getCurrentUserForId(userId: string) {
   return null
 }
 
+const relinkAttemptedForUser = new Set<string>()
+
+async function tryRelinkLegacyContent(userId: string) {
+  if (relinkAttemptedForUser.has(userId)) return
+  relinkAttemptedForUser.add(userId)
+
+  const authUser = await getCurrentUserForId(userId)
+  if (!authUser?.email) return
+
+  const fallbackUsername = usernameFromEmail(authUser.email).toLowerCase()
+  await supabase.rpc("relink_my_legacy_content", {
+    target_email: authUser.email,
+    target_username: fallbackUsername,
+  }).catch(() => {})
+}
+
 export interface ShareTarget {
   user_id: string
   username: string
@@ -166,11 +182,13 @@ export async function signOut() {
 
 // Liked Tracks
 export async function getLikedTracks(userId: string) {
-  const { data, error } = await supabase
+  const loadPrimary = async () => supabase
     .from("liked_tracks")
     .select("track_data")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
+
+  let { data, error } = await loadPrimary()
 
   if (error) {
     console.error("Erro ao carregar favoritos:", error)
@@ -179,6 +197,13 @@ export async function getLikedTracks(userId: string) {
 
   const primary = data?.map((item: any) => item.track_data).filter(Boolean) || []
   if (primary.length > 0) return primary
+
+  await tryRelinkLegacyContent(userId)
+  ;({ data, error } = await loadPrimary())
+  if (!error) {
+    const afterRelink = data?.map((item: any) => item.track_data).filter(Boolean) || []
+    if (afterRelink.length > 0) return afterRelink
+  }
 
   const authUser = await getCurrentUserForId(userId)
   const fallbackUsername = usernameFromEmail(authUser?.email)
@@ -380,11 +405,13 @@ export async function searchShareTargets(currentUserId: string, query: string) {
 
 // Playlists
 export async function getPlaylists(userId: string) {
-  const { data: playlists, error } = await supabase
+  const loadPrimary = async () => supabase
     .from("playlists")
     .select("id, name, user_id, username, created_at, tracks_json, image_url")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
+
+  let { data: playlists, error } = await loadPrimary()
 
   if (error) {
     console.error("Erro ao carregar playlists:", error)
@@ -396,6 +423,16 @@ export async function getPlaylists(userId: string) {
     tracks: Array.isArray(playlist.tracks_json) ? playlist.tracks_json : [],
   }))
   if (primary.length > 0) return primary
+
+  await tryRelinkLegacyContent(userId)
+  ;({ data: playlists, error } = await loadPrimary())
+  if (!error) {
+    const afterRelink = (playlists || []).map((playlist: any) => ({
+      ...playlist,
+      tracks: Array.isArray(playlist.tracks_json) ? playlist.tracks_json : [],
+    }))
+    if (afterRelink.length > 0) return afterRelink
+  }
 
   const authUser = await getCurrentUserForId(userId)
   const fallbackUsername = usernameFromEmail(authUser?.email)
