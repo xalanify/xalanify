@@ -237,12 +237,14 @@ export async function listShareTargets(currentUserId: string, isAdmin = false) {
 
 export async function searchShareTargets(currentUserId: string, query: string) {
   const rawNeedle = query.trim()
-  const fromProfiles = await supabase
-    .from("profiles")
-    .select("user_id, username, email")
-    .neq("user_id", currentUserId)
-    .or(`username.ilike.%${rawNeedle}%,email.ilike.%${rawNeedle}%`)
-    .limit(30)
+  const fromProfiles = rawNeedle
+    ? await supabase
+        .from("profiles")
+        .select("user_id, username, email")
+        .neq("user_id", currentUserId)
+        .or(`username.ilike.%${rawNeedle}%,email.ilike.%${rawNeedle}%`)
+        .limit(30)
+    : ({ data: [], error: null } as any)
 
   const fromList = await listShareTargets(currentUserId, false)
   const directTargets = ((fromProfiles.data as any[]) || []).map((row) => ({

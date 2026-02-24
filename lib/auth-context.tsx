@@ -42,29 +42,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    getCurrentUser().then(async (u) => {
-      setUser(u ?? null)
-      if (u?.id) {
-        const p = await getMyProfile(u.id)
-        setProfile(p)
-      } else {
+    let mounted = true
+
+    getCurrentUser()
+      .then(async (u) => {
+        if (!mounted) return
+        setUser(u ?? null)
+        // Never block app boot on profile fetch.
+        setLoading(false)
+
+        if (u?.id) {
+          try {
+            const p = await getMyProfile(u.id)
+            if (mounted) setProfile(p)
+          } catch {
+            if (mounted) setProfile(null)
+          }
+        } else if (mounted) {
+          setProfile(null)
+        }
+      })
+      .catch(() => {
+        if (!mounted) return
+        setUser(null)
         setProfile(null)
-      }
-      setLoading(false)
-    })
+        setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return
+
       setUser(session?.user ?? null)
+      setLoading(false)
+
       if (session?.user?.id) {
-        const p = await getMyProfile(session.user.id)
-        setProfile(p)
-      } else {
+        try {
+          const p = await getMyProfile(session.user.id)
+          if (mounted) setProfile(p)
+        } catch {
+          if (mounted) setProfile(null)
+        }
+      } else if (mounted) {
         setProfile(null)
       }
-      setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signIn = useCallback(async (email: string, password: string) => {
