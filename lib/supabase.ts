@@ -155,105 +155,53 @@ export async function isTrackLiked(userId: string, trackId: string) {
   return !!data
 }
 
-/**
- * Add a track to the user's liked tracks using RPC function
- * Much faster than direct INSERT because it's executed on the database server
- */
 export async function addLikedTrack(userId: string, track: any) {
-  console.log("[supabase] addLikedTrack START:", { userId })
-  
-  if (!track?.id) {
-    console.error("[supabase] addLikedTrack: No track ID")
+  const trackId = track?.id ? String(track.id) : ""
+  if (!trackId) {
+    console.error("Erro ao adicionar favorito: track.id invalido", track)
     return false
   }
 
-  const trackId = String(track.id)
-  const trackData = {
-    id: trackId,
-    title: track.title || "",
-    artist: track.artist || "",
-    album: track.album || "",
-    duration: track.duration || 0,
-    image_url: track.image_url || "",
-    spotify_url: track.spotify_url || "",
+  const nowIso = new Date().toISOString()
+  const row = {
+    user_id: userId,
+    track_id: trackId,
+    track_data: {
+      ...track,
+      id: trackId,
+    },
+    updated_at: nowIso,
+    created_at: nowIso,
   }
 
-  console.log("[supabase] addLikedTrack: Calling RPC function...")
+  const { error: upsertError } = await supabase
+    .from("liked_tracks")
+    .upsert(row, { onConflict: "user_id,track_id" })
 
-  try {
-    // Use RPC function which is much faster
-    const { data, error } = await supabase.rpc("add_liked_track", {
-      p_user_id: userId,
-      p_track_id: trackId,
-      p_track_data: trackData,
-    })
+  if (!upsertError) return true
 
-    console.log("[supabase] addLikedTrack: RPC response - error:", error, "data:", data)
-
-    if (error) {
-      console.error("[supabase] addLikedTrack: RPC failed:", error.message)
+  if (upsertError.code === "42P10") {
+    const { error: insertError } = await supabase.from("liked_tracks").insert(row)
+    if (insertError) {
+      console.error("Erro ao adicionar favorito:", insertError)
       return false
     }
-
-    console.log("[supabase] addLikedTrack: SUCCESS")
     return true
-
-  } catch (err: any) {
-    console.error("[supabase] addLikedTrack: EXCEPTION:", err?.message)
-    return false
   }
+
+  console.error("Erro ao adicionar favorito (upsert):", upsertError)
+  return false
 }
 
 export async function removeLikedTrack(userId: string, trackId: string) {
-  console.log("[supabase] removeLikedTrack START:", { userId, trackId })
-
-  try {
-    // Use RPC function
-    const { error } = await supabase.rpc("remove_liked_track", {
-      p_user_id: userId,
-      p_track_id: trackId,
-    })
-
-    if (error) {
-      console.error("[supabase] removeLikedTrack: RPC failed:", error.message)
-      return false
-    }
-
-    console.log("[supabase] removeLikedTrack: SUCCESS")
-    return true
-  } catch (err: any) {
-    console.error("[supabase] removeLikedTrack: EXCEPTION:", err?.message)
-    return false
-  }
-}
-
-// Diagnostic: Check liked_tracks table status
-export async function diagnoseLikedTracks(userId: string) {
-  console.log("[supabase] diagnoseLikedTracks: Starting diagnostic for user", userId)
-  
-  // Check if table exists and has correct structure
-  const { data: tableInfo, error: tableError } = await supabase
+  const { error } = await supabase
     .from("liked_tracks")
-    .select("id, user_id, track_id, created_at")
-    .limit(1)
-  
-  console.log("[supabase] diagnoseLikedTracks: table check result:", { tableInfo, tableError })
-  
-  // Check user's liked tracks
-  const { data: userTracks, error: userError } = await supabase
-    .from("liked_tracks")
-    .select("id, track_id, created_at")
+    .delete()
     .eq("user_id", userId)
-    .limit(10)
-  
-  console.log("[supabase] diagnoseLikedTracks: user tracks:", { userTracks, userError })
-  
-  return {
-    tableExists: !tableError,
-    tableError,
-    likedTracks: userTracks || [],
-    userError
-  }
+    .eq("track_id", trackId)
+
+  if (error) console.error("Erro ao remover favorito:", error)
+  return !error
 }
 
 // Sharing disabled for now (UUID-only mode)
@@ -303,61 +251,37 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 export async function createPlaylist(userId: string, name: string, imageUrl?: string) {
-  console.log("[supabase] createPlaylist START:", { userId, name })
-  
   const normalized = name.trim()
-  if (!normalized) {
-    console.error("[supabase] createPlaylist: Empty name")
+  if (!normalized) return null
+
+  const { data: existing, error: existingError } = await supabase
+    .from("playlists")
+    .select("id, name, user_id, created_at, tracks_json, image_url")
+    .eq("user_id", userId)
+    .ilike("name", normalized)
+    .maybeSingle()
+
+  if (!existingError && existing) {
+    return { ...existing, existed: true, tracks: Array.isArray(existing.tracks_json) ? existing.tracks_json : [] }
+  }
+
+  const { data, error } = await supabase
+    .from("playlists")
+    .insert({
+      user_id: userId,
+      name: normalized,
+      tracks_json: [],
+      image_url: imageUrl || null,
+    })
+    .select("id, name, user_id, created_at, tracks_json, image_url")
+    .single()
+
+  if (error) {
+    console.error("Erro ao criar playlist:", error)
     return null
   }
 
-  try {
-    // First check if playlist already exists
-    console.log("[supabase] createPlaylist: Checking for existing playlist...")
-    const { data: existing, error: checkError } = await supabase.rpc("check_playlist_exists", {
-      p_user_id: userId,
-      p_name: normalized,
-    })
-
-    if (!checkError && existing && existing.length > 0) {
-      console.log("[supabase] createPlaylist: Playlist already exists")
-      return {
-        id: existing[0].id,
-        name: existing[0].name,
-        existed: true,
-        tracks: [],
-      }
-    }
-
-    // Create new playlist using RPC function
-    console.log("[supabase] createPlaylist: Creating new playlist with RPC...")
-    const { data: created, error: createError } = await supabase.rpc("create_playlist_fn", {
-      p_user_id: userId,
-      p_name: normalized,
-      p_image_url: imageUrl || null,
-    })
-
-    if (createError) {
-      console.error("[supabase] createPlaylist: RPC failed:", createError.message)
-      return null
-    }
-
-    if (!created || created.length === 0) {
-      console.error("[supabase] createPlaylist: No data returned from RPC")
-      return null
-    }
-
-    console.log("[supabase] createPlaylist: SUCCESS")
-    return {
-      id: created[0].id,
-      name: created[0].name,
-      existed: false,
-      tracks: [],
-    }
-  } catch (err: any) {
-    console.error("[supabase] createPlaylist: EXCEPTION:", err?.message)
-    return null
-  }
+  return { ...data, existed: false, tracks: Array.isArray(data.tracks_json) ? data.tracks_json : [] }
 }
 
 export async function createPlaylistFromShare(userId: string, name: string, imageUrl?: string) {
@@ -387,59 +311,52 @@ export async function deletePlaylist(playlistId: string) {
 }
 
 export async function addTrackToPlaylist(playlistId: string, track: any) {
-  console.log("[supabase] addTrackToPlaylist START:", { playlistId })
-  
-  if (!track?.id) {
-    console.error("[supabase] addTrackToPlaylist: No track ID")
+  const { data: playlist, error: fetchError } = await supabase
+    .from("playlists")
+    .select("tracks_json")
+    .eq("id", playlistId)
+    .maybeSingle()
+
+  if (fetchError || !playlist) {
+    console.error("Erro ao buscar playlist:", fetchError)
     return false
   }
 
-  try {
-    // Use RPC function - much faster
-    console.log("[supabase] addTrackToPlaylist: Calling RPC function...")
-    const { error } = await supabase.rpc("add_track_to_playlist_fn", {
-      p_playlist_id: playlistId,
-      p_track: track,
-    })
+  const tracks = Array.isArray(playlist.tracks_json) ? playlist.tracks_json : []
+  const exists = tracks.some((t: any) => t?.id === track.id)
+  const updatedTracks = exists ? tracks : [...tracks, track]
 
-    if (error) {
-      console.error("[supabase] addTrackToPlaylist: RPC failed:", error.message)
-      return false
-    }
+  const { error } = await supabase
+    .from("playlists")
+    .update({ tracks_json: updatedTracks })
+    .eq("id", playlistId)
 
-    console.log("[supabase] addTrackToPlaylist: SUCCESS")
-    return true
-
-  } catch (err: any) {
-    console.error("[supabase] addTrackToPlaylist: EXCEPTION:", err?.message)
-    return false
-  }
-  }
+  if (error) console.error("Erro ao adicionar a playlist:", error)
+  return !error
 }
 
 export async function removeTrackFromPlaylist(playlistId: string, trackId: string) {
-  console.log("[supabase] removeTrackFromPlaylist START:", { playlistId, trackId })
-  
-  try {
-    // Use RPC function - much faster
-    console.log("[supabase] removeTrackFromPlaylist: Calling RPC function...")
-    const { error } = await supabase.rpc("remove_track_from_playlist_fn", {
-      p_playlist_id: playlistId,
-      p_track_id: trackId,
-    })
+  const { data: playlist, error: fetchError } = await supabase
+    .from("playlists")
+    .select("tracks_json")
+    .eq("id", playlistId)
+    .maybeSingle()
 
-    if (error) {
-      console.error("[supabase] removeTrackFromPlaylist: RPC failed:", error.message)
-      return false
-    }
-
-    console.log("[supabase] removeTrackFromPlaylist: SUCCESS")
-    return true
-  } catch (err: any) {
-    console.error("[supabase] removeTrackFromPlaylist: EXCEPTION:", err?.message)
+  if (fetchError || !playlist) {
+    console.error("Erro ao buscar playlist:", fetchError)
     return false
   }
-  }
+
+  const tracks = Array.isArray(playlist.tracks_json) ? playlist.tracks_json : []
+  const updatedTracks = tracks.filter((t: any) => t?.id !== trackId)
+
+  const { error } = await supabase
+    .from("playlists")
+    .update({ tracks_json: updatedTracks })
+    .eq("id", playlistId)
+
+  if (error) console.error("Erro ao remover da playlist:", error)
+  return !error
 }
 
 export async function createShareRequest(_params: {
@@ -486,4 +403,35 @@ export async function importPlaylistById(userId: string, playlistId: string) {
   }
 
   return data
+}
+
+// Diagnostic function for admin debugging
+export async function diagnoseLikedTracks(userId: string) {
+  console.log("[diagnoseLikedTracks] Starting diagnostic for user:", userId)
+  
+  try {
+    // Check if liked_tracks table exists and has data
+    const { data: tableCheck, error: tableError } = await supabase
+      .from("liked_tracks")
+      .select("id, user_id, track_id, created_at")
+      .eq("user_id", userId)
+      .limit(10)
+
+    if (tableError) {
+      console.error("[diagnoseLikedTracks] Table error:", tableError)
+      return { error: tableError.message, hasTable: false }
+    }
+
+    console.log("[diagnoseLikedTracks] Found tracks:", tableCheck?.length || 0)
+    
+    return {
+      hasTable: true,
+      trackCount: tableCheck?.length || 0,
+      tracks: tableCheck,
+      userId: userId
+    }
+  } catch (err: any) {
+    console.error("[diagnoseLikedTracks] Exception:", err)
+    return { error: err?.message }
+  }
 }

@@ -39,6 +39,7 @@ interface Playlist {
   name: string
   tracks: Track[]
   image_url?: string | null
+  is_test?: boolean
 }
 
 export default function LibraryTab() {
@@ -76,6 +77,8 @@ export default function LibraryTab() {
   }
 
   function isTestPlaylist(playlist: Playlist) {
+    // Use is_test field if available, fallback to name check for backward compatibility
+    if (playlist.is_test === true) return true
     return playlist.name.toLowerCase().includes("teste") || playlist.name.toLowerCase().includes("demo")
   }
 
