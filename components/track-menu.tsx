@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { Heart, Plus, X, Music, Send } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { addLikedTrack, getPlaylists, addTrackToPlaylist, searchShareTargets, createShareRequest, type ShareTarget } from "@/lib/supabase"
+import { addLikedTrack, getPlaylists, addTrackToPlaylist, searchShareTargets, createShareRequest, diagnoseLikedTracks, type ShareTarget } from "@/lib/supabase"
 import { toast } from "sonner"
 import type { Track } from "@/lib/player-context"
 
@@ -56,8 +56,17 @@ export default function TrackMenu({ track, onClose, anchorRect, onLibraryUpdate 
 
     pushAdminDebug("Like click", { userId: user.id, trackId: track.id, title: track.title })
     console.log("[DEBUG] About to call addLikedTrack", user.id, track?.id)
+    console.log("[DEBUG] User object:", { id: user.id, email: user.email })
+    
     const ok = await addLikedTrack(user.id, track)
     console.log("[DEBUG] addLikedTrack returned", ok)
+    
+    // Run diagnostic if admin
+    if (isAdmin) {
+      const diag = await diagnoseLikedTracks(user.id)
+      pushAdminDebug("Diagnostic result", diag)
+    }
+    
     pushAdminDebug("Like result", { ok, userId: user.id, trackId: track.id })
     if (!ok) {
       toast.error("Falha ao adicionar aos favoritos.")

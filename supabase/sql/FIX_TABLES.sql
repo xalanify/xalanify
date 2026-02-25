@@ -77,8 +77,9 @@ CREATE POLICY playlists_delete ON public.playlists FOR DELETE TO authenticated U
 DROP POLICY IF EXISTS liked_tracks_select ON public.liked_tracks;
 CREATE POLICY liked_tracks_select ON public.liked_tracks FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS liked_tracks_insert ON public.liked_tracks;
-CREATE POLICY liked_tracks_insert ON public.liked_tracks FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+-- Upsert policy - needed because upsert is both INSERT and UPDATE
+DROP POLICY IF EXISTS liked_tracks_upsert ON public.liked_tracks;
+CREATE POLICY liked_tracks_upsert ON public.liked_tracks FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS liked_tracks_update ON public.liked_tracks;
 CREATE POLICY liked_tracks_update ON public.liked_tracks FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

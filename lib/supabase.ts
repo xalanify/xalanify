@@ -172,23 +172,30 @@ export async function addLikedTrack(userId: string, track: any) {
 
   console.log("[supabase] addLikedTrack: Attempting to upsert row:", row)
 
-  const { data, error } = await supabase
-    .from("liked_tracks")
-    .upsert(row, { onConflict: "user_id,track_id" })
-    .select()
+  try {
+    const { data, error } = await supabase
+      .from("liked_tracks")
+      .upsert(row, { onConflict: "user_id,track_id", ignoreDuplicates: false })
+      .select()
 
-  if (error) {
-    console.error("[supabase] addLikedTrack error:", {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint
-    })
+    console.log("[supabase] addLikedTrack response - data:", data, "error:", error)
+
+    if (error) {
+      console.error("[supabase] addLikedTrack error:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      return false
+    }
+
+    console.log("[supabase] addLikedTrack success:", data)
+    return true
+  } catch (err: any) {
+    console.error("[supabase] addLikedTrack EXCEPTION:", err?.message, err)
     return false
   }
-
-  console.log("[supabase] addLikedTrack success:", data)
-  return true
 }
 
 export async function removeLikedTrack(userId: string, trackId: string) {
@@ -200,6 +207,35 @@ export async function removeLikedTrack(userId: string, trackId: string) {
 
   if (error) console.error("Erro ao remover favorito:", error)
   return !error
+}
+
+// Diagnostic: Check liked_tracks table status
+export async function diagnoseLikedTracks(userId: string) {
+  console.log("[supabase] diagnoseLikedTracks: Starting diagnostic for user", userId)
+  
+  // Check if table exists and has correct structure
+  const { data: tableInfo, error: tableError } = await supabase
+    .from("liked_tracks")
+    .select("id, user_id, track_id, created_at")
+    .limit(1)
+  
+  console.log("[supabase] diagnoseLikedTracks: table check result:", { tableInfo, tableError })
+  
+  // Check user's liked tracks
+  const { data: userTracks, error: userError } = await supabase
+    .from("liked_tracks")
+    .select("id, track_id, created_at")
+    .eq("user_id", userId)
+    .limit(10)
+  
+  console.log("[supabase] diagnoseLikedTracks: user tracks:", { userTracks, userError })
+  
+  return {
+    tableExists: !tableError,
+    tableError,
+    likedTracks: userTracks || [],
+    userError
+  }
 }
 
 // Sharing disabled for now (UUID-only mode)
