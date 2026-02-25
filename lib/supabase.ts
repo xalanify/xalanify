@@ -6,16 +6,26 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key"
 
 // Log para debug - mostra se as variáveis estão configuradas
-console.log("[SUPABASE] URL configured:", !!process.env.NEXT_PUBLIC_SUPABASE_URL)
+console.log("[SUPABASE] URL configured:", !!process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) || "UNDEFINED")
 console.log("[SUPABASE] ANON_KEY configured:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
   console.error("[SUPABASE] CRITICAL: Credentials not found!")
   console.error("[SUPABASE] NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL || "UNDEFINED")
   console.error("[SUPABASE] NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "***SET***" : "UNDEFINED")
+  alert("SUPABASE CREDENTIALS MISSING! Check Vercel Environment Variables")
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Test connection on load
+supabase.from("playlists").select("count").then(({ error }) => {
+  if (error) {
+    console.error("[SUPABASE] Connection test FAILED:", error.message)
+  } else {
+    console.log("[SUPABASE] Connection test SUCCESS")
+  }
+})
 
 function usernameFromEmail(email?: string | null) {
   if (!email) return "user"
