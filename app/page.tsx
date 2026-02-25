@@ -12,6 +12,7 @@ import MiniPlayer from "@/components/mini-player"
 import FullPlayer from "@/components/full-player"
 import AudioEngine from "@/components/audio-engine"
 import TrackMenu from "@/components/track-menu"
+import { Toaster } from "@/components/ui/sonner"
 
 function hexToRgb(hex: string) {
   const normalized = hex.replace("#", "")
@@ -169,6 +170,7 @@ function XalanifyApp() {
   return (
     <div className="relative flex h-dvh min-h-0 flex-col overflow-x-hidden safe-top" style={{ background: appBackground }}>
       <AudioEngine />
+      <Toaster position="top-center" richColors />
 
       <div className={`min-h-0 flex-1 overflow-y-auto pt-4 ${contentBottomPadding} hide-scrollbar`}>
         {activeTab === "search" && (

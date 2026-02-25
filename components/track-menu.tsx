@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Heart, Plus, X, Music, Send } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { addLikedTrack, getPlaylists, addTrackToPlaylist, searchShareTargets, createShareRequest, type ShareTarget } from "@/lib/supabase"
+import { toast } from "sonner"
 import type { Track } from "@/lib/player-context"
 
 interface Playlist {
@@ -47,7 +48,7 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
 
   async function handleLike() {
     if (!user) {
-      setActionMsg("Inicia sessao para adicionar aos favoritos.")
+      toast.error("Inicia sessão para adicionar aos favoritos.")
       pushAdminDebug("Like blocked: no user")
       return
     }
@@ -58,23 +59,26 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
     console.log("[DEBUG] addLikedTrack returned", ok)
     pushAdminDebug("Like result", { ok, userId: user.id, trackId: track.id })
     if (!ok) {
-      setActionMsg("Falha ao adicionar aos favoritos.")
+      toast.error("Falha ao adicionar aos favoritos.")
       return
     }
 
+    toast.success(`"${track.title}" adicionado aos favoritos!`)
     setAdded(true)
     setTimeout(onClose, 500)
   }
 
   async function handleAddToPlaylist(playlistId: string) {
+    const playlist = playlists.find(p => p.id === playlistId)
     pushAdminDebug("Add to playlist click", { playlistId, trackId: track.id })
     const ok = await addTrackToPlaylist(playlistId, track)
     pushAdminDebug("Add to playlist result", { ok, playlistId, trackId: track.id })
     if (!ok) {
-      setActionMsg("Falha ao adicionar a playlist.")
+      toast.error("Falha ao adicionar à playlist.")
       return
     }
 
+    toast.success(`"${track.title}" adicionado a "${playlist?.name}"!`)
     setAdded(true)
     setTimeout(onClose, 500)
   }
