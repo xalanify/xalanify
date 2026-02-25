@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { Heart, Plus, X, Music, Send } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { addLikedTrack, getPlaylists, addTrackToPlaylist, searchShareTargets, createShareRequest, diagnoseLikedTracks, type ShareTarget } from "@/lib/supabase"
+import { addLikedTrack, getPlaylists, addTrackToPlaylist, searchShareTargets, createShareRequest, diagnoseLikedTracks, type ShareTarget } from "@/lib/supabase_simple"
 import { toast } from "sonner"
 import type { Track } from "@/lib/player-context"
 

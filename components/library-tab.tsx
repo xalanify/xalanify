@@ -32,7 +32,7 @@ import {
   importPlaylistById,
   type ShareRequest,
   type ShareTarget,
-} from "@/lib/supabase"
+} from "@/lib/supabase_simple"
 
 interface Playlist {
   id: string
