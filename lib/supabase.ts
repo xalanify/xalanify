@@ -5,8 +5,14 @@ import { createClient } from "@supabase/supabase-js"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co"
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key"
 
+// Log para debug - mostra se as variáveis estão configuradas
+console.log("[SUPABASE] URL configured:", !!process.env.NEXT_PUBLIC_SUPABASE_URL)
+console.log("[SUPABASE] ANON_KEY configured:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-  console.warn("Supabase credentials not found")
+  console.error("[SUPABASE] CRITICAL: Credentials not found!")
+  console.error("[SUPABASE] NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL || "UNDEFINED")
+  console.error("[SUPABASE] NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "***SET***" : "UNDEFINED")
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
@@ -115,6 +121,8 @@ export async function signOut() {
 
 // Liked Tracks
 export async function getLikedTracks(userId: string) {
+  console.log("[SUPABASE] getLikedTracks called for user:", userId)
+  
   const { data, error } = await supabase
     .from("liked_tracks")
     .select("track_id, track_data")
@@ -122,9 +130,11 @@ export async function getLikedTracks(userId: string) {
     .order("created_at", { ascending: false })
 
   if (error) {
-    console.error("Erro ao carregar favoritos:", error)
+    console.error("[SUPABASE] getLikedTracks ERROR:", error.message, error.code)
     return []
   }
+
+  console.log("[SUPABASE] getLikedTracks SUCCESS, count:", data?.length || 0)
 
   return (data || [])
     .map((item: any) => {
@@ -158,9 +168,11 @@ export async function isTrackLiked(userId: string, trackId: string) {
 export async function addLikedTrack(userId: string, track: any) {
   const trackId = track?.id ? String(track.id) : ""
   if (!trackId) {
-    console.error("Erro ao adicionar favorito: track.id invalido", track)
+    console.error("[SUPABASE] addLikedTrack: track.id invalido", track)
     return false
   }
+
+  console.log("[SUPABASE] addLikedTrack for user:", userId, "track:", trackId)
 
   const nowIso = new Date().toISOString()
   const row = {
@@ -178,7 +190,12 @@ export async function addLikedTrack(userId: string, track: any) {
     .from("liked_tracks")
     .upsert(row, { onConflict: "user_id,track_id" })
 
-  if (!upsertError) return true
+  if (!upsertError) {
+    console.log("[SUPABASE] addLikedTrack SUCCESS")
+    return true
+  }
+
+  console.error("[SUPABASE] addLikedTrack ERROR:", upsertError.message, upsertError.code)
 
   if (upsertError.code === "42P10") {
     const { error: insertError } = await supabase.from("liked_tracks").insert(row)
@@ -229,6 +246,8 @@ export async function searchShareTargets(_currentUserId: string, _query: string)
 
 // Playlists
 export async function getPlaylists(userId: string) {
+  console.log("[SUPABASE] getPlaylists called for user:", userId)
+  
   const { data: playlists, error } = await supabase
     .from("playlists")
     .select("id, name, user_id, created_at, tracks_json, image_url")
@@ -236,9 +255,11 @@ export async function getPlaylists(userId: string) {
     .order("created_at", { ascending: false })
 
   if (error) {
-    console.error("Erro ao carregar playlists:", error)
+    console.error("[SUPABASE] getPlaylists ERROR:", error.message, error.code)
     return []
   }
+
+  console.log("[SUPABASE] getPlaylists SUCCESS, count:", playlists?.length || 0)
 
   return (playlists || []).map((playlist: any) => ({
     ...playlist,
@@ -271,6 +292,8 @@ export async function createPlaylist(userId: string, name: string, imageUrl?: st
   const normalized = name.trim()
   if (!normalized) return null
 
+  console.log("[SUPABASE] createPlaylist for user:", userId, "name:", normalized)
+
   const { data: existing, error: existingError } = await supabase
     .from("playlists")
     .select("id, name, user_id, created_at, tracks_json, image_url")
@@ -279,6 +302,7 @@ export async function createPlaylist(userId: string, name: string, imageUrl?: st
     .maybeSingle()
 
   if (!existingError && existing) {
+    console.log("[SUPABASE] createPlaylist: already exists")
     return { ...existing, existed: true, tracks: Array.isArray(existing.tracks_json) ? existing.tracks_json : [] }
   }
 
@@ -294,10 +318,11 @@ export async function createPlaylist(userId: string, name: string, imageUrl?: st
     .single()
 
   if (error) {
-    console.error("Erro ao criar playlist:", error)
+    console.error("[SUPABASE] createPlaylist ERROR:", error.message, error.code)
     return null
   }
 
+  console.log("[SUPABASE] createPlaylist SUCCESS")
   return { ...data, existed: false, tracks: Array.isArray(data.tracks_json) ? data.tracks_json : [] }
 }
 
@@ -328,6 +353,8 @@ export async function deletePlaylist(playlistId: string) {
 }
 
 export async function addTrackToPlaylist(playlistId: string, track: any) {
+  console.log("[SUPABASE] addTrackToPlaylist:", playlistId, track?.id)
+  
   const { data: playlist, error: fetchError } = await supabase
     .from("playlists")
     .select("tracks_json")
@@ -335,7 +362,7 @@ export async function addTrackToPlaylist(playlistId: string, track: any) {
     .maybeSingle()
 
   if (fetchError || !playlist) {
-    console.error("Erro ao buscar playlist:", fetchError)
+    console.error("[SUPABASE] addTrackToPlaylist ERROR fetching:", fetchError)
     return false
   }
 
@@ -348,7 +375,12 @@ export async function addTrackToPlaylist(playlistId: string, track: any) {
     .update({ tracks_json: updatedTracks })
     .eq("id", playlistId)
 
-  if (error) console.error("Erro ao adicionar a playlist:", error)
+  if (error) {
+    console.error("[SUPABASE] addTrackToPlaylist ERROR updating:", error)
+    return false
+  }
+
+  console.log("[SUPABASE] addTrackToPlaylist SUCCESS")
   return !error
 }
 
