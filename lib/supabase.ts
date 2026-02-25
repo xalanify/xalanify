@@ -115,12 +115,16 @@ export async function signOut() {
 
 // Liked Tracks
 export async function getLikedTracks(userId: string) {
+  console.log("[getLikedTracks] Fetching for userId:", userId)
+  
   const { data, error } = await supabase
     .from("liked_tracks")
     .select("track_id, track_data")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
 
+  console.log("[getLikedTracks] Raw response:", { count: data?.length, error })
+  
   if (error) {
     console.error("Erro ao carregar favoritos:", error)
     return []
@@ -215,12 +219,25 @@ export async function searchShareTargets(_currentUserId: string, _query: string)
 
 // Playlists
 export async function getPlaylists(userId: string) {
+  console.log("[getPlaylists] Fetching for userId:", userId)
+  
+  // First, try to fetch ALL playlists (for debugging RLS)
+  const { data: allPlaylists, error: allError } = await supabase
+    .from("playlists")
+    .select("id, name, user_id")
+    .limit(5)
+  
+  console.log("[getPlaylists] ALL playlists (debug):", { count: allPlaylists?.length, error: allError })
+  
+  // Now fetch user-specific playlists
   const { data: playlists, error } = await supabase
     .from("playlists")
     .select("id, name, user_id, created_at, tracks_json, image_url")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
 
+  console.log("[getPlaylists] User-specific response:", { count: playlists?.length, error })
+  
   if (error) {
     console.error("Erro ao carregar playlists:", error)
     return []
