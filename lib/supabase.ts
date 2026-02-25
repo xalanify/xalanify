@@ -178,27 +178,31 @@ export async function addLikedTrack(userId: string, track: any) {
 
   console.log("[supabase] Attempting upsert to liked_tracks", row)
 
-  const { data, error: upsertError } = await supabase
-    .from("liked_tracks")
-    .upsert(row, { onConflict: "user_id,track_id" })
-    .select()
+  try {
+    const { data, error: upsertError } = await supabase
+      .from("liked_tracks")
+      .upsert(row, { onConflict: "user_id,track_id" })
 
-  if (upsertError) {
-    console.error("[supabase] Upsert error:", upsertError.code, upsertError.message, upsertError.details)
-    
-    if (upsertError.code === "42P10") {
-      const { error: insertError } = await supabase.from("liked_tracks").insert(row)
-      if (insertError) {
-        console.error("[supabase] Insert error:", insertError)
-        return false
+    if (upsertError) {
+      console.error("[supabase] Upsert error:", upsertError.code, upsertError.message, upsertError.details, upsertError.hint)
+      
+      if (upsertError.code === "42P10") {
+        const { error: insertError } = await supabase.from("liked_tracks").insert(row)
+        if (insertError) {
+          console.error("[supabase] Insert error:", insertError)
+          return false
+        }
+        return true
       }
-      return true
+      return false
     }
+
+    console.log("[supabase] Upsert success", data)
+    return true
+  } catch (err: any) {
+    console.error("[supabase] Exception in addLikedTrack:", err?.message, err)
     return false
   }
-
-  console.log("[supabase] Upsert success", data)
-  return true
 }
 
 export async function removeLikedTrack(userId: string, trackId: string) {
@@ -264,38 +268,47 @@ export async function createPlaylist(userId: string, name: string, imageUrl?: st
   const normalized = name.trim()
   if (!normalized) return null
 
-  const { data: existing, error: existingError } = await supabase
-    .from("playlists")
-    .select("id, name, user_id, created_at, tracks_json, image_url")
-    .eq("user_id", userId)
-    .ilike("name", normalized)
-    .maybeSingle()
+  try {
+    const { data: existing, error: existingError } = await supabase
+      .from("playlists")
+      .select("id, name, user_id, created_at, tracks_json, image_url")
+      .eq("user_id", userId)
+      .ilike("name", normalized)
+      .maybeSingle()
 
-  if (!existingError && existing) {
-    console.log("[supabase] Playlist already exists", existing)
-    return { ...existing, existed: true, tracks: Array.isArray(existing.tracks_json) ? existing.tracks_json : [] }
-  }
+    if (existingError) {
+      console.error("[supabase] Error checking existing playlist:", existingError)
+    }
 
-  console.log("[supabase] Creating new playlist", { userId, name: normalized })
-  
-  const { data, error } = await supabase
-    .from("playlists")
-    .insert({
-      user_id: userId,
-      name: normalized,
-      tracks_json: [],
-      image_url: imageUrl || null,
-    })
-    .select("id, name, user_id, created_at, tracks_json, image_url")
-    .single()
+    if (existing) {
+      console.log("[supabase] Playlist already exists", existing)
+      return { ...existing, existed: true, tracks: Array.isArray(existing.tracks_json) ? existing.tracks_json : [] }
+    }
 
-  if (error) {
-    console.error("[supabase] Erro ao criar playlist:", error.code, error.message, error.details)
+    console.log("[supabase] Creating new playlist", { userId, name: normalized })
+    
+    const { data, error } = await supabase
+      .from("playlists")
+      .insert({
+        user_id: userId,
+        name: normalized,
+        tracks_json: [],
+        image_url: imageUrl || null,
+      })
+      .select("id, name, user_id, created_at, tracks_json, image_url")
+      .single()
+
+    if (error) {
+      console.error("[supabase] Erro ao criar playlist:", error.code, error.message, error.details, error.hint)
+      return null
+    }
+
+    console.log("[supabase] Playlist created successfully", data)
+    return { ...data, existed: false, tracks: Array.isArray(data.tracks_json) ? data.tracks_json : [] }
+  } catch (err: any) {
+    console.error("[supabase] Exception in createPlaylist:", err?.message, err)
     return null
   }
-
-  console.log("[supabase] Playlist created successfully", data)
-  return { ...data, existed: false, tracks: Array.isArray(data.tracks_json) ? data.tracks_json : [] }
 }
 
 export async function createPlaylistFromShare(userId: string, name: string, imageUrl?: string) {
