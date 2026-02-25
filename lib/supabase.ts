@@ -117,30 +117,47 @@ export async function signOut() {
 export async function getLikedTracks(userId: string) {
   console.log("[getLikedTracks] Fetching for userId:", userId)
   
-  const { data, error } = await supabase
-    .from("liked_tracks")
-    .select("track_id, track_data")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
+  try {
+    // First try ALL liked_tracks
+    console.log("[getLikedTracks] Querying ALL liked tracks...")
+    const allQuery = supabase
+      .from("liked_tracks")
+      .select("id, user_id, track_id")
+      .limit(5)
+    
+    const allResult = await allQuery
+    console.log("[getLikedTracks] ALL result:", { status: allResult.status, count: allResult.data?.length, error: allResult.error })
+    
+    // Now user-specific
+    console.log("[getLikedTracks] Querying user-specific...")
+    const { data, error } = await supabase
+      .from("liked_tracks")
+      .select("track_id, track_data")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
 
-  console.log("[getLikedTracks] Raw response:", { count: data?.length, error })
-  
-  if (error) {
-    console.error("Erro ao carregar favoritos:", error)
+    console.log("[getLikedTracks] User-specific response:", { status: data ? 'ok' : 'no-data', count: data?.length, error })
+    
+    if (error) {
+      console.error("[getLikedTracks] ERROR:", error.message, error.details)
+      return []
+    }
+
+    return (data || [])
+      .map((item: any) => {
+        if (!item?.track_data) return null
+        const trackId = item.track_data?.id || item.track_id
+        if (!trackId) return null
+        return {
+          ...item.track_data,
+          id: String(trackId),
+        }
+      })
+      .filter(Boolean)
+  } catch (err: any) {
+    console.error("[getLikedTracks] EXCEPTION:", err?.message, err)
     return []
   }
-
-  return (data || [])
-    .map((item: any) => {
-      if (!item?.track_data) return null
-      const trackId = item.track_data?.id || item.track_id
-      if (!trackId) return null
-      return {
-        ...item.track_data,
-        id: String(trackId),
-      }
-    })
-    .filter(Boolean)
 }
 
 export async function isTrackLiked(userId: string, trackId: string) {
@@ -221,32 +238,40 @@ export async function searchShareTargets(_currentUserId: string, _query: string)
 export async function getPlaylists(userId: string) {
   console.log("[getPlaylists] Fetching for userId:", userId)
   
-  // First, try to fetch ALL playlists (for debugging RLS)
-  const { data: allPlaylists, error: allError } = await supabase
-    .from("playlists")
-    .select("id, name, user_id")
-    .limit(5)
-  
-  console.log("[getPlaylists] ALL playlists (debug):", { count: allPlaylists?.length, error: allError })
-  
-  // Now fetch user-specific playlists
-  const { data: playlists, error } = await supabase
-    .from("playlists")
-    .select("id, name, user_id, created_at, tracks_json, image_url")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
+  try {
+    // First, try to fetch ALL playlists (for debugging RLS)
+    const allQuery = supabase
+      .from("playlists")
+      .select("id, name, user_id")
+      .limit(5)
+    
+    console.log("[getPlaylists] Querying ALL playlists...")
+    const allResult = await allQuery
+    console.log("[getPlaylists] ALL playlists result:", { status: allResult.status, count: allResult.data?.length, error: allResult.error })
+    
+    // Now fetch user-specific playlists
+    console.log("[getPlaylists] Querying user-specific playlists...")
+    const { data: playlists, error } = await supabase
+      .from("playlists")
+      .select("id, name, user_id, created_at, tracks_json, image_url")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
 
-  console.log("[getPlaylists] User-specific response:", { count: playlists?.length, error })
-  
-  if (error) {
-    console.error("Erro ao carregar playlists:", error)
+    console.log("[getPlaylists] User-specific response:", { status: playlists ? 'ok' : 'no-data', count: playlists?.length, error })
+    
+    if (error) {
+      console.error("[getPlaylists] ERROR:", error.message, error.details)
+      return []
+    }
+
+    return (playlists || []).map((playlist: any) => ({
+      ...playlist,
+      tracks: Array.isArray(playlist.tracks_json) ? playlist.tracks_json : [],
+    }))
+  } catch (err: any) {
+    console.error("[getPlaylists] EXCEPTION:", err?.message, err)
     return []
   }
-
-  return (playlists || []).map((playlist: any) => ({
-    ...playlist,
-    tracks: Array.isArray(playlist.tracks_json) ? playlist.tracks_json : [],
-  }))
 }
 function normalizePlaylistTracks(input: any) {
   if (!Array.isArray(input)) return []
