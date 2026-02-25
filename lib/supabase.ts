@@ -155,6 +155,13 @@ export async function isTrackLiked(userId: string, trackId: string) {
   return !!data
 }
 
+/**
+ * Add a track to the user's liked tracks
+ * IMPORTANT: Requires RLS policies on liked_tracks table:
+ * - liked_tracks_insert: allows INSERT for auth.uid() = user_id
+ * - liked_tracks_update: allows UPDATE for auth.uid() = user_id
+ * Apply RLS policies by running: supabase/sql/diagnose_liked_tracks.sql in Supabase SQL editor
+ */
 export async function addLikedTrack(userId: string, track: any) {
   console.log("[supabase] addLikedTrack called with:", { userId, trackId: track?.id, trackTitle: track?.title })
   
@@ -170,30 +177,81 @@ export async function addLikedTrack(userId: string, track: any) {
     track_data: track,
   }
 
-  console.log("[supabase] addLikedTrack: Attempting to upsert row:", row)
+  console.log("[supabase] addLikedTrack: Attempting to insert/upsert row:", row)
 
   try {
-    const { data, error } = await supabase
+    // First, try a simple upsert without conflictConflict - let Supabase infer from unique constraints
+    const { data: upsertData, error: upsertError } = await supabase
       .from("liked_tracks")
-      .upsert(row, { onConflict: "user_id,track_id", ignoreDuplicates: false })
+      .upsert([row])
       .select()
 
-    console.log("[supabase] addLikedTrack response - data:", data, "error:", error)
+    console.log("[supabase] addLikedTrack upsert response:", { data: upsertData, error: upsertError })
 
-    if (error) {
-      console.error("[supabase] addLikedTrack error:", {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
+    if (!upsertError) {
+      console.log("[supabase] addLikedTrack success via upsert:", upsertData)
+      return true
+    }
+
+    // If upsert fails, log the error details for debugging
+    console.warn("[supabase] addLikedTrack upsert failed, attempting fallback:", {
+      message: upsertError?.message,
+      code: upsertError?.code,
+      details: upsertError?.details,
+      hint: upsertError?.hint
+    })
+
+    // Fallback: Try insert, and if it fails with duplicate key, try update
+    const { data: insertData, error: insertError } = await supabase
+      .from("liked_tracks")
+      .insert([row])
+      .select()
+
+    if (!insertError) {
+      console.log("[supabase] addLikedTrack success via insert:", insertData)
+      return true
+    }
+
+    // If insert fails due to duplicate, try update
+    if (insertError?.code === "23505" || insertError?.message?.includes("duplicate")) {
+      console.log("[supabase] addLikedTrack: Duplicate detected, attempting update...")
+      
+      const { data: updateData, error: updateError } = await supabase
+        .from("liked_tracks")
+        .update(row)
+        .eq("user_id", userId)
+        .eq("track_id", trackId)
+        .select()
+
+      if (!updateError) {
+        console.log("[supabase] addLikedTrack success via update:", updateData)
+        return true
+      }
+
+      console.error("[supabase] addLikedTrack update failed:", {
+        message: updateError?.message,
+        code: updateError?.code,
+        details: updateError?.details,
+        hint: updateError?.hint
       })
       return false
     }
 
-    console.log("[supabase] addLikedTrack success:", data)
-    return true
+    // If it's not a duplicate error, log the original insert error
+    console.error("[supabase] addLikedTrack insert failed:", {
+      message: insertError?.message,
+      code: insertError?.code,
+      details: insertError?.details,
+      hint: insertError?.hint
+    })
+    return false
+
   } catch (err: any) {
-    console.error("[supabase] addLikedTrack EXCEPTION:", err?.message, err)
+    console.error("[supabase] addLikedTrack EXCEPTION:", {
+      message: err?.message,
+      code: err?.code,
+      stack: err?.stack
+    })
     return false
   }
 }
