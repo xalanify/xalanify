@@ -178,29 +178,31 @@ export async function addLikedTrack(userId: string, track: any) {
 
   console.log("[supabase] Attempting upsert to liked_tracks", row)
 
+  // Add timeout to prevent hanging
+  const timeoutMs = 10000
+  const timeoutPromise = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error("Timeout after " + timeoutMs + "ms")), timeoutMs)
+  )
+
   try {
-    const { data, error: upsertError } = await supabase
+    const upsertPromise = supabase
       .from("liked_tracks")
       .upsert(row, { onConflict: "user_id,track_id" })
-
-    if (upsertError) {
-      console.error("[supabase] Upsert error:", upsertError.code, upsertError.message, upsertError.details, upsertError.hint)
-      
-      if (upsertError.code === "42P10") {
-        const { error: insertError } = await supabase.from("liked_tracks").insert(row)
-        if (insertError) {
-          console.error("[supabase] Insert error:", insertError)
-          return false
-        }
-        return true
-      }
+    
+    const result = await Promise.race([upsertPromise, timeoutPromise]) as any
+    
+    console.log("[supabase] Upsert completed (no error thrown)", result)
+    
+    // Check if there's an error in the result
+    if (result?.error) {
+      console.error("[supabase] Upsert error in result:", result.error)
       return false
     }
-
-    console.log("[supabase] Upsert success", data)
+    
+    console.log("[supabase] Upsert success!")
     return true
   } catch (err: any) {
-    console.error("[supabase] Exception in addLikedTrack:", err?.message, err)
+    console.error("[supabase] Exception/timeout in addLikedTrack:", err?.message, err)
     return false
   }
 }
