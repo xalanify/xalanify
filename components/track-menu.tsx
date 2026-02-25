@@ -53,7 +53,9 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
     }
 
     pushAdminDebug("Like click", { userId: user.id, trackId: track.id, title: track.title })
+    console.log("[DEBUG] About to call addLikedTrack", user.id, track?.id)
     const ok = await addLikedTrack(user.id, track)
+    console.log("[DEBUG] addLikedTrack returned", ok)
     pushAdminDebug("Like result", { ok, userId: user.id, trackId: track.id })
     if (!ok) {
       setActionMsg("Falha ao adicionar aos favoritos.")
