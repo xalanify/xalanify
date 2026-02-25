@@ -156,7 +156,7 @@ export async function isTrackLiked(userId: string, trackId: string) {
 }
 
 export async function addLikedTrack(userId: string, track: any) {
-  console.log("[supabase] addLikedTrack called", { userId, trackId: track?.id })
+  console.log("[supabase] addLikedTrack called", { userId, trackId: track?.id, supabaseUrl: supabaseUrl.substring(0, 30) + "..." })
   
   const trackId = track?.id ? String(track.id) : ""
   if (!trackId) {
@@ -178,31 +178,35 @@ export async function addLikedTrack(userId: string, track: any) {
 
   console.log("[supabase] Attempting upsert to liked_tracks", row)
 
-  // Add timeout to prevent hanging
-  const timeoutMs = 10000
-  const timeoutPromise = new Promise((_, reject) => 
-    setTimeout(() => reject(new Error("Timeout after " + timeoutMs + "ms")), timeoutMs)
-  )
-
   try {
-    const upsertPromise = supabase
+    // First check if table exists
+    console.log("[supabase] Checking if table exists...")
+    const { data: checkData, error: checkError } = await supabase
       .from("liked_tracks")
-      .upsert(row, { onConflict: "user_id,track_id" })
+      .select("id")
+      .limit(1)
     
-    const result = await Promise.race([upsertPromise, timeoutPromise]) as any
-    
-    console.log("[supabase] Upsert completed (no error thrown)", result)
-    
-    // Check if there's an error in the result
-    if (result?.error) {
-      console.error("[supabase] Upsert error in result:", result.error)
-      return false
+    console.log("[supabase] Table check result:", { checkData, checkError })
+
+    if (checkError) {
+      console.error("[supabase] Table check error - table may not exist:", checkError)
+      // Try insert anyway - will fail if table doesn't exist
     }
     
-    console.log("[supabase] Upsert success!")
+    console.log("[supabase] Performing upsert...")
+    const { data, error } = await supabase
+      .from("liked_tracks")
+      .upsert(row, { onConflict: "user_id,track_id" })
+
+    if (error) {
+      console.error("[supabase] Upsert error:", error.code, error.message, error.details, error.hint)
+      return false
+    }
+
+    console.log("[supabase] Upsert success!", data)
     return true
   } catch (err: any) {
-    console.error("[supabase] Exception/timeout in addLikedTrack:", err?.message, err)
+    console.error("[supabase] Exception in addLikedTrack:", err?.message, err)
     return false
   }
 }
