@@ -12,6 +12,7 @@ import {
   Send,
   Inbox,
   Check,
+  Download,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { usePlayer, type Track } from "@/lib/player-context"
@@ -28,6 +29,7 @@ import {
   createShareRequest,
   getSentShareRequests,
   getReceivedShareHistory,
+  importPlaylistById,
   type ShareRequest,
   type ShareTarget,
 } from "@/lib/supabase"
@@ -61,6 +63,10 @@ export default function LibraryTab() {
   const [targetMap, setTargetMap] = useState<Record<string, ShareTarget>>({})
   const [shareMsg, setShareMsg] = useState("")
   const [adminDebug, setAdminDebug] = useState<string[]>([])
+  const [showImport, setShowImport] = useState(false)
+  const [importId, setImportId] = useState("")
+  const [importing, setImporting] = useState(false)
+  const [importMsg, setImportMsg] = useState("")
 
   function pushAdminDebug(message: string, payload?: any) {
     if (!isAdmin) return
@@ -212,7 +218,29 @@ export default function LibraryTab() {
     loadData()
   }
 
-  // Playlist colors based on index
+  async function handleImportPlaylist() {
+    if (!user || !importId.trim()) {
+      setImportMsg("Insere um ID de playlist válido.")
+      return
+    }
+    
+    setImporting(true)
+    setImportMsg("")
+    
+    const result = await importPlaylistById(user.id, importId.trim())
+    
+    if (result?.success) {
+      setImportMsg(`Playlist "${result.name}" importada com ${result.track_count} faixas!`)
+      setImportId("")
+      setShowImport(false)
+      loadData()
+    } else {
+      setImportMsg(result?.error || "Falha ao importar playlist. Verifica o ID.")
+    }
+    
+    setImporting(false)
+  }
+
   const playlistColors = [
     "from-[#4a3040] to-[#2a1a2a]",
     "from-[#3a2050] to-[#1a1030]",
@@ -484,6 +512,18 @@ export default function LibraryTab() {
           {pendingShares.length > 0 && (
             <span className="rounded-full bg-[rgba(230,57,70,0.2)] px-2 py-0.5 text-[10px] text-[#f0e0d0]">{pendingShares.length}</span>
           )}
+          <ChevronRight className="h-5 w-5 text-[#706050]" />
+        </button>
+
+        {/* Importar Playlist */}
+        <button
+          onClick={() => setShowImport(true)}
+          className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(16,185,129,0.15)]">
+            <Download className="h-5 w-5 text-[#10b981]" />
+          </div>
+          <span className="flex-1 text-left text-sm font-medium text-[#f0e0d0]">Importar Playlist</span>
           <ChevronRight className="h-5 w-5 text-[#706050]" />
         </button>
 

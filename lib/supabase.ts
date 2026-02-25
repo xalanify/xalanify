@@ -389,3 +389,18 @@ export async function acceptShareRequest(_userId: string, _request: ShareRequest
 export async function rejectShareRequest(_userId: string, _requestId: string) {
   return false
 }
+
+// Import playlist by ID
+export async function importPlaylistById(userId: string, playlistId: string) {
+  const { data, error } = await supabase.rpc("import_playlist_by_id", {
+    p_requester_id: userId,
+    p_playlist_id: playlistId,
+  })
+
+  if (error) {
+    console.error("Erro ao importar playlist:", error)
+    return { success: false as const, error: error.message }
+  }
+
+  return data
+}
