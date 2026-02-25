@@ -501,19 +501,6 @@ export default function LibraryTab() {
           <ChevronRight className="h-5 w-5 text-[#706050]" />
         </button>
 
-        <button
-          onClick={() => setViewPendingShares(true)}
-          className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)]">
-            <Inbox className="h-5 w-5 text-[#e0b45a]" />
-          </div>
-          <span className="flex-1 text-left text-sm font-medium text-[#f0e0d0]">Partilhas Pendentes</span>
-          {pendingShares.length > 0 && (
-            <span className="rounded-full bg-[rgba(230,57,70,0.2)] px-2 py-0.5 text-[10px] text-[#f0e0d0]">{pendingShares.length}</span>
-          )}
-          <ChevronRight className="h-5 w-5 text-[#706050]" />
-        </button>
 
         {/* Importar Playlist */}
         <button
