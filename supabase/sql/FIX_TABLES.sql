@@ -56,8 +56,13 @@ CREATE INDEX IF NOT EXISTS share_requests_to_user_idx ON public.share_requests(t
 CREATE INDEX IF NOT EXISTS share_requests_from_user_idx ON public.share_requests(from_user_id);
 
 -- 7) Políticas RLS para playlists
+-- Permite ao dono ver as suas próprias playlists
 DROP POLICY IF EXISTS playlists_select ON public.playlists;
 CREATE POLICY playlists_select ON public.playlists FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+-- Permite a qualquer utilizador autenticado ver playlists para importar
+DROP POLICY IF EXISTS playlists_select_public ON public.playlists;
+CREATE POLICY playlists_select_public ON public.playlists FOR SELECT TO authenticated USING (true);
 
 DROP POLICY IF EXISTS playlists_insert ON public.playlists;
 CREATE POLICY playlists_insert ON public.playlists FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
@@ -90,6 +95,60 @@ CREATE POLICY share_requests_insert ON public.share_requests FOR INSERT TO authe
 
 DROP POLICY IF EXISTS share_requests_update ON public.share_requests;
 CREATE POLICY share_requests_update ON public.share_requests FOR UPDATE TO authenticated USING (auth.uid() = to_user_id) WITH CHECK (auth.uid() = to_user_id);
+
+-- 10) Função RPC para importar playlist por ID
+CREATE OR REPLACE FUNCTION public.import_playlist_by_id(
+  p_requester_id UUID,
+  p_playlist_id TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_playlist RECORD;
+  v_new_playlist RECORD;
+  v_track_count INT := 0;
+BEGIN
+  IF p_requester_id IS NULL OR p_playlist_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'IDs obrigatórios.');
+  END IF;
+
+  -- Buscar playlist por UUID ou nome
+  SELECT * INTO v_playlist
+  FROM public.playlists
+  WHERE id::TEXT = p_playlist_id OR id::TEXT LIKE '%' || p_playlist_id || '%'
+  LIMIT 1;
+
+  IF v_playlist IS NULL THEN
+    SELECT * INTO v_playlist
+    FROM public.playlists
+    WHERE LOWER(name) = LOWER(p_playlist_id)
+    LIMIT 1;
+  END IF;
+
+  IF v_playlist IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Playlist não encontrada.');
+  END IF;
+
+  -- Criar cópia da playlist
+  INSERT INTO public.playlists (user_id, name, tracks_json, image_url)
+  VALUES (p_requester_id, v_playlist.name, v_playlist.tracks_json, v_playlist.image_url)
+  RETURNING id, name, tracks_json INTO v_new_playlist;
+
+  SELECT COALESCE(array_length(v_playlist.tracks_json, 1), 0) INTO v_track_count;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'name', v_new_playlist.name,
+    'track_count', v_track_count,
+    'playlist_id', v_new_playlist.id
+  );
+
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'error', 'Erro: ' || SQLERRM);
+END;
+$$;
 
 COMMIT;
 

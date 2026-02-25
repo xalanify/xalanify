@@ -617,36 +617,43 @@ export default function LibraryTab() {
               </button>
             </div>
             <p className="mb-3 truncate text-xs text-[#a08070]">Playlist: {sharePlaylist.name}</p>
-            <div className="mb-2 flex items-center gap-2">
-              <input
-                id="share-target-query"
-                name="share_target_query"
-                value={shareQuery}
-                onChange={(e) => setShareQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearchShareTargets()}
-                placeholder="Pesquisar user..."
-                className="glass-card w-full rounded-xl px-3 py-2 text-xs text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
-              />
-              <button onClick={handleSearchShareTargets} className="rounded-lg bg-[rgba(230,57,70,0.2)] px-3 py-2 text-xs text-[#f0e0d0]">
-                Buscar
+            <p className="mb-2 text-xs text-[#a08070]">ID para partilhar: <code className="bg-[rgba(255,255,255,0.1)] px-1 rounded">{sharePlaylist.id}</code></p>
+            <p className="text-[10px] text-[#706050]">Partilha este ID com outros utilizadores para importarem a playlist.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Import Playlist Modal */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.7)] p-6">
+          <div className="glass-card-strong w-full max-w-sm rounded-2xl p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#f0e0d0]">Importar Playlist</h3>
+              <button onClick={() => setShowImport(false)} className="text-[#706050]">
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="max-h-48 space-y-1 overflow-y-auto hide-scrollbar">
-              {shareTargets.map((target) => (
-                <button
-                  key={target.user_id}
-                  onClick={() => handleSharePlaylist(target)}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-[#f0e0d0] hover:bg-[rgba(255,255,255,0.08)]"
-                >
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-[10px] font-semibold text-[#f0e0d0]">
-                    {shareAvatar(target.username)}
-                  </div>
-                  <span className="truncate">{target.username}</span>
-                  <span className="truncate text-[10px] text-[#a08070]">{target.email || ""}</span>
-                </button>
-              ))}
-            </div>
-            {shareMsg && <p className="mt-2 text-xs text-[#f59e0b]">{shareMsg}</p>}
+            <p className="mb-3 text-xs text-[#a08070]">Insere o ID de uma playlist para importares as suas músicas.</p>
+            <input
+              id="import-playlist-id"
+              name="import_playlist_id"
+              type="text"
+              value={importId}
+              onChange={(e) => setImportId(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleImportPlaylist()}
+              placeholder="ID da playlist (ex: abc123-def456...)"
+              autoFocus
+              className="glass-card mb-4 w-full rounded-xl px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
+            />
+            {importMsg && <p className={`mb-3 text-xs ${importMsg.includes("sucesso") || importMsg.includes("importada") ? "text-[#10b981]" : "text-[#f59e0b]"}`}>{importMsg}</p>}
+            <button
+              onClick={handleImportPlaylist}
+              disabled={!importId.trim() || importing}
+              className="w-full rounded-xl py-3 text-sm font-semibold text-[#fff] disabled:opacity-40"
+              style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }}
+            >
+              {importing ? "A importar..." : "Importar"}
+            </button>
           </div>
         </div>
       )}

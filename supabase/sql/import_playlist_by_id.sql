@@ -1,56 +1,77 @@
--- Import playlist by ID from another user
--- Allows users to import a public playlist by its ID
+-- Função para importar playlist por ID
+-- Cria uma cópia da playlist para o utilizador atual
 
-create or replace function public.import_playlist_by_id(
-  p_requester_id uuid,
-  p_playlist_id uuid
+CREATE OR REPLACE FUNCTION public.import_playlist_by_id(
+  p_requester_id UUID,
+  p_playlist_id TEXT
 )
-returns jsonb
-language plpgsql
-security definer
-set search_path = public, auth
-as $$
-declare
-  v_playlist record;
-  v_new_playlist_id uuid;
-  v_track jsonb;
-  v_tracks jsonb := '[]'::jsonb;
-begin
-  -- Check if requester is authenticated
-  if p_requester_id is null then
-    return jsonb_build_object('success', false, 'error', 'Utilizador não autenticado');
-  end if;
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_playlist RECORD;
+  v_new_playlist RECORD;
+  v_track_count INT := 0;
+BEGIN
+  -- Validar input
+  IF p_requester_id IS NULL OR p_playlist_id IS NULL THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'ID de utilizador e ID de playlist são obrigatórios.'
+    );
+  END IF;
 
-  -- Find the playlist by ID
-  select id, user_id, name, tracks_json, image_url, created_at
-  into v_playlist
-  from public.playlists
-  where id = p_playlist_id;
+  -- Buscar a playlist original (qualquer utilizador pode partilhar playlists publicamente)
+  -- Primeiro tenta por UUID
+  SELECT * INTO v_playlist
+  FROM public.playlists
+  WHERE id::TEXT = p_playlist_id
+    OR id::TEXT LIKE '%' || p_playlist_id || '%'
+  LIMIT 1;
 
-  if not found then
-    return jsonb_build_object('success', false, 'error', 'Playlist não encontrada');
-  end if;
+  -- Se não encontrou, tenta por nome
+  IF v_playlist IS NULL THEN
+    SELECT * INTO v_playlist
+    FROM public.playlists
+    WHERE LOWER(name) = LOWER(p_playlist_id)
+    LIMIT 1;
+  END IF;
 
-  -- Build tracks array
-  if v_playlist.tracks_json is not null and jsonb_typeof(v_playlist.tracks_json) = 'array' then
-    v_tracks := v_playlist.tracks_json;
-  end if;
+  IF v_playlist IS NULL THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Playlist não encontrada. Verifica o ID.'
+    );
+  END IF;
 
-  -- Create new playlist for requester (copy)
-  v_new_playlist_id := gen_random_uuid();
-  
-  insert into public.playlists (id, user_id, name, tracks_json, image_url, created_at, updated_at)
-  values (v_new_playlist_id, p_requester_id, v_playlist.name, v_tracks, v_playlist.image_url, now(), now());
+  -- Criar nova playlist para o utilizador
+  INSERT INTO public.playlists (user_id, name, tracks_json, image_url)
+  VALUES (
+    p_requester_id,
+    v_playlist.name,
+    v_playlist.tracks_json,
+    v_playlist.image_url
+  )
+  RETURNING id, name, tracks_json INTO v_new_playlist;
 
-  return jsonb_build_object(
+  -- Contar faixas importadas
+  SELECT COALESCE(array_length(v_playlist.tracks_json, 1), 0) INTO v_track_count;
+
+  RETURN jsonb_build_object(
     'success', true,
-    'id', v_new_playlist_id,
-    'name', v_playlist.name,
-    'track_count', jsonb_array_length(v_tracks)
+    'name', v_new_playlist.name,
+    'track_count', v_track_count,
+    'playlist_id', v_new_playlist.id
   );
-exception when others then
-  return jsonb_build_object('success', false, 'error', SQLERRM);
-end;
+
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object(
+    'success', false,
+    'error', 'Erro ao importar playlist: ' || SQLERRM
+  );
+END;
 $$;
 
-grant execute on function public.import_playlist_by_id(uuid, uuid) to authenticated;
+-- Verificar se a função foi criada
+SELECT proname, prosrc FROM pg_proc WHERE proname = 'import_playlist_by_id';
