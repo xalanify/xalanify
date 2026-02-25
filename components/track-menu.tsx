@@ -17,9 +17,10 @@ interface TrackMenuProps {
   track: Track
   onClose: () => void
   anchorRect?: DOMRect | null
+  onLibraryUpdate?: () => void
 }
 
-export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps) {
+export default function TrackMenu({ track, onClose, anchorRect, onLibraryUpdate }: TrackMenuProps) {
   const { user, profile, isAdmin } = useAuth()
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [showPlaylists, setShowPlaylists] = useState(false)
@@ -65,6 +66,7 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
 
     toast.success(`"${track.title}" adicionado aos favoritos!`)
     setAdded(true)
+    if (onLibraryUpdate) onLibraryUpdate()
     setTimeout(onClose, 500)
   }
 
@@ -80,6 +82,7 @@ export default function TrackMenu({ track, onClose, anchorRect }: TrackMenuProps
 
     toast.success(`"${track.title}" adicionado a "${playlist?.name}"!`)
     setAdded(true)
+    if (onLibraryUpdate) onLibraryUpdate()
     setTimeout(onClose, 500)
   }
 

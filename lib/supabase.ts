@@ -156,8 +156,13 @@ export async function isTrackLiked(userId: string, trackId: string) {
 }
 
 export async function addLikedTrack(userId: string, track: any) {
+  console.log("[supabase] addLikedTrack called with:", { userId, trackId: track?.id, trackTitle: track?.title })
+  
   const trackId = track?.id ? String(track.id) : ""
-  if (!trackId) return false
+  if (!trackId) {
+    console.error("[supabase] addLikedTrack: No track ID provided")
+    return false
+  }
 
   const row = {
     user_id: userId,
@@ -165,15 +170,24 @@ export async function addLikedTrack(userId: string, track: any) {
     track_data: track,
   }
 
-  const { error } = await supabase
+  console.log("[supabase] addLikedTrack: Attempting to upsert row:", row)
+
+  const { data, error } = await supabase
     .from("liked_tracks")
     .upsert(row, { onConflict: "user_id,track_id" })
+    .select()
 
   if (error) {
-    console.error("[supabase] addLikedTrack error:", error.message)
+    console.error("[supabase] addLikedTrack error:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    })
     return false
   }
 
+  console.log("[supabase] addLikedTrack success:", data)
   return true
 }
 

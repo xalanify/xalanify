@@ -53,6 +53,7 @@ function XalanifyApp() {
   const [iconPack, setIconPack] = useState<"classic" | "modern" | "bold">("classic")
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Track[]>([])
+  const [libraryRefreshTrigger, setLibraryRefreshTrigger] = useState(0)
 
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 2500)
@@ -185,7 +186,7 @@ function XalanifyApp() {
             setResults={setSearchResults}
           />
         )}
-        {activeTab === "library" && <LibraryTab />}
+        {activeTab === "library" && <LibraryTab key={libraryRefreshTrigger} />}
         {activeTab === "settings" && <SettingsTab />}
       </div>
 
@@ -216,7 +217,14 @@ function XalanifyApp() {
       </div>
 
       {showFullPlayer && <FullPlayer onClose={() => setShowFullPlayer(false)} accentColor={accentColor} />}
-      {menuTrack && <TrackMenu track={menuTrack} anchorRect={menuAnchorRect} onClose={() => { setMenuTrack(null); setMenuAnchorRect(null) }} />}
+      {menuTrack && (
+        <TrackMenu 
+          track={menuTrack} 
+          anchorRect={menuAnchorRect} 
+          onClose={() => { setMenuTrack(null); setMenuAnchorRect(null) }}
+          onLibraryUpdate={() => setLibraryRefreshTrigger(prev => prev + 1)}
+        />
+      )}
     </div>
   )
 }
