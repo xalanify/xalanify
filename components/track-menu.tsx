@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Heart, Plus, X, Music, Send } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { addLikedTrack, getPlaylists, addTrackToPlaylist, searchShareTargets, createShareRequest, diagnoseLikedTracks, type ShareTarget } from "@/lib/supabase"
+import { getShowDebugMenu } from "@/lib/preferences"
 import { toast } from "sonner"
 import type { Track } from "@/lib/player-context"
 
@@ -35,6 +36,7 @@ export default function TrackMenu({ track, onClose, anchorRect, onLibraryUpdate 
 
   function pushAdminDebug(message: string, payload?: any) {
     if (!isAdmin) return
+    if (!getShowDebugMenu()) return
     const line = payload ? `${message} :: ${JSON.stringify(payload)}` : message
     setAdminDebug((prev) => [line, ...prev].slice(0, 10))
     console.info("[admin][track-menu]", message, payload || "")

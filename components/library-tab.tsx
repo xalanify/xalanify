@@ -33,6 +33,7 @@ import {
   type ShareRequest,
   type ShareTarget,
 } from "@/lib/supabase"
+import { getShowDebugMenu } from "@/lib/preferences"
 
 interface Playlist {
   id: string
@@ -42,11 +43,46 @@ interface Playlist {
   is_test?: boolean
 }
 
+const LIBRARY_CACHE_KEY = "xalanify.library"
+
+// Helper to get cached library data
+function getCachedLibrary(userId: string): { playlists: Playlist[], likedTracks: Track[] } | null {
+  if (typeof window === "undefined") return null
+  try {
+    const cached = localStorage.getItem(LIBRARY_CACHE_KEY)
+    if (!cached) return null
+    const data = JSON.parse(cached)
+    // Check if cache is for the same user
+    if (data.userId === userId && data.playlists && data.likedTracks) {
+      return { playlists: data.playlists, likedTracks: data.likedTracks }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+// Helper to cache library data
+function setCachedLibrary(userId: string, playlists: Playlist[], likedTracks: Track[]) {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify({
+      userId,
+      playlists,
+      likedTracks,
+      timestamp: Date.now()
+    }))
+  } catch {
+    // Ignore cache errors
+  }
+}
+
 export default function LibraryTab() {
   const { user, profile, isAdmin } = useAuth()
   const { play, setQueue } = usePlayer()
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [likedTracks, setLikedTracks] = useState<Track[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState("")
   const [viewPlaylist, setViewPlaylist] = useState<Playlist | null>(null)
@@ -71,6 +107,7 @@ export default function LibraryTab() {
 
   function pushAdminDebug(message: string, payload?: any) {
     if (!isAdmin) return
+    if (!getShowDebugMenu()) return
     const line = payload ? `${message} :: ${JSON.stringify(payload)}` : message
     setAdminDebug((prev) => [line, ...prev].slice(0, 25))
     console.info("[admin][library]", message, payload || "")
@@ -87,58 +124,96 @@ export default function LibraryTab() {
     return track.testLabel || "musica de testes"
   }
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (useCache = true) => {
     if (!user) return
-    const [pl, lt, incoming, sent, received, knownTargets] = await Promise.allSettled([
-      getPlaylists(user.id),
-      getLikedTracks(user.id),
-      getIncomingShareRequests(user.id),
-      getSentShareRequests(user.id),
-      getReceivedShareHistory(user.id),
-      searchShareTargets(user.id, ""),
-    ])
-
-    if (pl.status === "fulfilled") {
-      setPlaylists(pl.value.map((playlist: any) => ({ ...playlist, tracks: Array.isArray(playlist.tracks) ? playlist.tracks : [] })))
-    } else {
-      console.error("Falha ao carregar playlists:", pl.reason)
-      setPlaylists([])
-    }
-
-    if (lt.status === "fulfilled") {
-      setLikedTracks(lt.value)
-    } else {
-      console.error("Falha ao carregar favoritos:", lt.reason)
-      setLikedTracks([])
-    }
-
-    if (incoming.status === "fulfilled") setPendingShares(incoming.value)
-    else setPendingShares([])
-    if (sent.status === "fulfilled") setSentShares(sent.value)
-    else setSentShares([])
-    if (received.status === "fulfilled") setReceivedShares(received.value)
-    else setReceivedShares([])
-
-    const map: Record<string, ShareTarget> = {}
-    if (knownTargets.status === "fulfilled") {
-      for (const target of knownTargets.value) map[target.user_id] = target
-    }
-    setTargetMap(map)
-
-    if (pl.status === "fulfilled" && lt.status === "fulfilled") {
-      console.info("Library loaded", { userId: user.id, playlists: pl.value.length, likedTracks: lt.value.length })
-      pushAdminDebug("Library loaded", { userId: user.id, playlists: pl.value.length, likedTracks: lt.value.length })
-      if (pl.value.length === 0 && lt.value.length === 0) {
-        setLibraryMsg(`Sem itens na biblioteca para a conta atual (${user.email || user.id}).`)
-      } else {
-        setLibraryMsg("")
+    
+    // Try to load from cache first for instant display
+    if (useCache) {
+      const cached = getCachedLibrary(user.id)
+      if (cached) {
+        console.log("[Library] Loaded from cache", { playlists: cached.playlists.length, likedTracks: cached.likedTracks.length })
+        setPlaylists(cached.playlists)
+        setLikedTracks(cached.likedTracks)
       }
+    }
+    
+    setIsLoading(true)
+    try {
+      const [pl, lt, incoming, sent, received, knownTargets] = await Promise.allSettled([
+        getPlaylists(user.id),
+        getLikedTracks(user.id),
+        getIncomingShareRequests(user.id),
+        getSentShareRequests(user.id),
+        getReceivedShareHistory(user.id),
+        searchShareTargets(user.id, ""),
+      ])
+
+      let playlistsData: Playlist[] = []
+      let likedTracksData: Track[] = []
+
+      if (pl.status === "fulfilled") {
+        playlistsData = pl.value.map((playlist: any) => ({ ...playlist, tracks: Array.isArray(playlist.tracks) ? playlist.tracks : [] }))
+        setPlaylists(playlistsData)
+      } else {
+        console.error("Falha ao carregar playlists:", pl.reason)
+        if (playlistsData.length === 0) setPlaylists([])
+      }
+
+      if (lt.status === "fulfilled") {
+        likedTracksData = lt.value
+        setLikedTracks(lt.value)
+      } else {
+        console.error("Falha ao carregar favoritos:", lt.reason)
+        if (likedTracksData.length === 0) setLikedTracks([])
+      }
+
+      // Cache the data for next time
+      if (playlistsData.length > 0 || likedTracksData.length > 0) {
+        setCachedLibrary(user.id, playlistsData, likedTracksData)
+      }
+
+      if (incoming.status === "fulfilled") setPendingShares(incoming.value)
+      else setPendingShares([])
+      if (sent.status === "fulfilled") setSentShares(sent.value)
+      else setSentShares([])
+      if (received.status === "fulfilled") setReceivedShares(received.value)
+      else setReceivedShares([])
+
+      const map: Record<string, ShareTarget> = {}
+      if (knownTargets.status === "fulfilled") {
+        for (const target of knownTargets.value) map[target.user_id] = target
+      }
+      setTargetMap(map)
+
+      if (pl.status === "fulfilled" && lt.status === "fulfilled") {
+        console.info("Library loaded from server", { userId: user.id, playlists: pl.value.length, likedTracks: lt.value.length })
+        pushAdminDebug("Library loaded", { userId: user.id, playlists: pl.value.length, likedTracks: lt.value.length })
+        if (pl.value.length === 0 && lt.value.length === 0) {
+          setLibraryMsg(`Sem itens na biblioteca para a conta atual (${user.email || user.id}).`)
+        } else {
+          setLibraryMsg("")
+        }
+      }
+    } catch (error) {
+      console.error("Error loading library data:", error)
+    } finally {
+      setIsLoading(false)
     }
   }, [user, isAdmin])
 
+  // Load from cache immediately on mount, then refresh from server
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    if (user) {
+      // First load from cache (instant)
+      const cached = getCachedLibrary(user.id)
+      if (cached) {
+        setPlaylists(cached.playlists)
+        setLikedTracks(cached.likedTracks)
+      }
+      // Then refresh from server
+      loadData(true)
+    }
+  }, [user?.id])
 
   async function handleCreate() {
     if (!user || !newName.trim()) return

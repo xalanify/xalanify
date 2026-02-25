@@ -38,6 +38,7 @@ interface Preferences {
   surfaceEffect: "glass" | "solid" | "neon" | "hybrid"
   accentStyle: "solid" | "chrome" | "gold" | "rainbow"
   iconPack: "classic" | "modern" | "bold"
+  showDebugMenu: boolean
 }
 
 interface UserPlaylist {
@@ -65,6 +66,7 @@ const DEFAULT_PREFERENCES: Preferences = {
   surfaceEffect: "glass",
   accentStyle: "solid",
   iconPack: "classic",
+  showDebugMenu: true,
 }
 
 const SETTINGS_STORAGE_KEY = "xalanify.preferences"
@@ -623,6 +625,17 @@ export default function SettingsTab() {
         <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-[#f0e0d0]"><Wrench className="h-5 w-5" /> Ferramentas de Testes</h2>
 
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto hide-scrollbar">
+          <div className="glass-card-strong rounded-2xl p-4">
+            <label className="flex items-center justify-between text-sm text-[#f0e0d0]">
+              Mostrar menu debug
+              <input 
+                type="checkbox" 
+                checked={preferences.showDebugMenu} 
+                onChange={(e) => updatePreference("showDebugMenu", e.target.checked)} 
+              />
+            </label>
+            <p className="mt-2 text-xs text-[#a08070]">Ativa/desativa informações de debug na biblioteca e menu de músicas.</p>
+          </div>
           <button
             onClick={() => setActiveView("playlist_tests")}
             className="glass-card-strong flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-left"
