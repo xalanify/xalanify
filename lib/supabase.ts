@@ -156,59 +156,25 @@ export async function isTrackLiked(userId: string, trackId: string) {
 }
 
 export async function addLikedTrack(userId: string, track: any) {
-  console.log("[supabase] addLikedTrack called", { userId, trackId: track?.id, supabaseUrl: supabaseUrl.substring(0, 30) + "..." })
-  
   const trackId = track?.id ? String(track.id) : ""
-  if (!trackId) {
-    console.error("[supabase] Erro ao adicionar favorito: track.id invalido", track)
-    return false
-  }
+  if (!trackId) return false
 
-  const nowIso = new Date().toISOString()
   const row = {
     user_id: userId,
     track_id: trackId,
-    track_data: {
-      ...track,
-      id: trackId,
-    },
-    updated_at: nowIso,
-    created_at: nowIso,
+    track_data: track,
   }
 
-  console.log("[supabase] Attempting upsert to liked_tracks", row)
+  const { error } = await supabase
+    .from("liked_tracks")
+    .upsert(row, { onConflict: "user_id,track_id" })
 
-  try {
-    // First check if table exists
-    console.log("[supabase] Checking if table exists...")
-    const { data: checkData, error: checkError } = await supabase
-      .from("liked_tracks")
-      .select("id")
-      .limit(1)
-    
-    console.log("[supabase] Table check result:", { checkData, checkError })
-
-    if (checkError) {
-      console.error("[supabase] Table check error - table may not exist:", checkError)
-      // Try insert anyway - will fail if table doesn't exist
-    }
-    
-    console.log("[supabase] Performing upsert...")
-    const { data, error } = await supabase
-      .from("liked_tracks")
-      .upsert(row, { onConflict: "user_id,track_id" })
-
-    if (error) {
-      console.error("[supabase] Upsert error:", error.code, error.message, error.details, error.hint)
-      return false
-    }
-
-    console.log("[supabase] Upsert success!", data)
-    return true
-  } catch (err: any) {
-    console.error("[supabase] Exception in addLikedTrack:", err?.message, err)
+  if (error) {
+    console.error("[supabase] addLikedTrack error:", error.message)
     return false
   }
+
+  return true
 }
 
 export async function removeLikedTrack(userId: string, trackId: string) {
