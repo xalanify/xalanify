@@ -143,7 +143,11 @@ export default function LibraryTab() {
   async function handleCreate() {
     if (!user || !newName.trim()) return
     pushAdminDebug("Create playlist click", { userId: user.id, name: newName.trim() })
+    
+    console.log("[Library] Before create - playlists:", playlists.length)
     const created: any = await createPlaylist(user.id, newName.trim())
+    console.log("[Library] After create - result:", created)
+    
     if (created?.existed) {
       pushAdminDebug("Create playlist result", { existed: true, id: created.id })
       setLibraryMsg("Ja existe uma playlist com esse nome.")
@@ -157,7 +161,11 @@ export default function LibraryTab() {
     }
     setNewName("")
     setShowCreate(false)
-    loadData()
+    
+    // Force a small delay and then reload
+    console.log("[Library] Calling loadData...")
+    await loadData()
+    console.log("[Library] After loadData - playlists:", playlists.length)
   }
 
   async function handleDelete(id: string) {
