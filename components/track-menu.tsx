@@ -3,10 +3,11 @@
 import { useState, useEffect, useMemo } from "react"
 import { Heart, Plus, X, Music, Send } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { addLikedTrack, getPlaylists, addTrackToPlaylist, searchShareTargets, createShareRequest, diagnoseLikedTracks, type ShareTarget } from "@/lib/supabase"
-import { getShowDebugMenu } from "@/lib/preferences"
+import { getPlaylists, addTrackToPlaylist, searchShareTargets, createShareRequest, type ShareTarget } from "@/lib/supabase"
+import { likeTrack } from "@/lib/db"
 import { toast } from "sonner"
 import type { Track } from "@/lib/player-context"
+
 
 interface Playlist {
   id: string
@@ -21,6 +22,11 @@ interface TrackMenuProps {
   onLibraryUpdate?: () => void
 }
 
+// Helper function to get user ID (works with both Firebase uid and Supabase id)
+function getUserId(user: any): string {
+  return user?.uid || user?.id || ""
+}
+
 export default function TrackMenu({ track, onClose, anchorRect, onLibraryUpdate }: TrackMenuProps) {
   const { user, profile, isAdmin } = useAuth()
   const [playlists, setPlaylists] = useState<Playlist[]>([])
@@ -31,45 +37,29 @@ export default function TrackMenu({ track, onClose, anchorRect, onLibraryUpdate 
   const [added, setAdded] = useState(false)
   const [shareMsg, setShareMsg] = useState("")
   const [actionMsg, setActionMsg] = useState("")
-  const [adminDebug, setAdminDebug] = useState<string[]>([])
 
+  const userId = getUserId(user)
 
-  function pushAdminDebug(message: string, payload?: any) {
-    if (!isAdmin) return
-    if (!getShowDebugMenu()) return
-    const line = payload ? `${message} :: ${JSON.stringify(payload)}` : message
-    setAdminDebug((prev) => [line, ...prev].slice(0, 10))
-    console.info("[admin][track-menu]", message, payload || "")
-  }
+  
   useEffect(() => {
-    if (user) {
-      getPlaylists(user.id).then((data: any) => {
+    if (userId) {
+      getPlaylists(userId).then((data: any) => {
         setPlaylists((data || []).map((item: any) => ({ ...item, tracks: Array.isArray(item.tracks) ? item.tracks : [] })))
       })
     }
-  }, [user])
+  }, [userId])
 
   async function handleLike() {
-    if (!user) {
+    if (!userId) {
       toast.error("Inicia sessão para adicionar aos favoritos.")
-      pushAdminDebug("Like blocked: no user")
       return
     }
 
-    pushAdminDebug("Like click", { userId: user.id, trackId: track.id, title: track.title })
-    console.log("[DEBUG] About to call addLikedTrack", user.id, track?.id)
-    console.log("[DEBUG] User object:", { id: user.id, email: user.email })
+    console.log("[TrackMenu] Liking track:", track.id)
     
-    const ok = await addLikedTrack(user.id, track)
-    console.log("[DEBUG] addLikedTrack returned", ok)
+    const ok = await likeTrack(track)
+    console.log("[TrackMenu] Like result:", ok)
     
-    // Run diagnostic if admin
-    if (isAdmin) {
-      const diag = await diagnoseLikedTracks(user.id)
-      pushAdminDebug("Diagnostic result", diag)
-    }
-    
-    pushAdminDebug("Like result", { ok, userId: user.id, trackId: track.id })
     if (!ok) {
       toast.error("Falha ao adicionar aos favoritos.")
       return
@@ -81,11 +71,12 @@ export default function TrackMenu({ track, onClose, anchorRect, onLibraryUpdate 
     setTimeout(onClose, 500)
   }
 
+
   async function handleAddToPlaylist(playlistId: string) {
     const playlist = playlists.find(p => p.id === playlistId)
-    pushAdminDebug("Add to playlist click", { playlistId, trackId: track.id })
+    console.log("[TrackMenu] Adding to playlist:", { playlistId, trackId: track.id })
     const ok = await addTrackToPlaylist(playlistId, track)
-    pushAdminDebug("Add to playlist result", { ok, playlistId, trackId: track.id })
+    console.log("[TrackMenu] Add result:", ok)
     if (!ok) {
       toast.error("Falha ao adicionar à playlist.")
       return
@@ -98,20 +89,20 @@ export default function TrackMenu({ track, onClose, anchorRect, onLibraryUpdate 
   }
 
   async function handleSearchTargets() {
-    if (!user) return
-    pushAdminDebug("Search targets", { query: shareQuery })
-    const results = await searchShareTargets(user.id, shareQuery)
+    if (!userId) return
+    console.log("[TrackMenu] Searching targets:", shareQuery)
+    const results = await searchShareTargets(userId, shareQuery)
     setShareTargets(results)
-    pushAdminDebug("Search targets result", { count: results.length })
+    console.log("[TrackMenu] Found targets:", results.length)
     if (results.length === 0) setShareMsg("Nenhum utilizador encontrado.")
   }
 
   async function handleShare(toUserId: string, username: string) {
-    if (!user) return
-    const fromUsername = profile?.username || user.email?.split("@")[0] || "user"
-    pushAdminDebug("Share click", { toUserId, username, trackId: track.id })
+    if (!userId) return
+    const fromUsername = profile?.username || user?.email?.split("@")[0] || "user"
+    console.log("[TrackMenu] Sharing to:", { toUserId, username })
     const res = await createShareRequest({
-      fromUserId: user.id,
+      fromUserId: userId,
       toUserId,
       fromUsername,
       itemType: "track",
@@ -120,15 +111,14 @@ export default function TrackMenu({ track, onClose, anchorRect, onLibraryUpdate 
     })
 
     if (res.ok) {
-      pushAdminDebug("Share result", { ok: true, toUserId })
       setShareMsg(`Musica enviada para ${username}.`)
       setTimeout(onClose, 800)
       return
     }
 
-    pushAdminDebug("Share result", { ok: false, reason: res.reason || "unknown" })
-    setShareMsg("Falha ao partilhar. Verifica a tabela share_requests no Supabase.")
+    setShareMsg("Falha ao partilhar.")
   }
+
 
   const menuPosition = useMemo(() => {
     if (!anchorRect) return null
@@ -241,16 +231,7 @@ export default function TrackMenu({ track, onClose, anchorRect, onLibraryUpdate 
           </div>
         )}
 
-        {isAdmin && adminDebug.length > 0 && (
-          <div className="mt-2 rounded-lg border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.25)] p-2">
-            <p className="mb-1 text-[10px] uppercase tracking-wide text-[#a08070]">Admin debug</p>
-            <div className="max-h-24 space-y-1 overflow-y-auto text-[10px] text-[#d8c8b8]">
-              {adminDebug.map((line, idx) => (
-                <p key={`${idx}-${line}`} className="break-words">{line}</p>
-              ))}
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   )

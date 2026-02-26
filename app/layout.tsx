@@ -12,6 +12,21 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Xalanify',
+    startupImage: [
+      {
+        url: '/icon-512.png',
+        media: '(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)',
+      },
+    ],
+  },
+  icons: {
+    icon: [
+      { url: '/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
+      { url: '/icon-512.svg', sizes: '512x512', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
+    ],
   },
 }
 
@@ -34,6 +49,14 @@ export default function RootLayout({
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Xalanify" />
+        <meta name="application-name" content="Xalanify" />
+        <meta name="msapplication-TileColor" content="#1a0a0a" />
+        <meta name="msapplication-config" content="/browserconfig.xml" />
+        <link rel="apple-touch-icon" href="/icon-192.svg" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.svg" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.svg" />
+        <link rel="mask-icon" href="/icon-192.svg" color="#1a0a0a" />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}

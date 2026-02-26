@@ -1,753 +1,620 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useEffect, useState } from "react"
 import {
   Plus,
   Heart,
-  ChevronRight,
   MoreVertical,
   Trash2,
   Music,
   X,
-  Send,
-  Inbox,
-  Check,
+  Play,
+  ArrowLeft,
+  Share2,
   Download,
+  Copy,
+  Check,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { usePlayer, type Track } from "@/lib/player-context"
-import {
-  getPlaylists,
-  createPlaylist,
-  deletePlaylist,
-  getLikedTracks,
-  removeLikedTrack,
-  getIncomingShareRequests,
-  acceptShareRequest,
-  rejectShareRequest,
-  searchShareTargets,
-  createShareRequest,
-  getSentShareRequests,
-  getReceivedShareHistory,
-  importPlaylistById,
-  type ShareRequest,
-  type ShareTarget,
-} from "@/lib/supabase"
-import { getShowDebugMenu } from "@/lib/preferences"
+import { useTheme } from "@/lib/theme-context"
+import { 
+  createPlaylist, 
+  deletePlaylist, 
+  subscribeToPlaylists, 
+  subscribeToLikedTracks, 
+  removeTrackFromPlaylist,
+  addTrackToPlaylist,
+  unlikeTrack 
+} from "@/lib/db"
+import { toast } from "sonner"
 
 interface Playlist {
   id: string
   name: string
   tracks: Track[]
   image_url?: string | null
-  is_test?: boolean
 }
 
-const LIBRARY_CACHE_KEY = "xalanify.library"
+type LibraryView = "list" | "playlist" | "liked" | "import"
 
-// Helper to get cached library data
-function getCachedLibrary(userId: string): { playlists: Playlist[], likedTracks: Track[] } | null {
-  if (typeof window === "undefined") return null
-  try {
-    const cached = localStorage.getItem(LIBRARY_CACHE_KEY)
-    if (!cached) return null
-    const data = JSON.parse(cached)
-    // Check if cache is for the same user
-    if (data.userId === userId && data.playlists && data.likedTracks) {
-      return { playlists: data.playlists, likedTracks: data.likedTracks }
+// Menu de 3 pontinhos genérico
+function ThreeDotsMenu({ 
+  onDelete, 
+  onShare, 
+  shareId 
+}: { 
+  onDelete?: () => void
+  onShare?: () => void
+  shareId?: string 
+}) {
+  const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const { accentHex } = useTheme()
+
+  const handleCopy = () => {
+    if (shareId) {
+      navigator.clipboard.writeText(shareId)
+      setCopied(true)
+      toast.success("ID copiado!")
+      setTimeout(() => setCopied(false), 2000)
     }
-    return null
-  } catch {
-    return null
   }
+
+  return (
+    <div className="relative">
+      <button 
+        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
+        className="p-2 rounded-full hover:bg-[#f0e0d0]/10 text-[#a08070]"
+      >
+        <MoreVertical className="h-5 w-5" />
+      </button>
+      
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl bg-[#1a1a1a] border border-[#f0e0d0]/10 shadow-xl overflow-hidden">
+            {onShare && shareId && (
+              <div className="p-3 border-b border-[#f0e0d0]/10">
+                <p className="text-xs text-[#a08070] mb-2">ID da Playlist:</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs text-[#f0e0d0] bg-[#0a0a0a] px-2 py-1 rounded truncate">
+                    {shareId}
+                  </code>
+                  <button 
+                    onClick={handleCopy}
+                    className="p-1.5 rounded-lg"
+                    style={{ backgroundColor: `${accentHex}30` }}
+                  >
+                    {copied ? <Check className="h-4 w-4" style={{ color: accentHex }} /> : <Copy className="h-4 w-4" style={{ color: accentHex }} />}
+                  </button>
+                </div>
+              </div>
+            )}
+            {onDelete && (
+              <button 
+                onClick={() => { onDelete(); setOpen(false) }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="text-sm">Eliminar</span>
+              </button>
+            )}
+            {onShare && (
+              <button 
+                onClick={() => { onShare(); setOpen(false) }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-[#f0e0d0] hover:bg-[#f0e0d0]/10 transition-colors"
+              >
+                <Share2 className="h-4 w-4" />
+                <span className="text-sm">Partilhar</span>
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
-// Helper to cache library data
-function setCachedLibrary(userId: string, playlists: Playlist[], likedTracks: Track[]) {
-  if (typeof window === "undefined") return
-  try {
-    localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify({
-      userId,
-      playlists,
-      likedTracks,
-      timestamp: Date.now()
-    }))
-  } catch {
-    // Ignore cache errors
-  }
+// Menu de 3 pontinhos para músicas
+function TrackMenu({ 
+  onRemove, 
+  isLikedView = false 
+}: { 
+  onRemove: () => void
+  isLikedView?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="relative">
+      <button 
+        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
+        className="p-2 rounded-full hover:bg-[#f0e0d0]/10 text-[#a08070]"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-xl bg-[#1a1a1a] border border-[#f0e0d0]/10 shadow-xl overflow-hidden">
+            <button 
+              onClick={() => { onRemove(); setOpen(false) }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="text-sm">{isLikedView ? "Remover dos favoritos" : "Remover da playlist"}</span>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 export default function LibraryTab() {
-  const { user, profile, isAdmin } = useAuth()
+  const { user, isAdmin } = useAuth()
   const { play, setQueue } = usePlayer()
+  const { accentHex } = useTheme()
+  const [view, setView] = useState<LibraryView>("list")
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [likedTracks, setLikedTracks] = useState<Track[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [hasInitialData, setHasInitialData] = useState(false)
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [newName, setNewName] = useState("")
-  const [viewPlaylist, setViewPlaylist] = useState<Playlist | null>(null)
-  const [viewLiked, setViewLiked] = useState(false)
-  const [viewPendingShares, setViewPendingShares] = useState(false)
-  const [shareView, setShareView] = useState<"pending" | "sent" | "received">("pending")
-  const [menuPlaylistId, setMenuPlaylistId] = useState<string | null>(null)
-  const [libraryMsg, setLibraryMsg] = useState("")
-  const [pendingShares, setPendingShares] = useState<ShareRequest[]>([])
-  const [sentShares, setSentShares] = useState<ShareRequest[]>([])
-  const [receivedShares, setReceivedShares] = useState<ShareRequest[]>([])
-  const [sharePlaylist, setSharePlaylist] = useState<Playlist | null>(null)
-  const [shareQuery, setShareQuery] = useState("")
-  const [shareTargets, setShareTargets] = useState<ShareTarget[]>([])
-  const [targetMap, setTargetMap] = useState<Record<string, ShareTarget>>({})
-  const [shareMsg, setShareMsg] = useState("")
-  const [adminDebug, setAdminDebug] = useState<string[]>([])
-  const [showImport, setShowImport] = useState(false)
+  const [newPlaylistName, setNewPlaylistName] = useState("")
   const [importId, setImportId] = useState("")
   const [importing, setImporting] = useState(false)
-  const [importMsg, setImportMsg] = useState("")
 
-  function pushAdminDebug(message: string, payload?: any) {
-    if (!isAdmin) return
-    if (!getShowDebugMenu()) return
-    const line = payload ? `${message} :: ${JSON.stringify(payload)}` : message
-    setAdminDebug((prev) => [line, ...prev].slice(0, 25))
-    console.info("[admin][library]", message, payload || "")
-  }
+  const userId = user?.uid || ""
 
-  function isTestPlaylist(playlist: Playlist) {
-    // Use is_test field if available, fallback to name check for backward compatibility
-    if (playlist.is_test === true) return true
-    return playlist.name.toLowerCase().includes("teste") || playlist.name.toLowerCase().includes("demo")
-  }
-
-  function testTrackLabel(track: Track) {
-    if (!track.isTestContent) return null
-    return track.testLabel || "musica de testes"
-  }
-
-  const loadData = useCallback(async (useCache = true) => {
-    if (!user) return
-    
-    // Try to load from cache first for instant display
-    if (useCache) {
-      const cached = getCachedLibrary(user.id)
-      if (cached) {
-        console.log("[Library] Loaded from cache", { playlists: cached.playlists.length, likedTracks: cached.likedTracks.length })
-        setPlaylists(cached.playlists)
-        setLikedTracks(cached.likedTracks)
-      }
-    }
-    
-    setIsLoading(true)
-    try {
-      const [pl, lt, incoming, sent, received, knownTargets] = await Promise.allSettled([
-        getPlaylists(user.id),
-        getLikedTracks(user.id),
-        getIncomingShareRequests(user.id),
-        getSentShareRequests(user.id),
-        getReceivedShareHistory(user.id),
-        searchShareTargets(user.id, ""),
-      ])
-
-      let playlistsData: Playlist[] = []
-      let likedTracksData: Track[] = []
-
-      if (pl.status === "fulfilled") {
-        playlistsData = pl.value.map((playlist: any) => ({ ...playlist, tracks: Array.isArray(playlist.tracks) ? playlist.tracks : [] }))
-        setPlaylists(playlistsData)
-      } else {
-        console.error("Falha ao carregar playlists:", pl.reason)
-        if (playlistsData.length === 0) setPlaylists([])
-      }
-
-      if (lt.status === "fulfilled") {
-        likedTracksData = lt.value
-        setLikedTracks(lt.value)
-      } else {
-        console.error("Falha ao carregar favoritos:", lt.reason)
-        if (likedTracksData.length === 0) setLikedTracks([])
-      }
-
-      // Cache the data for next time
-      if (playlistsData.length > 0 || likedTracksData.length > 0) {
-        setCachedLibrary(user.id, playlistsData, likedTracksData)
-      }
-
-      if (incoming.status === "fulfilled") setPendingShares(incoming.value)
-      else setPendingShares([])
-      if (sent.status === "fulfilled") setSentShares(sent.value)
-      else setSentShares([])
-      if (received.status === "fulfilled") setReceivedShares(received.value)
-      else setReceivedShares([])
-
-      const map: Record<string, ShareTarget> = {}
-      if (knownTargets.status === "fulfilled") {
-        for (const target of knownTargets.value) map[target.user_id] = target
-      }
-      setTargetMap(map)
-
-      if (pl.status === "fulfilled" && lt.status === "fulfilled") {
-        console.info("Library loaded from server", { userId: user.id, playlists: pl.value.length, likedTracks: lt.value.length })
-        pushAdminDebug("Library loaded", { userId: user.id, playlists: pl.value.length, likedTracks: lt.value.length })
-        if (pl.value.length === 0 && lt.value.length === 0) {
-          setLibraryMsg(`Sem itens na biblioteca para a conta atual (${user.email || user.id}).`)
-        } else {
-          setLibraryMsg("")
-        }
-      }
-    } catch (error) {
-      console.error("Error loading library data:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [user, isAdmin])
-
-  // Load from cache immediately on mount, then refresh from server silently
+  // Subscribe to real-time updates
   useEffect(() => {
-    if (user) {
-      // First load from cache (instant - no loading spinner)
-      const cached = getCachedLibrary(user.id)
-      if (cached) {
-        setPlaylists(cached.playlists)
-        setLikedTracks(cached.likedTracks)
-        setHasInitialData(true)
-      }
-      // Then silently refresh from server in background (no loading UI)
-      loadData(true).then(() => {
-        setHasInitialData(true)
-      })
-    }
-  }, [user?.id])
+    if (!userId) return
 
-  async function handleCreate() {
-    if (!user || !newName.trim()) return
-    pushAdminDebug("Create playlist click", { userId: user.id, name: newName.trim() })
-    
-    console.log("[Library] Before create - playlists:", playlists.length)
-    const created: any = await createPlaylist(user.id, newName.trim())
-    console.log("[Library] After create - result:", created)
-    
-    if (created?.existed) {
-      pushAdminDebug("Create playlist result", { existed: true, id: created.id })
-      setLibraryMsg("Ja existe uma playlist com esse nome.")
-    } else if (created?.id) {
-      pushAdminDebug("Create playlist result", { created: true, id: created.id })
-      setLibraryMsg("Playlist criada com sucesso.")
-    } else {
-      pushAdminDebug("Create playlist result", { created: false })
-      setLibraryMsg("Falha ao criar playlist. Verifica login e politicas RLS no Supabase.")
-      return
-    }
-    setNewName("")
-    setShowCreate(false)
-    
-    // Force a small delay and then reload
-    console.log("[Library] Calling loadData...")
-    await loadData()
-    console.log("[Library] After loadData - playlists:", playlists.length)
-  }
-
-  async function handleDelete(id: string) {
-    pushAdminDebug("Delete playlist click", { id })
-    await deletePlaylist(id)
-    setMenuPlaylistId(null)
-    loadData()
-  }
-
-  async function handleRemoveLiked(trackId: string) {
-    if (!user) return
-    pushAdminDebug("Remove liked click", { userId: user.id, trackId })
-    await removeLikedTrack(user.id, trackId)
-    loadData()
-  }
-
-  async function handleSearchShareTargets() {
-    if (!user) return
-    const items = await searchShareTargets(user.id, shareQuery)
-    setShareTargets(items)
-  }
-
-  function shareAvatar(name: string) {
-    return (name || "U").trim().charAt(0).toUpperCase()
-  }
-
-  async function handleSharePlaylist(target: ShareTarget) {
-    if (!user || !sharePlaylist) return
-    const fromUsername = profile?.username || user.email?.split("@")[0] || "user"
-    const res = await createShareRequest({
-      fromUserId: user.id,
-      toUserId: target.user_id,
-      fromUsername,
-      itemType: "playlist",
-      itemTitle: sharePlaylist.name,
-      itemPayload: {
-        id: sharePlaylist.id,
-        name: sharePlaylist.name,
-        tracks: sharePlaylist.tracks,
-        image_url: sharePlaylist.image_url || null,
-      },
+    const unsubPlaylists = subscribeToPlaylists(userId, (data) => {
+      setPlaylists(data.map(p => ({
+        id: p.id,
+        name: p.name,
+        tracks: p.tracks || [],
+        image_url: p.image_url
+      })))
     })
 
-    if (res.ok) {
-      setShareMsg(`Playlist enviada para ${target.username}.`)
-      return
+    const unsubLiked = subscribeToLikedTracks(userId, (tracks) => {
+      setLikedTracks(tracks)
+    })
+
+    return () => {
+      unsubPlaylists()
+      unsubLiked()
     }
+  }, [userId])
 
-    setShareMsg("Falha ao partilhar. Verifica a tabela share_requests no Supabase.")
+  async function handleCreatePlaylist() {
+    if (!newPlaylistName.trim() || !userId) return
+    
+    const created = await createPlaylist(newPlaylistName.trim())
+    if (created) {
+      toast.success("Playlist criada!")
+      setNewPlaylistName("")
+      setShowCreate(false)
+    } else {
+      toast.error("Erro ao criar playlist")
+    }
   }
 
-  async function handleAcceptShare(request: ShareRequest) {
-    if (!user) return
-    await acceptShareRequest(user.id, request)
-    loadData()
+  async function handleDeletePlaylist(id: string) {
+    if (!confirm("Eliminar esta playlist?")) return
+    
+    const ok = await deletePlaylist(id)
+    if (ok) {
+      toast.success("Playlist eliminada")
+      if (selectedPlaylist?.id === id) {
+        setSelectedPlaylist(null)
+        setView("list")
+      }
+    } else {
+      toast.error("Erro ao eliminar")
+    }
   }
 
-  async function handleRejectShare(requestId: string) {
-    if (!user) return
-    await rejectShareRequest(user.id, requestId)
-    loadData()
+  async function handleRemoveFromPlaylist(trackId: string) {
+    if (!selectedPlaylist) return
+    
+    const ok = await removeTrackFromPlaylist(selectedPlaylist.id, trackId)
+    if (ok) {
+      toast.success("Música removida")
+    } else {
+      toast.error("Erro ao remover")
+    }
+  }
+
+  async function handleRemoveFromLiked(trackId: string) {
+    const ok = await unlikeTrack(trackId)
+    if (ok) {
+      toast.success("Removido dos favoritos")
+    } else {
+      toast.error("Erro ao remover")
+    }
   }
 
   async function handleImportPlaylist() {
-    if (!user || !importId.trim()) {
-      setImportMsg("Insere um ID de playlist válido.")
+    if (!importId.trim() || !userId) {
+      toast.error("Insere um ID válido")
       return
     }
     
     setImporting(true)
-    setImportMsg("")
     
-    const result = await importPlaylistById(user.id, importId.trim())
-    
-    if (result?.success) {
-      setImportMsg(`Playlist "${result.name}" importada com ${result.track_count} faixas!`)
-      setImportId("")
-      setShowImport(false)
-      loadData()
-    } else {
-      setImportMsg(result?.error || "Falha ao importar playlist. Verifica o ID.")
+    try {
+      // Procurar a playlist pelo ID nas playlists do user atual ou fazer fetch
+      // Por agora, vamos procurar nas playlists existentes
+      const response = await fetch(`/api/playlist/${importId}`)
+      
+      if (!response.ok) {
+        // Se não encontrar via API, tenta procurar localmente
+        const sourcePlaylist = playlists.find(p => p.id === importId)
+        
+        if (!sourcePlaylist) {
+          toast.error("Playlist não encontrada")
+          setImporting(false)
+          return
+        }
+        
+        // Criar nova playlist com os dados
+        const created = await createPlaylist(
+          `${sourcePlaylist.name} (Importada)`, 
+          sourcePlaylist.image_url || undefined
+        )
+        
+        if (created) {
+          // Adicionar todas as músicas
+          for (const track of sourcePlaylist.tracks) {
+            await addTrackToPlaylist(created.id, track)
+          }
+          
+          toast.success(`Playlist importada com ${sourcePlaylist.tracks.length} músicas!`)
+          setImportId("")
+          setView("list")
+        }
+      } else {
+        const data = await response.json()
+        
+        // Criar playlist com os dados da API
+        const created = await createPlaylist(
+          data.name || "Playlist Importada",
+          data.image_url || undefined
+        )
+        
+        if (created && data.tracks) {
+          for (const track of data.tracks) {
+            await addTrackToPlaylist(created.id, track)
+          }
+          
+          toast.success(`Playlist importada com ${data.tracks.length} músicas!`)
+          setImportId("")
+          setView("list")
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao importar:", error)
+      toast.error("Erro ao importar playlist")
+    } finally {
+      setImporting(false)
     }
-    
-    setImporting(false)
   }
 
-  const playlistColors = [
-    "from-[#4a3040] to-[#2a1a2a]",
-    "from-[#3a2050] to-[#1a1030]",
-    "from-[#504020] to-[#302010]",
-    "from-[#204040] to-[#102020]",
-    "from-[#403020] to-[#201810]",
-  ]
+  function playTrack(track: Track, tracks: Track[]) {
+    setQueue(tracks)
+    play(track)
+  }
 
-  // View specific playlist
-  if (viewPlaylist) {
+  // List View - Cards retangulares um em baixo do outro
+  if (view === "list") {
     return (
-      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
-        <div className="mb-4 flex items-center gap-3">
-          <button onClick={() => setViewPlaylist(null)} className="text-[#a08070]">
-            <ChevronRight className="h-6 w-6 rotate-180" />
-          </button>
-          <h2 className="text-xl font-bold text-[#f0e0d0]">{viewPlaylist.name}</h2>
-        </div>
-
-        {viewPlaylist.tracks.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center text-[#706050]">
-            <Music className="mb-3 h-10 w-10 opacity-40" />
-            <p className="text-sm">Playlist vazia</p>
-          </div>
-        ) : (
-          <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
-            {viewPlaylist.tracks.map((track: Track) => (
-              <button
-                key={track.id}
-                onClick={() => {
-                  setQueue(viewPlaylist.tracks)
-                  play(track)
-                }}
-                className="glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 active:scale-[0.99]"
-              >
-                <img
-                  src={track.thumbnail}
-                  alt={track.title}
-                  className="h-12 w-12 shrink-0 rounded-lg object-cover"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[#f0e0d0]">{track.title}</p>
-                  <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
-                  {testTrackLabel(track) && <p className="truncate text-[10px] text-[#f59e0b]">({testTrackLabel(track)})</p>}
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // View liked tracks
-  if (viewLiked) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
-      <div className="mb-4 flex items-center gap-3">
-          <button onClick={() => setViewLiked(false)} className="text-[#a08070]">
-            <ChevronRight className="h-6 w-6 rotate-180" />
-          </button>
-          <h2 className="text-xl font-bold text-[#f0e0d0]">Favoritos</h2>
-        </div>
-
-        {likedTracks.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center text-[#706050]">
-            <Heart className="mb-3 h-10 w-10 opacity-40" />
-            <p className="text-sm">Sem favoritos ainda</p>
-          </div>
-        ) : (
-          <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
-            {likedTracks.map((track: Track) => (
-              <button
-                key={track.id}
-                onClick={() => {
-                  setQueue(likedTracks)
-                  play(track)
-                }}
-                className="glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 active:scale-[0.99]"
-              >
-                <img
-                  src={track.thumbnail}
-                  alt={track.title}
-                  className="h-12 w-12 shrink-0 rounded-lg object-cover"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[#f0e0d0]">{track.title}</p>
-                  <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
-                  {testTrackLabel(track) && <p className="truncate text-[10px] text-[#f59e0b]">({testTrackLabel(track)})</p>}
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleRemoveLiked(track.id)
-                  }}
-                  className="shrink-0 p-1.5 text-[#e63946]"
-                  aria-label="Remover dos favoritos"
-                >
-                  <Heart className="h-5 w-5 fill-current" />
-                </button>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  if (viewPendingShares) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
-        <div className="mb-4 flex items-center gap-3">
-          <button onClick={() => setViewPendingShares(false)} className="text-[#a08070]">
-            <ChevronRight className="h-6 w-6 rotate-180" />
-          </button>
-          <h2 className="text-xl font-bold text-[#f0e0d0]">Partilhas Pendentes</h2>
-        </div>
-
-        <div className="mb-3 grid grid-cols-3 gap-2">
+      <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-[#f0e0d0]">Biblioteca</h2>
           <button
-            onClick={() => setShareView("pending")}
-            className="rounded-lg px-2 py-1.5 text-xs text-[#f0e0d0]"
-            style={{ background: shareView === "pending" ? "rgba(230,57,70,0.25)" : "rgba(255,255,255,0.04)" }}
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all active:scale-95"
+            style={{ backgroundColor: accentHex }}
           >
-            Pendentes
+            <Plus className="h-4 w-4" />
+            Nova
           </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+          {/* Favoritos Card */}
           <button
-            onClick={() => setShareView("received")}
-            className="rounded-lg px-2 py-1.5 text-xs text-[#f0e0d0]"
-            style={{ background: shareView === "received" ? "rgba(230,57,70,0.25)" : "rgba(255,255,255,0.04)" }}
+            onClick={() => setView("liked")}
+            className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all active:scale-95"
           >
-            Recebidas
-          </button>
-          <button
-            onClick={() => setShareView("sent")}
-            className="rounded-lg px-2 py-1.5 text-xs text-[#f0e0d0]"
-            style={{ background: shareView === "sent" ? "rgba(230,57,70,0.25)" : "rgba(255,255,255,0.04)" }}
-          >
-            Enviadas
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
-          {shareView === "pending" && pendingShares.map((request) => (
-            <div key={request.id} className="glass-card rounded-xl p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-xs font-semibold text-[#f0e0d0]">
-                  {shareAvatar(request.from_username)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{request.item_title}</p>
-                  <p className="truncate text-xs text-[#a08070]">
-                    {request.item_type === "playlist" ? "Playlist" : "Musica"} enviada por {request.from_username}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <button
-                  onClick={() => handleAcceptShare(request)}
-                  className="rounded-lg bg-[rgba(16,185,129,0.24)] px-2.5 py-1 text-xs text-[#f0e0d0]"
-                >
-                  <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Aceitar</span>
-                </button>
-                <button
-                  onClick={() => handleRejectShare(request.id)}
-                  className="rounded-lg bg-[rgba(230,57,70,0.24)] px-2.5 py-1 text-xs text-[#f0e0d0]"
-                >
-                  Recusar
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {shareView === "received" && receivedShares.map((request) => (
-            <div key={request.id} className="glass-card rounded-xl p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-xs font-semibold text-[#f0e0d0]">
-                  {shareAvatar(request.from_username)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{request.item_title}</p>
-                  <p className="truncate text-xs text-[#a08070]">de {request.from_username}</p>
-                </div>
-                <span className="text-[10px] uppercase tracking-wide text-[#a08070]">{request.status}</span>
-              </div>
-            </div>
-          ))}
-
-          {shareView === "sent" && sentShares.map((request) => (
-            <div key={request.id} className="glass-card rounded-xl p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-xs font-semibold text-[#f0e0d0]">
-                  {shareAvatar(request.item_type)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{request.item_title}</p>
-                  <p className="truncate text-xs text-[#a08070]">
-                    Para {targetMap[request.to_user_id]?.username || `user ${request.to_user_id.slice(0, 8)}...`}
-                  </p>
-                </div>
-                <span className="text-[10px] uppercase tracking-wide text-[#a08070]">{request.status}</span>
-              </div>
-            </div>
-          ))}
-
-          {shareView === "pending" && pendingShares.length === 0 && <p className="py-20 text-center text-sm text-[#706050]">Sem partilhas pendentes.</p>}
-          {shareView === "received" && receivedShares.length === 0 && <p className="py-20 text-center text-sm text-[#706050]">Sem historico recebido.</p>}
-          {shareView === "sent" && sentShares.length === 0 && <p className="py-20 text-center text-sm text-[#706050]">Sem historico enviado.</p>}
-        </div>
-      </div>
-    )
-  }
-
-  // Main library view
-  return (
-    <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-[#f0e0d0]">Biblioteca</h1>
-        <div className="h-10 w-10 overflow-hidden rounded-full bg-[rgba(255,255,255,0.1)]">
-          <div className="flex h-full w-full items-center justify-center text-sm font-medium text-[#a08070]">
-            {user?.email?.charAt(0).toUpperCase() || "U"}
-          </div>
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
-        {libraryMsg && <p className="text-xs text-[#f59e0b]">{libraryMsg}</p>}
-        {isAdmin && adminDebug.length > 0 && (
-          <div className="rounded-lg border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.25)] p-2">
-            <p className="mb-1 text-[10px] uppercase tracking-wide text-[#a08070]">Admin debug</p>
-            <div className="max-h-24 space-y-1 overflow-y-auto text-[10px] text-[#d8c8b8]">
-              {adminDebug.map((line, idx) => (
-                <p key={`${idx}-${line}`} className="break-words">{line}</p>
-              ))}
-            </div>
-          </div>
-        )}
-        {/* Create Playlist */}
-        <button
-          onClick={() => setShowCreate(true)}
-          className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)]">
-            <Plus className="h-5 w-5 text-[#e63946]" />
-          </div>
-          <span className="text-sm font-medium text-[#f0e0d0]">Criar Playlist</span>
-        </button>
-
-        {/* Favoritos */}
-        <button
-          onClick={() => setViewLiked(true)}
-          className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e63946]">
-            <Heart className="h-5 w-5 fill-current text-[#fff]" />
-          </div>
-          <span className="flex-1 text-left text-sm font-medium text-[#f0e0d0]">Favoritos</span>
-          <ChevronRight className="h-5 w-5 text-[#706050]" />
-        </button>
-
-
-        {/* Importar Playlist */}
-        <button
-          onClick={() => setShowImport(true)}
-          className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(16,185,129,0.15)]">
-            <Download className="h-5 w-5 text-[#10b981]" />
-          </div>
-          <span className="flex-1 text-left text-sm font-medium text-[#f0e0d0]">Importar Playlist</span>
-          <ChevronRight className="h-5 w-5 text-[#706050]" />
-        </button>
-
-        {/* Playlists */}
-        {playlists.map((pl, idx) => (
-          <div key={pl.id} className="relative">
-            <button
-              onClick={() => setViewPlaylist(pl)}
-              className="glass-card flex w-full items-center gap-4 rounded-xl p-4 transition-all duration-200 active:scale-[0.99]"
+            <div 
+              className="h-16 w-16 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${accentHex}20` }}
             >
-              {pl.image_url ? (
-                <img src={pl.image_url} alt={pl.name} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
-              ) : (
-                <div
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${playlistColors[idx % playlistColors.length]}`}
-                >
-                  <Music className="h-5 w-5 text-[#c0a090]" />
-                </div>
-              )}
-              <div className="min-w-0 flex-1 text-left">
-                <span className="block truncate text-sm font-medium text-[#f0e0d0]">{pl.name}</span>
-                {isTestPlaylist(pl) && <span className="block truncate text-[10px] text-[#f59e0b]">(playlist de testes)</span>}
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setMenuPlaylistId(menuPlaylistId === pl.id ? null : pl.id)
-                }}
-                className="shrink-0 p-1 text-[#706050]"
-                aria-label="Opcoes da playlist"
-              >
-                <MoreVertical className="h-5 w-5" />
-              </button>
-            </button>
+              <Heart className="h-8 w-8" style={{ color: accentHex }} />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-[#f0e0d0]">Favoritos</p>
+              <p className="text-sm text-[#a08070]">{likedTracks.length} músicas</p>
+            </div>
+            <Play className="h-5 w-5 text-[#a08070]" />
+          </button>
 
-            {menuPlaylistId === pl.id && (
-              <div className="absolute right-4 top-16 z-10 rounded-xl border border-[rgba(255,255,255,0.1)] p-2 shadow-xl"
-                style={{ background: "linear-gradient(135deg, rgba(230,57,70,0.34) 0%, rgba(20,10,10,0.98) 100%)" }}>
-                <button
-                  onClick={() => handleDelete(pl.id)}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-[#e63946] hover:bg-[rgba(255,255,255,0.05)]"
+          {/* Playlists */}
+          {playlists.map((playlist) => (
+            <div
+              key={playlist.id}
+              className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all"
+            >
+              <button
+                onClick={() => { setSelectedPlaylist(playlist); setView("playlist") }}
+                className="flex-1 flex items-center gap-4 text-left"
+              >
+                <div 
+                  className="h-16 w-16 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+                  style={{ backgroundColor: playlist.image_url ? "transparent" : `${accentHex}20` }}
                 >
-                  <Trash2 className="h-4 w-4" />
-                  Eliminar
+                  {playlist.image_url ? (
+                    <img src={playlist.image_url} alt={playlist.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <Music className="h-8 w-8" style={{ color: accentHex }} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[#f0e0d0] truncate">{playlist.name}</p>
+                  <p className="text-sm text-[#a08070]">{playlist.tracks.length} músicas</p>
+                </div>
+              </button>
+              
+              <ThreeDotsMenu 
+                onDelete={() => handleDeletePlaylist(playlist.id)}
+                onShare={() => {}}
+                shareId={playlist.id}
+              />
+            </div>
+          ))}
+
+          {/* Import Playlist Card */}
+          <button
+            onClick={() => setView("import")}
+            className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-dashed border-[#f0e0d0]/20 p-4 hover:border-[#f0e0d0]/40 hover:bg-[#1a1a1a] transition-all active:scale-95"
+          >
+            <div 
+              className="h-16 w-16 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${accentHex}10` }}
+            >
+              <Download className="h-8 w-8 text-[#a08070]" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-[#f0e0d0]">Importar Playlist</p>
+              <p className="text-sm text-[#a08070]">Por ID</p>
+            </div>
+          </button>
+        </div>
+
+        {/* Create Modal */}
+        {showCreate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
+            <div className="w-full max-w-sm rounded-2xl bg-[#1a1a1a] border border-[#f0e0d0]/10 p-6">
+              <h3 className="mb-4 text-lg font-bold text-[#f0e0d0]">Nova Playlist</h3>
+              <input
+                value={newPlaylistName}
+                onChange={(e) => setNewPlaylistName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreatePlaylist()}
+                placeholder="Nome da playlist..."
+                autoFocus
+                className="mb-4 w-full rounded-xl bg-[#0a0a0a] border border-[#f0e0d0]/10 px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#a08070]/50"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCreate(false)}
+                  className="flex-1 rounded-xl py-3 text-sm font-medium text-[#a08070] hover:text-[#f0e0d0]"
+                >
+                  Cancelar
                 </button>
                 <button
-                  onClick={() => {
-                    setSharePlaylist(pl)
-                    setMenuPlaylistId(null)
-                    setShareTargets([])
-                    setShareMsg("")
-                  }}
-                  className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-[#f0e0d0] hover:bg-[rgba(255,255,255,0.05)]"
+                  onClick={handleCreatePlaylist}
+                  disabled={!newPlaylistName.trim()}
+                  className="flex-1 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50"
+                  style={{ backgroundColor: accentHex }}
                 >
-                  <Send className="h-4 w-4" />
-                  Partilhar
+                  Criar
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Playlist Detail View
+  if (view === "playlist" && selectedPlaylist) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
+        <button 
+          onClick={() => setView("list")} 
+          className="mb-4 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+
+        <div className="mb-6 flex items-start gap-4">
+          <div 
+            className="h-24 w-24 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: `${accentHex}20` }}
+          >
+            {selectedPlaylist.image_url ? (
+              <img src={selectedPlaylist.image_url} alt="" className="h-full w-full rounded-2xl object-cover" />
+            ) : (
+              <Music className="h-10 w-10" style={{ color: accentHex }} />
             )}
           </div>
-        ))}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-bold text-[#f0e0d0] truncate">{selectedPlaylist.name}</h2>
+            <p className="text-sm text-[#a08070]">{selectedPlaylist.tracks.length} músicas</p>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => selectedPlaylist.tracks.length > 0 && playTrack(selectedPlaylist.tracks[0], selectedPlaylist.tracks)}
+                disabled={selectedPlaylist.tracks.length === 0}
+                className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                style={{ backgroundColor: accentHex }}
+              >
+                <Play className="h-4 w-4" />
+                Tocar
+              </button>
+              
+              <ThreeDotsMenu 
+                onDelete={() => handleDeletePlaylist(selectedPlaylist.id)}
+                onShare={() => {}}
+                shareId={selectedPlaylist.id}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {selectedPlaylist.tracks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <Music className="h-16 w-16 mb-4 text-[#f0e0d0]/20" />
+              <p className="text-[#a08070]">Playlist vazia</p>
+              <p className="text-sm text-[#706050] mt-2">Adiciona músicas da pesquisa</p>
+            </div>
+          ) : (
+            selectedPlaylist.tracks.map((track, index) => (
+              <div 
+                key={`${track.id}-${index}`} 
+                className="flex items-center gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-3 hover:bg-[#1a1a1a] transition-colors"
+              >
+                <img src={track.thumbnail} alt={track.title} className="h-12 w-12 rounded-lg object-cover" />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate font-medium text-[#f0e0d0]">{track.title}</p>
+                  <p className="truncate text-sm text-[#a08070]">{track.artist}</p>
+                </div>
+                <button
+                  onClick={() => playTrack(track, selectedPlaylist.tracks)}
+                  className="rounded-full p-2"
+                  style={{ backgroundColor: `${accentHex}30` }}
+                >
+                  <Play className="h-4 w-4" style={{ color: accentHex }} />
+                </button>
+                <TrackMenu 
+                  onRemove={() => handleRemoveFromPlaylist(track.id)}
+                />
+              </div>
+            ))
+          )}
+        </div>
       </div>
+    )
+  }
 
-      {/* Create Playlist Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.7)] p-6">
-          <div className="glass-card-strong w-full max-w-sm rounded-2xl p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#f0e0d0]">Nova Playlist</h3>
-              <button onClick={() => setShowCreate(false)} className="text-[#706050]">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <input
-              id="new-playlist-name"
-              name="playlist_name"
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              placeholder="Nome da playlist"
-              autoFocus
-              className="glass-card mb-4 w-full rounded-xl px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
-            />
-            <button
-              onClick={handleCreate}
-              disabled={!newName.trim()}
-              className="w-full rounded-xl py-3 text-sm font-semibold text-[#fff] disabled:opacity-40"
-              style={{ background: "linear-gradient(135deg, #e63946 0%, #c1121f 100%)" }}
-            >
-              Criar
-            </button>
+  // Liked Tracks View
+  if (view === "liked") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
+        <button 
+          onClick={() => setView("list")} 
+          className="mb-4 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+
+        <div className="mb-6 flex items-center gap-4">
+          <div 
+            className="h-20 w-20 rounded-2xl flex items-center justify-center"
+            style={{ backgroundColor: `${accentHex}20` }}
+          >
+            <Heart className="h-10 w-10" style={{ color: accentHex }} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-[#f0e0d0]">Favoritos</h2>
+            <p className="text-sm text-[#a08070]">{likedTracks.length} músicas</p>
           </div>
         </div>
-      )}
 
-      {sharePlaylist && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.7)] p-6">
-          <div className="glass-card-strong w-full max-w-sm rounded-2xl p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#f0e0d0]">Partilhar Playlist</h3>
-              <button onClick={() => setSharePlaylist(null)} className="text-[#706050]">
-                <X className="h-5 w-5" />
-              </button>
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {likedTracks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <Heart className="h-16 w-16 mb-4 text-[#f0e0d0]/20" />
+              <p className="text-[#a08070]">Ainda não tens favoritos</p>
+              <p className="text-sm text-[#706050] mt-2">Adiciona músicas da pesquisa</p>
             </div>
-            <p className="mb-3 truncate text-xs text-[#a08070]">Playlist: {sharePlaylist.name}</p>
-            <p className="mb-2 text-xs text-[#a08070]">ID para partilhar: <code className="bg-[rgba(255,255,255,0.1)] px-1 rounded">{sharePlaylist.id}</code></p>
-            <p className="text-[10px] text-[#706050]">Partilha este ID com outros utilizadores para importarem a playlist.</p>
-          </div>
+          ) : (
+            likedTracks.map((track, index) => (
+              <div 
+                key={`${track.id}-${index}`} 
+                className="flex items-center gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-3 hover:bg-[#1a1a1a] transition-colors"
+              >
+                <img src={track.thumbnail} alt={track.title} className="h-12 w-12 rounded-lg object-cover" />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate font-medium text-[#f0e0d0]">{track.title}</p>
+                  <p className="truncate text-sm text-[#a08070]">{track.artist}</p>
+                </div>
+                <button
+                  onClick={() => playTrack(track, likedTracks)}
+                  className="rounded-full p-2"
+                  style={{ backgroundColor: `${accentHex}30` }}
+                >
+                  <Play className="h-4 w-4" style={{ color: accentHex }} />
+                </button>
+                <TrackMenu 
+                  onRemove={() => handleRemoveFromLiked(track.id)}
+                  isLikedView={true}
+                />
+              </div>
+            ))
+          )}
         </div>
-      )}
+      </div>
+    )
+  }
 
-      {/* Import Playlist Modal */}
-      {showImport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.7)] p-6">
-          <div className="glass-card-strong w-full max-w-sm rounded-2xl p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#f0e0d0]">Importar Playlist</h3>
-              <button onClick={() => setShowImport(false)} className="text-[#706050]">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="mb-3 text-xs text-[#a08070]">Insere o ID de uma playlist para importares as suas músicas.</p>
-            <input
-              id="import-playlist-id"
-              name="import_playlist_id"
-              type="text"
-              value={importId}
-              onChange={(e) => setImportId(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleImportPlaylist()}
-              placeholder="ID da playlist (ex: abc123-def456...)"
-              autoFocus
-              className="glass-card mb-4 w-full rounded-xl px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
-            />
-            {importMsg && <p className={`mb-3 text-xs ${importMsg.includes("sucesso") || importMsg.includes("importada") ? "text-[#10b981]" : "text-[#f59e0b]"}`}>{importMsg}</p>}
-            <button
-              onClick={handleImportPlaylist}
-              disabled={!importId.trim() || importing}
-              className="w-full rounded-xl py-3 text-sm font-semibold text-[#fff] disabled:opacity-40"
-              style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }}
-            >
-              {importing ? "A importar..." : "Importar"}
-            </button>
-          </div>
+  // Import View
+  if (view === "import") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
+        <button 
+          onClick={() => setView("list")} 
+          className="mb-4 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+
+        <h2 className="mb-6 text-2xl font-bold text-[#f0e0d0]">Importar Playlist</h2>
+
+        <div className="rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-6 space-y-4">
+          <p className="text-sm text-[#a08070]">
+            Cola o ID da playlist que queres importar. A playlist será adicionada à tua biblioteca com todas as músicas.
+          </p>
+          
+          <input
+            value={importId}
+            onChange={(e) => setImportId(e.target.value)}
+            placeholder="ID da playlist (ex: abc123...)"
+            className="w-full rounded-xl bg-[#0a0a0a] border border-[#f0e0d0]/10 px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#a08070]/50"
+          />
+          
+          <button
+            onClick={handleImportPlaylist}
+            disabled={!importId.trim() || importing}
+            className="w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50"
+            style={{ backgroundColor: accentHex }}
+          >
+            {importing ? "A importar..." : "Importar Playlist"}
+          </button>
         </div>
-      )}
-    </div>
-  )
+      </div>
+    )
+  }
+
+  return null
 }

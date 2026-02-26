@@ -1,8 +1,9 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react"
-import { supabase, getCurrentUser, getMyProfile, signInWithEmail, signUpWithEmail, signOut as supaSignOut, type UserProfile } from "./supabase"
-import type { User } from "@supabase/supabase-js"
+import { getCurrentUser, getMyProfile, signInWithEmail, signUpWithEmail, signOut as firebaseSignOut, type UserProfile } from "./supabase"
+import { auth } from "./supabase"
+import { onAuthStateChanged, type User } from "firebase/auth"
 
 interface AuthContextType {
   user: User | null
@@ -33,50 +34,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     const current = await getCurrentUser()
-    // Avoid clearing profile on transient auth hydration gaps.
-    if (!current?.id) return
-    const p = await getMyProfile(current.id)
+    if (!current?.uid) return
+    const p = await getMyProfile(current.uid)
     setProfile(p)
   }, [])
 
   useEffect(() => {
     let mounted = true
 
-    supabase.auth.getSession()
-      .then(async ({ data }) => {
-        const u = data.session?.user ?? await getCurrentUser()
-        if (!mounted) return
-        setUser(u ?? null)
-        // Never block app boot on profile fetch.
-        setLoading(false)
-
-        if (u?.id) {
-          try {
-            const p = await getMyProfile(u.id)
-            if (mounted) setProfile(p)
-          } catch {
-            if (mounted) setProfile(null)
-          }
-        } else if (mounted) {
-          setProfile(null)
-        }
-      })
-      .catch(() => {
-        if (!mounted) return
-        setUser(null)
-        setProfile(null)
-        setLoading(false)
-      })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Listen to Firebase auth state changes
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!mounted) return
-
-      setUser(session?.user ?? null)
+      
+      setUser(firebaseUser)
       setLoading(false)
 
-      if (session?.user?.id) {
+      if (firebaseUser?.uid) {
         try {
-          const p = await getMyProfile(session.user.id)
+          const p = await getMyProfile(firebaseUser.uid)
           if (mounted) setProfile(p)
         } catch {
           if (mounted) setProfile(null)
@@ -88,13 +63,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false
-      subscription.unsubscribe()
+      unsubscribe()
     }
   }, [])
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await signInWithEmail(email, password)
-    // Ensure profile/admin flags refresh quickly after login.
     if (!error) await refreshProfile().catch(() => {})
     return { error: error?.message || null }
   }, [refreshProfile])
@@ -105,36 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message || null }
   }, [refreshProfile])
 
-  useEffect(() => {
-    if (!user?.id) return
-
-    const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        refreshProfile().catch(() => {})
-      }
-    }
-
-    document.addEventListener("visibilitychange", onVisible)
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible)
-    }
-  }, [user?.id, refreshProfile])
-
   const signOutFn = useCallback(async () => {
-    // Logout UI immediately even if remote request hangs/fails.
     setUser(null)
     setProfile(null)
     setLoading(false)
-
-    await supaSignOut().catch(() => {})
+    await firebaseSignOut().catch(() => {})
   }, [])
 
+  // Simple admin check - customize as needed
   const emailIsAdminFallback = user?.email === "adminx@adminx.com"
-  const metadataIsAdmin =
-    (user?.app_metadata as any)?.is_admin === true ||
-    (user?.user_metadata as any)?.is_admin === true
   const profileIsAdmin = profile?.is_admin === true
-  const isAdmin = profileIsAdmin || metadataIsAdmin || emailIsAdminFallback
+  const isAdmin = profileIsAdmin || emailIsAdminFallback
 
   return (
     <AuthContext.Provider value={{ user, profile, isAdmin, loading, signIn, signUp, signOut: signOutFn, refreshProfile }}>

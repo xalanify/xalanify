@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Gerar Ícones Xalanify</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #1a0a0a; color: #f0e0d0; }
+    canvas { border: 1px solid #333; margin: 10px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #e63946; color: white; border: none; border-radius: 8px; }
+    .icon-preview { display: inline-block; margin: 10px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Gerador de Ícones Xalanify</h1>
+  <p>Clique nos botões para gerar e descarregar os ícones</p>
+  
+  <div>
+    <div class="icon-preview">
+      <canvas id="canvas192" width="192" height="192"></canvas>
+      <br>
+      <button onclick="downloadIcon(192)">Descarregar 192x192</button>
+    </div>
+    <div class="icon-preview">
+      <canvas id="canvas512" width="512" height="512"></canvas>
+      <br>
+      <button onclick="downloadIcon(512)">Descarregar 512x512</button>
+    </div>
+  </div>
+
+  <script>
+    function drawIcon(size) {
+      const canvas = document.getElementById('canvas' + size);
+      const ctx = canvas.getContext('2d');
+      
+      // Fundo arredondado
+      ctx.fillStyle = '#1a0a0a';
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, size * 0.2);
+      ctx.fill();
+      
+      // Círculo gradiente
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#e63946');
+      gradient.addColorStop(1, '#8B5CF6');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, size * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Nota musical
+      ctx.fillStyle = '#f0e0d0';
+      ctx.font = `bold ${size * 0.5}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('♪', size/2, size/2 + size * 0.05);
+      
+      return canvas;
+    }
+    
+    function downloadIcon(size) {
+      const canvas = drawIcon(size);
+      const link = document.createElement('a');
+      link.download = 'icon-' + size + '.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+    
+    // Desenhar automaticamente
+    drawIcon(192);
+    drawIcon(512);
+  </script>
+</body>
+</html>

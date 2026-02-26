@@ -1,56 +1,61 @@
-// src/lib/supabase.ts - Fixed version
+import { initializeApp, getApps } from "firebase/app"
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  getDocs, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  orderBy, 
+  serverTimestamp
+} from "firebase/firestore"
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  User
+} from "firebase/auth"
 
-import { createClient } from "@supabase/supabase-js"
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co"
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key"
-
-// Log para debug - mostra se as variáveis estão configuradas
-console.log("[SUPABASE] URL configured:", !!process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) || "UNDEFINED")
-console.log("[SUPABASE] ANON_KEY configured:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-  console.error("[SUPABASE] CRITICAL: Credentials not found!")
-  console.error("[SUPABASE] NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL || "UNDEFINED")
-  console.error("[SUPABASE] NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "***SET***" : "UNDEFINED")
-  alert("SUPABASE CREDENTIALS MISSING! Check Vercel Environment Variables")
+const firebaseConfig = {
+  apiKey: "AIzaSyAu4DYE5LlPxgWa4osMpJpVxAtsA8M1ru0",
+  authDomain: "xalanify-61eda.firebaseapp.com",
+  projectId: "xalanify-61eda",
+  storageBucket: "xalanify-61eda.appspot.com",
+  messagingSenderId: "932648497777",
+  appId: "1:932648497777:web:abc123def456"
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Initialize Firebase only once
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+const db = getFirestore(app)
+export const auth = getAuth(app)
 
-// Test connection on load
-supabase.from("playlists").select("count").then(({ error }) => {
-  if (error) {
-    console.error("[SUPABASE] Connection test FAILED:", error.message)
-  } else {
-    console.log("[SUPABASE] Connection test SUCCESS")
-  }
-})
+console.log("[FIREBASE] Initialized with project:", firebaseConfig.projectId)
 
-function usernameFromEmail(email?: string | null) {
-  if (!email) return "user"
-  return email.split("@")[0] || "user"
+// Collection names
+const COLLECTIONS = {
+  USERS: "users",
+  PLAYLISTS: "playlists",
+  LIKED_TRACKS: "liked_tracks"
 }
 
-async function getSessionUser() {
-  const { data: sessionData } = await supabase.auth.getSession()
-  if (sessionData.session?.user) return sessionData.session.user
-
-  const { data: userData } = await supabase.auth.getUser()
-  return userData.user ?? null
+// Helper to get current user
+export async function getCurrentUser(): Promise<User | null> {
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe()
+      resolve(user)
+    })
+  })
 }
 
-async function getCurrentUserForId(userId: string) {
-  const user = await getSessionUser()
-  if (user?.id === userId) return user
-  return null
-}
-
-async function getUserEmail(userId: string) {
-  const user = await getCurrentUserForId(userId)
-  return user?.email ?? null
-}
-
+// Types
 export interface ShareTarget {
   user_id: string
   username: string
@@ -77,383 +82,294 @@ export interface ShareRequest {
   created_at: string
 }
 
-// User Functions
-export async function getCurrentUser() {
-  return getSessionUser()
-}
-
-export async function getMyProfile(userId: string): Promise<UserProfile | null> {
-  const authUser = await getCurrentUserForId(userId)
-  if (!authUser) return null
-
-  const username = usernameFromEmail(authUser.email)
-  const metadataIsAdmin =
-    (authUser.app_metadata as any)?.is_admin === true ||
-    (authUser.user_metadata as any)?.is_admin === true
-
-  return {
-    user_id: userId,
-    username,
-    email: authUser.email ?? null,
-    avatar_url: null,
-    is_admin: metadataIsAdmin || authUser.email === "adminx@adminx.com",
+// Sign in
+export async function signInWithEmail(email: string, password: string) {
+  try {
+    const result = await signInWithEmailAndPassword(auth, email, password)
+    return { data: result.user, error: null }
+  } catch (error: any) {
+    return { data: null, error: { message: error.message } }
   }
 }
 
-export async function updateMyUsername(_userId: string, _username: string) {
-  return { ok: false as const, reason: "Username personalizado foi desativado nesta versao." }
-}
-
-export async function signInWithEmail(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
-  return { data, error }
-}
-
+// Sign up
 export async function signUpWithEmail(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  })
-  return { data, error }
+  try {
+    const result = await createUserWithEmailAndPassword(auth, email, password)
+    return { data: result.user, error: null }
+  } catch (error: any) {
+    return { data: null, error: { message: error.message } }
+  }
 }
 
+// Sign out
 export async function signOut() {
-  const { error } = await supabase.auth.signOut({ scope: "global" })
-  if (!error) return null
-
-  console.warn("Global signOut failed, falling back to local signOut:", error.message)
-  const { error: localError } = await supabase.auth.signOut({ scope: "local" })
-  return localError || null
+  try {
+    await firebaseSignOut(auth)
+    return null
+  } catch (error: any) {
+    return error
+  }
 }
 
-// Liked Tracks
-export async function getLikedTracks(userId: string) {
-  console.log("[SUPABASE] getLikedTracks called for user:", userId)
-  
-  const { data, error } = await supabase
-    .from("liked_tracks")
-    .select("track_id, track_data")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
+// Get user profile
+export async function getMyProfile(userId: string): Promise<UserProfile | null> {
+  try {
+    const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId))
+    if (userDoc.exists()) {
+      return userDoc.data() as UserProfile
+    }
+    // Create default profile
+    const defaultProfile: UserProfile = {
+      user_id: userId,
+      username: userId.slice(0, 8),
+      email: null,
+      avatar_url: null,
+      is_admin: false
+    }
+    await setDoc(doc(db, COLLECTIONS.USERS, userId), defaultProfile)
+    return defaultProfile
+  } catch (error) {
+    console.error("[FIREBASE] getMyProfile error:", error)
+    return null
+  }
+}
 
-  if (error) {
-    console.error("[SUPABASE] getLikedTracks ERROR:", error.message, error.code)
+// Update username
+export async function updateMyUsername(userId: string, username: string) {
+  try {
+    await updateDoc(doc(db, COLLECTIONS.USERS, userId), { username })
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, reason: (error as Error).message }
+  }
+}
+
+// Get liked tracks
+export async function getLikedTracks(userId: string) {
+  console.log("[FIREBASE] getLikedTracks for user:", userId)
+  
+  try {
+    const q = query(
+      collection(db, COLLECTIONS.LIKED_TRACKS),
+      where("user_id", "==", userId),
+      orderBy("created_at", "desc")
+    )
+    
+    const snapshot = await getDocs(q)
+    const tracks = snapshot.docs.map((d: any) => d.data().track_data).filter(Boolean)
+    
+    console.log("[FIREBASE] getLikedTracks SUCCESS:", tracks.length)
+    return tracks
+  } catch (error: any) {
+    console.error("[FIREBASE] getLikedTracks ERROR:", error.message)
     return []
   }
-
-  console.log("[SUPABASE] getLikedTracks SUCCESS, count:", data?.length || 0)
-
-  return (data || [])
-    .map((item: any) => {
-      if (!item?.track_data) return null
-      const trackId = item.track_data?.id || item.track_id
-      if (!trackId) return null
-      return {
-        ...item.track_data,
-        id: String(trackId),
-      }
-    })
-    .filter(Boolean)
 }
 
+// Check if track is liked
 export async function isTrackLiked(userId: string, trackId: string) {
-  const { data, error } = await supabase
-    .from("liked_tracks")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("track_id", trackId)
-    .maybeSingle()
-
-  if (error) {
-    console.error("Erro ao verificar favorito:", error)
+  try {
+    const docRef = doc(db, COLLECTIONS.LIKED_TRACKS, `${userId}_${trackId}`)
+    const docSnap = await getDoc(docRef)
+    return docSnap.exists()
+  } catch (error) {
     return false
   }
-
-  return !!data
 }
 
+// Add liked track
 export async function addLikedTrack(userId: string, track: any) {
-  const trackId = track?.id ? String(track.id) : ""
-  if (!trackId) {
-    console.error("[SUPABASE] addLikedTrack: track.id invalido", track)
+  if (!track?.id) return false
+  
+  try {
+    const docRef = doc(db, COLLECTIONS.LIKED_TRACKS, `${userId}_${track.id}`)
+    await setDoc(docRef, {
+      user_id: userId,
+      track_id: track.id,
+      track_data: track,
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp()
+    })
+    return true
+  } catch (error: any) {
+    console.error("[FIREBASE] addLikedTrack ERROR:", error.message)
     return false
   }
-
-  console.log("[SUPABASE] addLikedTrack for user:", userId, "track:", trackId)
-
-  const nowIso = new Date().toISOString()
-  const row = {
-    user_id: userId,
-    track_id: trackId,
-    track_data: {
-      ...track,
-      id: trackId,
-    },
-    updated_at: nowIso,
-    created_at: nowIso,
-  }
-
-  // First try with upsert
-  const { error: upsertError } = await supabase
-    .from("liked_tracks")
-    .upsert(row, { onConflict: "user_id,track_id" })
-
-  if (!upsertError) {
-    console.log("[SUPABASE] addLikedTrack SUCCESS via upsert")
-    return true
-  }
-
-  console.error("[SUPABASE] addLikedTrack upsert ERROR:", upsertError.message, upsertError.code)
-
-  // If upsert fails, try direct insert
-  const { error: insertError } = await supabase
-    .from("liked_tracks")
-    .insert(row)
-
-  if (!insertError) {
-    console.log("[SUPABASE] addLikedTrack SUCCESS via insert")
-    return true
-  }
-
-  console.error("[SUPABASE] addLikedTrack insert ERROR:", insertError.message, insertError.code)
-  
-  // Last resort: try update
-  const { error: updateError } = await supabase
-    .from("liked_tracks")
-    .update({ 
-      track_data: row.track_data,
-      updated_at: nowIso 
-    })
-    .eq("user_id", userId)
-    .eq("track_id", trackId)
-
-  if (!updateError) {
-    console.log("[SUPABASE] addLikedTrack SUCCESS via update")
-    return true
-  }
-
-  console.error("[SUPABASE] addLikedTrack ALL METHODS FAILED:", updateError.message)
-  return false
 }
 
+// Remove liked track
 export async function removeLikedTrack(userId: string, trackId: string) {
-  const { error } = await supabase
-    .from("liked_tracks")
-    .delete()
-    .eq("user_id", userId)
-    .eq("track_id", trackId)
-
-  if (error) console.error("Erro ao remover favorito:", error)
-  return !error
+  try {
+    await deleteDoc(doc(db, COLLECTIONS.LIKED_TRACKS, `${userId}_${trackId}`))
+    return true
+  } catch (error) {
+    return false
+  }
 }
 
-// Diagnostic function for admin
+// Diagnostic
 export async function diagnoseLikedTracks(userId: string) {
-  const { data, error } = await supabase
-    .from("liked_tracks")
-    .select("*")
-    .eq("user_id", userId)
-
-  if (error) {
+  try {
+    const q = query(collection(db, COLLECTIONS.LIKED_TRACKS), where("user_id", "==", userId))
+    const snapshot = await getDocs(q)
+    return { count: snapshot.size, tracks: snapshot.docs.map((d: any) => d.data()) }
+  } catch (error: any) {
     return { error: error.message, count: 0 }
   }
-
-  return { count: data?.length || 0, tracks: data }
 }
 
-// Sharing disabled for now (UUID-only mode)
-export async function listShareTargets(_currentUserId: string, _isAdmin = false) {
-  return [] as ShareTarget[]
-}
-
-export async function searchShareTargets(_currentUserId: string, _query: string) {
-  return [] as ShareTarget[]
-}
-
-// Playlists
+// Get playlists
 export async function getPlaylists(userId: string) {
-  console.log("[SUPABASE] getPlaylists called for user:", userId)
+  console.log("[FIREBASE] getPlaylists for user:", userId)
   
-  const { data: playlists, error } = await supabase
-    .from("playlists")
-    .select("id, name, user_id, created_at, tracks_json, image_url")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-
-  if (error) {
-    console.error("[SUPABASE] getPlaylists ERROR:", error.message, error.code)
+  try {
+    const q = query(
+      collection(db, COLLECTIONS.PLAYLISTS),
+      where("user_id", "==", userId),
+      orderBy("created_at", "desc")
+    )
+    
+    const snapshot = await getDocs(q)
+    const playlists = snapshot.docs.map((d: any) => ({
+      id: d.id,
+      ...d.data(),
+      tracks: d.data().tracks || []
+    }))
+    
+    console.log("[FIREBASE] getPlaylists SUCCESS:", playlists.length)
+    return playlists
+  } catch (error: any) {
+    console.error("[FIREBASE] getPlaylists ERROR:", error.message)
     return []
   }
-
-  console.log("[SUPABASE] getPlaylists SUCCESS, count:", playlists?.length || 0)
-
-  return (playlists || []).map((playlist: any) => ({
-    ...playlist,
-    tracks: Array.isArray(playlist.tracks_json) ? playlist.tracks_json : [],
-  }))
 }
 
-function normalizePlaylistTracks(input: any) {
-  if (!Array.isArray(input)) return []
-
-  return input
-    .map((track: any) => {
-      if (!track) return null
-      const trackId = track.id ? String(track.id) : ""
-      if (!trackId) return null
-
-      return {
-        ...track,
-        id: trackId,
-      }
-    })
-    .filter(Boolean)
-}
-
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
-}
-
+// Create playlist
 export async function createPlaylist(userId: string, name: string, imageUrl?: string) {
   const normalized = name.trim()
   if (!normalized) return null
-
-  console.log("[SUPABASE] createPlaylist for user:", userId, "name:", normalized)
-  console.log("[SUPABASE] userId type:", typeof userId, "isUUID:", /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId))
-
-  // First check if playlist exists
-  const { data: existing, error: existingError } = await supabase
-    .from("playlists")
-    .select("id, name, user_id, created_at, tracks_json, image_url")
-    .eq("user_id", userId)
-    .ilike("name", normalized)
-    .maybeSingle()
-
-  console.log("[SUPABASE] createPlaylist - existing check result:", { existing, existingError })
-
-  if (!existingError && existing) {
-    console.log("[SUPABASE] createPlaylist: already exists")
-    return { ...existing, existed: true, tracks: Array.isArray(existing.tracks_json) ? existing.tracks_json : [] }
-  }
-
-  // Try insert
-  const insertData = {
-    user_id: userId,
-    name: normalized,
-    tracks_json: [],
-    image_url: imageUrl || null,
-  }
-  console.log("[SUPABASE] createPlaylist - insert data:", insertData)
-
-  const { data, error } = await supabase
-    .from("playlists")
-    .insert(insertData)
-    .select("id, name, user_id, created_at, tracks_json, image_url")
-    .single()
-
-  if (error) {
-    console.error("[SUPABASE] createPlaylist ERROR:", JSON.stringify(error))
+  
+  try {
+    // Check if exists
+    const q = query(
+      collection(db, COLLECTIONS.PLAYLISTS),
+      where("user_id", "==", userId),
+      where("name", "==", normalized)
+    )
+    const snapshot = await getDocs(q)
+    
+    if (!snapshot.empty) {
+      const existing = snapshot.docs[0].data()
+      return { ...existing, id: snapshot.docs[0].id, existed: true, tracks: existing.tracks || [] }
+    }
+    
+    // Create new
+    const playlistRef = doc(collection(db, COLLECTIONS.PLAYLISTS))
+    const playlistData = {
+      user_id: userId,
+      name: normalized,
+      tracks: [],
+      image_url: imageUrl || null,
+      created_at: serverTimestamp()
+    }
+    
+    await setDoc(playlistRef, playlistData)
+    return { ...playlistData, id: playlistRef.id, existed: false, tracks: [] }
+  } catch (error: any) {
+    console.error("[FIREBASE] createPlaylist ERROR:", error.message)
     return null
   }
-
-  console.log("[SUPABASE] createPlaylist SUCCESS:", data)
-  return { ...data, existed: false, tracks: Array.isArray(data.tracks_json) ? data.tracks_json : [] }
 }
 
-export async function createPlaylistFromShare(userId: string, name: string, imageUrl?: string) {
-  const baseName = name?.trim() || "Playlist Partilhada"
-  const existing = await getPlaylists(userId)
-  const names = new Set(existing.map((playlist: any) => (playlist.name || "").toLowerCase()))
+// Delete playlist
+export async function deletePlaylist(playlistId: string) {
+  try {
+    await deleteDoc(doc(db, COLLECTIONS.PLAYLISTS, playlistId))
+    return true
+  } catch (error) {
+    return false
+  }
+}
 
+// Add track to playlist
+export async function addTrackToPlaylist(playlistId: string, track: any) {
+  try {
+    const playlistDoc = await getDoc(doc(db, COLLECTIONS.PLAYLISTS, playlistId))
+    if (!playlistDoc.exists()) return false
+    
+    const playlistData = playlistDoc.data()
+    const tracks = playlistData.tracks || []
+    
+    if (tracks.some((t: any) => t.id === track.id)) return true
+    
+    const updatedTracks = [...tracks, track]
+    await updateDoc(doc(db, COLLECTIONS.PLAYLISTS, playlistId), { tracks: updatedTracks })
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
+// Remove track from playlist
+export async function removeTrackFromPlaylist(playlistId: string, trackId: string) {
+  try {
+    const playlistDoc = await getDoc(doc(db, COLLECTIONS.PLAYLISTS, playlistId))
+    if (!playlistDoc.exists()) return false
+    
+    const playlistData = playlistDoc.data()
+    const tracks = playlistData.tracks || []
+    const updatedTracks = tracks.filter((t: any) => t.id !== trackId)
+    
+    await updateDoc(doc(db, COLLECTIONS.PLAYLISTS, playlistId), { tracks: updatedTracks })
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
+// Create playlist from share
+export async function createPlaylistFromShare(userId: string, name: string, imageUrl?: string) {
+  const existing = await getPlaylists(userId)
+  const names = new Set(existing.map((p: any) => (p.name || "").toLowerCase()))
+  
+  const baseName = name?.trim() || "Playlist Partilhada"
+  
   if (!names.has(baseName.toLowerCase())) {
     return createPlaylist(userId, baseName, imageUrl)
   }
-
+  
   let idx = 2
   let candidate = `${baseName} (${idx})`
   while (names.has(candidate.toLowerCase())) {
     idx += 1
     candidate = `${baseName} (${idx})`
   }
-
+  
   return createPlaylist(userId, candidate, imageUrl)
 }
 
-export async function deletePlaylist(playlistId: string) {
-  const { error } = await supabase.from("playlists").delete().eq("id", playlistId)
-
-  if (error) console.error("Erro ao deletar playlist:", error)
-  return !error
+// Import playlist
+export async function importPlaylistById(userId: string, playlistId: string) {
+  try {
+    const playlistDoc = await getDoc(doc(db, COLLECTIONS.PLAYLISTS, playlistId))
+    if (playlistDoc.exists()) {
+      const playlistData = playlistDoc.data()
+      return createPlaylistFromShare(userId, `${playlistData.name} (imported)`, playlistData.image_url)
+    }
+  } catch (error) {
+    console.error("[FIREBASE] importPlaylistById error:", error)
+  }
+  return { success: false, error: "Playlist not found" }
 }
 
-export async function addTrackToPlaylist(playlistId: string, track: any) {
-  console.log("[SUPABASE] addTrackToPlaylist:", playlistId, track?.id)
-  
-  const { data: playlist, error: fetchError } = await supabase
-    .from("playlists")
-    .select("tracks_json")
-    .eq("id", playlistId)
-    .maybeSingle()
-
-  if (fetchError || !playlist) {
-    console.error("[SUPABASE] addTrackToPlaylist ERROR fetching:", fetchError)
-    return false
-  }
-
-  const tracks = Array.isArray(playlist.tracks_json) ? playlist.tracks_json : []
-  const exists = tracks.some((t: any) => t?.id === track.id)
-  const updatedTracks = exists ? tracks : [...tracks, track]
-
-  const { error } = await supabase
-    .from("playlists")
-    .update({ tracks_json: updatedTracks })
-    .eq("id", playlistId)
-
-  if (error) {
-    console.error("[SUPABASE] addTrackToPlaylist ERROR updating:", error)
-    return false
-  }
-
-  console.log("[SUPABASE] addTrackToPlaylist SUCCESS")
-  return !error
+// Placeholder functions
+export async function listShareTargets(_currentUserId: string, _isAdmin = false) {
+  return [] as ShareTarget[]
 }
 
-export async function removeTrackFromPlaylist(playlistId: string, trackId: string) {
-  const { data: playlist, error: fetchError } = await supabase
-    .from("playlists")
-    .select("tracks_json")
-    .eq("id", playlistId)
-    .maybeSingle()
-
-  if (fetchError || !playlist) {
-    console.error("Erro ao buscar playlist:", fetchError)
-    return false
-  }
-
-  const tracks = Array.isArray(playlist.tracks_json) ? playlist.tracks_json : []
-  const updatedTracks = tracks.filter((t: any) => t?.id !== trackId)
-
-  const { error } = await supabase
-    .from("playlists")
-    .update({ tracks_json: updatedTracks })
-    .eq("id", playlistId)
-
-  if (error) console.error("Erro ao remover da playlist:", error)
-  return !error
-}
-
-export async function createShareRequest(_params: {
-  fromUserId: string
-  toUserId: string
-  fromUsername: string
-  itemType: "track" | "playlist"
-  itemTitle: string
-  itemPayload: any
-}) {
-  return { ok: false as const, reason: "Partilha desativada nesta versao UUID-only." }
+export async function searchShareTargets(_currentUserId: string, _query: string) {
+  return [] as ShareTarget[]
 }
 
 export async function getIncomingShareRequests(_userId: string): Promise<ShareRequest[]> {
@@ -468,25 +384,14 @@ export async function getReceivedShareHistory(_userId: string): Promise<ShareReq
   return []
 }
 
+export async function createShareRequest(_params: any) {
+  return { ok: false as const, reason: "Partilha desativada nesta versao." }
+}
+
 export async function acceptShareRequest(_userId: string, _request: ShareRequest) {
   return false
 }
 
 export async function rejectShareRequest(_userId: string, _requestId: string) {
   return false
-}
-
-// Import playlist by ID
-export async function importPlaylistById(userId: string, playlistId: string) {
-  const { data, error } = await supabase.rpc("import_playlist_by_id", {
-    p_requester_id: userId,
-    p_playlist_id: playlistId,
-  })
-
-  if (error) {
-    console.error("Erro ao importar playlist:", error)
-    return { success: false as const, error: error.message }
-  }
-
-  return data
 }

@@ -3,12 +3,12 @@
 import { Play, Pause, SkipForward, SkipBack, ChevronDown, Heart, Volume2, VolumeX } from "lucide-react"
 import { usePlayer } from "@/lib/player-context"
 import { useAuth } from "@/lib/auth-context"
+import { useTheme } from "@/lib/theme-context"
 import { addLikedTrack, isTrackLiked } from "@/lib/supabase"
 import { useEffect, useMemo, useState } from "react"
 
 interface FullPlayerProps {
   onClose: () => void
-  accentColor: string
 }
 
 function formatTime(seconds: number) {
@@ -30,7 +30,7 @@ function hexToRgb(hex: string) {
   return { r, g, b }
 }
 
-export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
+export default function FullPlayer({ onClose }: FullPlayerProps) {
   const {
     currentTrack,
     isPlaying,
@@ -45,25 +45,27 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
     setVolume,
   } = usePlayer()
   const { user, isAdmin } = useAuth()
+  const { accentHex } = useTheme()
   const [liked, setLiked] = useState(false)
 
   const fullBackground = useMemo(() => {
-    const { r, g, b } = hexToRgb(accentColor)
+    const { r, g, b } = hexToRgb(accentHex)
     return `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.45) 0%, #0a0404 72%)`
-  }, [accentColor])
+  }, [accentHex])
 
   const playButtonBackground = useMemo(() => {
-    const { r, g, b } = hexToRgb(accentColor)
+    const { r, g, b } = hexToRgb(accentHex)
     return `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 1) 0%, rgba(${Math.max(0, r - 40)}, ${Math.max(0, g - 40)}, ${Math.max(0, b - 40)}, 1) 100%)`
-  }, [accentColor])
+  }, [accentHex])
 
   if (!currentTrack) return null
 
   async function handleLike() {
     if (!user || !currentTrack) return
-    if (isAdmin) console.info("[admin][full-player] click like", { userId: user.id, trackId: currentTrack.id, trackTitle: currentTrack.title })
-    const ok = await addLikedTrack(user.id, currentTrack)
-    if (isAdmin) console.info("[admin][full-player] like result", { ok, userId: user.id, trackId: currentTrack.id })
+    const userId = user.uid
+    if (isAdmin) console.info("[admin][full-player] click like", { userId, trackId: currentTrack.id, trackTitle: currentTrack.title })
+    const ok = await addLikedTrack(userId, currentTrack)
+    if (isAdmin) console.info("[admin][full-player] like result", { ok, userId, trackId: currentTrack.id })
     if (ok) setLiked(true)
   }
 
@@ -76,8 +78,9 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
         return
       }
 
-      const likedNow = await isTrackLiked(user.id, currentTrack.id)
-      if (isAdmin) console.info("[admin][full-player] sync liked state", { userId: user.id, trackId: currentTrack.id, likedNow })
+      const userId = user.uid
+      const likedNow = await isTrackLiked(userId, currentTrack.id)
+      if (isAdmin) console.info("[admin][full-player] sync liked state", { userId, trackId: currentTrack.id, likedNow })
       if (mounted) setLiked(likedNow)
     }
 
@@ -150,7 +153,7 @@ export default function FullPlayer({ onClose, accentColor }: FullPlayerProps) {
             onChange={handleSeek}
             className="w-full"
             style={{
-              background: `linear-gradient(to right, ${accentColor} ${fraction * 100}%, rgba(255,255,255,0.1) ${fraction * 100}%)`,
+              background: `linear-gradient(to right, ${accentHex} ${fraction * 100}%, rgba(255,255,255,0.1) ${fraction * 100}%)`,
             }}
           />
           <div className="mt-1 flex justify-between text-xs text-[#706050]">
