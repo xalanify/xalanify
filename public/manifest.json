@@ -6,10 +6,29 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
   "background_color": "#1a0a0a",
   "theme_color": "#1a0a0a",
   "orientation": "portrait",
   "categories": ["music", "entertainment"],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "shortcuts": [
+    {
+      "name": "Pesquisar",
+      "short_name": "Pesquisar",
+      "description": "Pesquisar músicas",
+      "url": "/?action=search",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Biblioteca",
+      "short_name": "Biblioteca",
+      "description": "Ver biblioteca",
+      "url": "/?action=library",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.svg",

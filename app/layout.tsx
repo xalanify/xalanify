@@ -53,6 +53,7 @@ export default function RootLayout({
         <meta name="application-name" content="Xalanify" />
         <meta name="msapplication-TileColor" content="#1a0a0a" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
+        <meta name="msapplication-TileImage" content="/icon-192.svg" />
         <link rel="apple-touch-icon" href="/icon-192.svg" />
         <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.svg" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.svg" />
@@ -69,6 +70,13 @@ export default function RootLayout({
                 });
             });
           }
+          
+          // Detectar Brave e mostrar botão de instalação
+          window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPrompt = e;
+            console.log('PWA install prompt available');
+          });
         `}} />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
