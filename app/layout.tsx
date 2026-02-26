@@ -57,6 +57,19 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.svg" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.svg" />
         <link rel="mask-icon" href="/icon-192.svg" color="#1a0a0a" />
+        <script dangerouslySetInnerHTML={{ __html: `
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+              navigator.serviceWorker.register('/sw.js')
+                .then((registration) => {
+                  console.log('SW registered:', registration);
+                })
+                .catch((error) => {
+                  console.log('SW registration failed:', error);
+                });
+            });
+          }
+        `}} />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}

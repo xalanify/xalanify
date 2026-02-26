@@ -2,11 +2,14 @@
   "name": "Xalanify",
   "short_name": "Xalanify",
   "description": "Your music, everywhere.",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#1a0a0a",
   "theme_color": "#1a0a0a",
   "orientation": "portrait",
+  "categories": ["music", "entertainment"],
   "icons": [
     {
       "src": "/icon-192.svg",
