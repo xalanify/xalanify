@@ -38,34 +38,30 @@ interface Playlist {
 
 type LibraryView = "list" | "playlist" | "liked" | "import"
 
-// Menu de 3 pontinhos genérico
-function ThreeDotsMenu({ 
+// Menu de 3 pontinhos para playlists
+function PlaylistMenu({ 
   onDelete, 
-  onShare, 
   shareId 
 }: { 
-  onDelete?: () => void
-  onShare?: () => void
-  shareId?: string 
+  onDelete: () => void
+  shareId: string 
 }) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const { accentHex } = useTheme()
 
   const handleCopy = () => {
-    if (shareId) {
-      navigator.clipboard.writeText(shareId)
-      setCopied(true)
-      toast.success("ID copiado!")
-      setTimeout(() => setCopied(false), 2000)
-    }
+    navigator.clipboard.writeText(shareId)
+    setCopied(true)
+    toast.success("ID copiado!")
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
-    <div className="relative">
+    <div className="relative flex-shrink-0">
       <button 
         onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
-        className="p-2 rounded-full hover:bg-[#f0e0d0]/10 text-[#a08070]"
+        className="p-2 rounded-full hover:bg-[#f0e0d0]/10 text-[#a08070] transition-colors"
       >
         <MoreVertical className="h-5 w-5" />
       </button>
@@ -73,42 +69,29 @@ function ThreeDotsMenu({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl bg-[#1a1a1a] border border-[#f0e0d0]/10 shadow-xl overflow-hidden">
-            {onShare && shareId && (
-              <div className="p-3 border-b border-[#f0e0d0]/10">
-                <p className="text-xs text-[#a08070] mb-2">ID da Playlist:</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs text-[#f0e0d0] bg-[#0a0a0a] px-2 py-1 rounded truncate">
-                    {shareId}
-                  </code>
-                  <button 
-                    onClick={handleCopy}
-                    className="p-1.5 rounded-lg"
-                    style={{ backgroundColor: `${accentHex}30` }}
-                  >
-                    {copied ? <Check className="h-4 w-4" style={{ color: accentHex }} /> : <Copy className="h-4 w-4" style={{ color: accentHex }} />}
-                  </button>
-                </div>
+          <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl bg-[#1a1a1a] border border-[#f0e0d0]/10 shadow-xl overflow-hidden">
+            <div className="p-3 border-b border-[#f0e0d0]/10">
+              <p className="text-xs text-[#a08070] mb-2">ID da Playlist:</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs text-[#f0e0d0] bg-[#0a0a0a] px-2 py-1.5 rounded truncate">
+                  {shareId}
+                </code>
+                <button 
+                  onClick={handleCopy}
+                  className="p-1.5 rounded-lg flex-shrink-0"
+                  style={{ backgroundColor: `${accentHex}30` }}
+                >
+                  {copied ? <Check className="h-4 w-4" style={{ color: accentHex }} /> : <Copy className="h-4 w-4" style={{ color: accentHex }} />}
+                </button>
               </div>
-            )}
-            {onDelete && (
-              <button 
-                onClick={() => { onDelete(); setOpen(false) }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span className="text-sm">Eliminar</span>
-              </button>
-            )}
-            {onShare && (
-              <button 
-                onClick={() => { onShare(); setOpen(false) }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left text-[#f0e0d0] hover:bg-[#f0e0d0]/10 transition-colors"
-              >
-                <Share2 className="h-4 w-4" />
-                <span className="text-sm">Partilhar</span>
-              </button>
-            )}
+            </div>
+            <button 
+              onClick={() => { onDelete(); setOpen(false) }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="text-sm">Eliminar playlist</span>
+            </button>
           </div>
         </>
       )}
@@ -127,10 +110,10 @@ function TrackMenu({
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="relative">
+    <div className="relative flex-shrink-0">
       <button 
         onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
-        className="p-2 rounded-full hover:bg-[#f0e0d0]/10 text-[#a08070]"
+        className="p-2 rounded-full hover:bg-[#f0e0d0]/10 text-[#a08070] transition-colors"
       >
         <MoreVertical className="h-4 w-4" />
       </button>
@@ -138,7 +121,7 @@ function TrackMenu({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-xl bg-[#1a1a1a] border border-[#f0e0d0]/10 shadow-xl overflow-hidden">
+          <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl bg-[#1a1a1a] border border-[#f0e0d0]/10 shadow-xl overflow-hidden">
             <button 
               onClick={() => { onRemove(); setOpen(false) }}
               className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors"
@@ -154,7 +137,7 @@ function TrackMenu({
 }
 
 export default function LibraryTab() {
-  const { user, isAdmin } = useAuth()
+  const { user } = useAuth()
   const { play, setQueue } = usePlayer()
   const { accentHex } = useTheme()
   const [view, setView] = useState<LibraryView>("list")
@@ -248,54 +231,30 @@ export default function LibraryTab() {
     setImporting(true)
     
     try {
-      // Procurar a playlist pelo ID nas playlists do user atual ou fazer fetch
-      // Por agora, vamos procurar nas playlists existentes
-      const response = await fetch(`/api/playlist/${importId}`)
+      // Procurar nas playlists do user atual
+      const sourcePlaylist = playlists.find(p => p.id === importId)
       
-      if (!response.ok) {
-        // Se não encontrar via API, tenta procurar localmente
-        const sourcePlaylist = playlists.find(p => p.id === importId)
-        
-        if (!sourcePlaylist) {
-          toast.error("Playlist não encontrada")
-          setImporting(false)
-          return
+      if (!sourcePlaylist) {
+        toast.error("Playlist não encontrada. Verifica o ID.")
+        setImporting(false)
+        return
+      }
+      
+      // Criar nova playlist com os dados
+      const created = await createPlaylist(
+        `${sourcePlaylist.name} (Importada)`, 
+        sourcePlaylist.image_url || undefined
+      )
+      
+      if (created) {
+        // Adicionar todas as músicas
+        for (const track of sourcePlaylist.tracks) {
+          await addTrackToPlaylist(created.id, track)
         }
         
-        // Criar nova playlist com os dados
-        const created = await createPlaylist(
-          `${sourcePlaylist.name} (Importada)`, 
-          sourcePlaylist.image_url || undefined
-        )
-        
-        if (created) {
-          // Adicionar todas as músicas
-          for (const track of sourcePlaylist.tracks) {
-            await addTrackToPlaylist(created.id, track)
-          }
-          
-          toast.success(`Playlist importada com ${sourcePlaylist.tracks.length} músicas!`)
-          setImportId("")
-          setView("list")
-        }
-      } else {
-        const data = await response.json()
-        
-        // Criar playlist com os dados da API
-        const created = await createPlaylist(
-          data.name || "Playlist Importada",
-          data.image_url || undefined
-        )
-        
-        if (created && data.tracks) {
-          for (const track of data.tracks) {
-            await addTrackToPlaylist(created.id, track)
-          }
-          
-          toast.success(`Playlist importada com ${data.tracks.length} músicas!`)
-          setImportId("")
-          setView("list")
-        }
+        toast.success(`Playlist importada com ${sourcePlaylist.tracks.length} músicas!`)
+        setImportId("")
+        setView("list")
       }
     } catch (error) {
       console.error("Erro ao importar:", error)
@@ -313,88 +272,89 @@ export default function LibraryTab() {
   // List View - Cards retangulares um em baixo do outro
   if (view === "list") {
     return (
-      <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-[#f0e0d0]">Biblioteca</h2>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all active:scale-95"
-            style={{ backgroundColor: accentHex }}
-          >
-            <Plus className="h-4 w-4" />
-            Nova
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto space-y-3 pb-4">
-          {/* Favoritos Card */}
-          <button
-            onClick={() => setView("liked")}
-            className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all active:scale-95"
-          >
-            <div 
-              className="h-16 w-16 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: `${accentHex}20` }}
+      <div className="flex min-h-0 flex-1 flex-col w-full max-w-full overflow-hidden">
+        <div className="px-4 sm:px-6 pb-6 pt-4 flex-1 overflow-y-auto">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-[#f0e0d0]">Biblioteca</h2>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all active:scale-95 flex-shrink-0"
+              style={{ backgroundColor: accentHex }}
             >
-              <Heart className="h-8 w-8" style={{ color: accentHex }} />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="font-semibold text-[#f0e0d0]">Favoritos</p>
-              <p className="text-sm text-[#a08070]">{likedTracks.length} músicas</p>
-            </div>
-            <Play className="h-5 w-5 text-[#a08070]" />
-          </button>
+              <Plus className="h-4 w-4" />
+              Nova
+            </button>
+          </div>
 
-          {/* Playlists */}
-          {playlists.map((playlist) => (
-            <div
-              key={playlist.id}
-              className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all"
+          <div className="space-y-3 w-full">
+            {/* Favoritos Card */}
+            <button
+              onClick={() => setView("liked")}
+              className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all active:scale-95"
             >
-              <button
-                onClick={() => { setSelectedPlaylist(playlist); setView("playlist") }}
-                className="flex-1 flex items-center gap-4 text-left"
+              <div 
+                className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${accentHex}20` }}
               >
-                <div 
-                  className="h-16 w-16 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
-                  style={{ backgroundColor: playlist.image_url ? "transparent" : `${accentHex}20` }}
-                >
-                  {playlist.image_url ? (
-                    <img src={playlist.image_url} alt={playlist.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <Music className="h-8 w-8" style={{ color: accentHex }} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#f0e0d0] truncate">{playlist.name}</p>
-                  <p className="text-sm text-[#a08070]">{playlist.tracks.length} músicas</p>
-                </div>
-              </button>
-              
-              <ThreeDotsMenu 
-                onDelete={() => handleDeletePlaylist(playlist.id)}
-                onShare={() => {}}
-                shareId={playlist.id}
-              />
-            </div>
-          ))}
+                <Heart className="h-7 w-7 sm:h-8 sm:w-8" style={{ color: accentHex }} />
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="font-semibold text-[#f0e0d0] truncate">Favoritos</p>
+                <p className="text-sm text-[#a08070]">{likedTracks.length} músicas</p>
+              </div>
+              <Play className="h-5 w-5 text-[#a08070] flex-shrink-0" />
+            </button>
 
-          {/* Import Playlist Card */}
-          <button
-            onClick={() => setView("import")}
-            className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-dashed border-[#f0e0d0]/20 p-4 hover:border-[#f0e0d0]/40 hover:bg-[#1a1a1a] transition-all active:scale-95"
-          >
-            <div 
-              className="h-16 w-16 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: `${accentHex}10` }}
+            {/* Playlists */}
+            {playlists.map((playlist) => (
+              <div
+                key={playlist.id}
+                className="w-full flex items-center gap-3 sm:gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-3 sm:p-4 hover:bg-[#1a1a1a] transition-all"
+              >
+                <button
+                  onClick={() => { setSelectedPlaylist(playlist); setView("playlist") }}
+                  className="flex-1 flex items-center gap-3 sm:gap-4 text-left min-w-0"
+                >
+                  <div 
+                    className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+                    style={{ backgroundColor: playlist.image_url ? "transparent" : `${accentHex}20` }}
+                  >
+                    {playlist.image_url ? (
+                      <img src={playlist.image_url} alt={playlist.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <Music className="h-7 w-7 sm:h-8 sm:w-8" style={{ color: accentHex }} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[#f0e0d0] truncate text-sm sm:text-base">{playlist.name}</p>
+                    <p className="text-xs sm:text-sm text-[#a08070]">{playlist.tracks.length} músicas</p>
+                  </div>
+                </button>
+                
+                <PlaylistMenu 
+                  onDelete={() => handleDeletePlaylist(playlist.id)}
+                  shareId={playlist.id}
+                />
+              </div>
+            ))}
+
+            {/* Import Playlist Card */}
+            <button
+              onClick={() => setView("import")}
+              className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-dashed border-[#f0e0d0]/20 p-4 hover:border-[#f0e0d0]/40 hover:bg-[#1a1a1a] transition-all active:scale-95"
             >
-              <Download className="h-8 w-8 text-[#a08070]" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="font-semibold text-[#f0e0d0]">Importar Playlist</p>
-              <p className="text-sm text-[#a08070]">Por ID</p>
-            </div>
-          </button>
+              <div 
+                className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${accentHex}10` }}
+              >
+                <Download className="h-7 w-7 sm:h-8 sm:w-8 text-[#a08070]" />
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="font-semibold text-[#f0e0d0]">Importar Playlist</p>
+                <p className="text-sm text-[#a08070]">Por ID</p>
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* Create Modal */}
@@ -436,80 +396,76 @@ export default function LibraryTab() {
   // Playlist Detail View
   if (view === "playlist" && selectedPlaylist) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
-        <button 
-          onClick={() => setView("list")} 
-          className="mb-4 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span className="text-sm">Voltar</span>
-        </button>
-
-        <div className="mb-6 flex items-start gap-4">
-          <div 
-            className="h-24 w-24 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: `${accentHex}20` }}
+      <div className="flex min-h-0 flex-1 flex-col w-full max-w-full overflow-hidden">
+        <div className="px-4 sm:px-6 pb-6 pt-4 flex-1 overflow-y-auto">
+          <button 
+            onClick={() => setView("list")} 
+            className="mb-4 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]"
           >
-            {selectedPlaylist.image_url ? (
-              <img src={selectedPlaylist.image_url} alt="" className="h-full w-full rounded-2xl object-cover" />
+            <ArrowLeft className="h-5 w-5" />
+            <span className="text-sm">Voltar</span>
+          </button>
+
+          <div className="mb-6 flex items-start gap-3 sm:gap-4">
+            <div 
+              className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${accentHex}20` }}
+            >
+              {selectedPlaylist.image_url ? (
+                <img src={selectedPlaylist.image_url} alt="" className="h-full w-full rounded-2xl object-cover" />
+              ) : (
+                <Music className="h-8 w-8 sm:h-10 sm:w-10" style={{ color: accentHex }} />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold text-[#f0e0d0] truncate">{selectedPlaylist.name}</h2>
+              <p className="text-sm text-[#a08070]">{selectedPlaylist.tracks.length} músicas</p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => selectedPlaylist.tracks.length > 0 && playTrack(selectedPlaylist.tracks[0], selectedPlaylist.tracks)}
+                  disabled={selectedPlaylist.tracks.length === 0}
+                  className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  style={{ backgroundColor: accentHex }}
+                >
+                  <Play className="h-4 w-4" />
+                  Tocar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 w-full">
+            {selectedPlaylist.tracks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Music className="h-16 w-16 mb-4 text-[#f0e0d0]/20" />
+                <p className="text-[#a08070]">Playlist vazia</p>
+                <p className="text-sm text-[#706050] mt-2">Adiciona músicas da pesquisa</p>
+              </div>
             ) : (
-              <Music className="h-10 w-10" style={{ color: accentHex }} />
+              selectedPlaylist.tracks.map((track, index) => (
+                <div 
+                  key={`${track.id}-${index}`} 
+                  className="flex items-center gap-2 sm:gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-2 sm:p-3 hover:bg-[#1a1a1a] transition-colors w-full"
+                >
+                  <img src={track.thumbnail} alt={track.title} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate font-medium text-[#f0e0d0] text-sm">{track.title}</p>
+                    <p className="truncate text-xs sm:text-sm text-[#a08070]">{track.artist}</p>
+                  </div>
+                  <button
+                    onClick={() => playTrack(track, selectedPlaylist.tracks)}
+                    className="rounded-full p-1.5 sm:p-2 flex-shrink-0"
+                    style={{ backgroundColor: `${accentHex}30` }}
+                  >
+                    <Play className="h-3 w-3 sm:h-4 sm:w-4" style={{ color: accentHex }} />
+                  </button>
+                  <TrackMenu 
+                    onRemove={() => handleRemoveFromPlaylist(track.id)}
+                  />
+                </div>
+              ))
             )}
           </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold text-[#f0e0d0] truncate">{selectedPlaylist.name}</h2>
-            <p className="text-sm text-[#a08070]">{selectedPlaylist.tracks.length} músicas</p>
-            <div className="mt-3 flex gap-2">
-              <button
-                onClick={() => selectedPlaylist.tracks.length > 0 && playTrack(selectedPlaylist.tracks[0], selectedPlaylist.tracks)}
-                disabled={selectedPlaylist.tracks.length === 0}
-                className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                style={{ backgroundColor: accentHex }}
-              >
-                <Play className="h-4 w-4" />
-                Tocar
-              </button>
-              
-              <ThreeDotsMenu 
-                onDelete={() => handleDeletePlaylist(selectedPlaylist.id)}
-                onShare={() => {}}
-                shareId={selectedPlaylist.id}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto space-y-2">
-          {selectedPlaylist.tracks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <Music className="h-16 w-16 mb-4 text-[#f0e0d0]/20" />
-              <p className="text-[#a08070]">Playlist vazia</p>
-              <p className="text-sm text-[#706050] mt-2">Adiciona músicas da pesquisa</p>
-            </div>
-          ) : (
-            selectedPlaylist.tracks.map((track, index) => (
-              <div 
-                key={`${track.id}-${index}`} 
-                className="flex items-center gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-3 hover:bg-[#1a1a1a] transition-colors"
-              >
-                <img src={track.thumbnail} alt={track.title} className="h-12 w-12 rounded-lg object-cover" />
-                <div className="flex-1 min-w-0">
-                  <p className="truncate font-medium text-[#f0e0d0]">{track.title}</p>
-                  <p className="truncate text-sm text-[#a08070]">{track.artist}</p>
-                </div>
-                <button
-                  onClick={() => playTrack(track, selectedPlaylist.tracks)}
-                  className="rounded-full p-2"
-                  style={{ backgroundColor: `${accentHex}30` }}
-                >
-                  <Play className="h-4 w-4" style={{ color: accentHex }} />
-                </button>
-                <TrackMenu 
-                  onRemove={() => handleRemoveFromPlaylist(track.id)}
-                />
-              </div>
-            ))
-          )}
         </div>
       </div>
     )
@@ -518,60 +474,62 @@ export default function LibraryTab() {
   // Liked Tracks View
   if (view === "liked") {
     return (
-      <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
-        <button 
-          onClick={() => setView("list")} 
-          className="mb-4 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span className="text-sm">Voltar</span>
-        </button>
-
-        <div className="mb-6 flex items-center gap-4">
-          <div 
-            className="h-20 w-20 rounded-2xl flex items-center justify-center"
-            style={{ backgroundColor: `${accentHex}20` }}
+      <div className="flex min-h-0 flex-1 flex-col w-full max-w-full overflow-hidden">
+        <div className="px-4 sm:px-6 pb-6 pt-4 flex-1 overflow-y-auto">
+          <button 
+            onClick={() => setView("list")} 
+            className="mb-4 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]"
           >
-            <Heart className="h-10 w-10" style={{ color: accentHex }} />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-[#f0e0d0]">Favoritos</h2>
-            <p className="text-sm text-[#a08070]">{likedTracks.length} músicas</p>
-          </div>
-        </div>
+            <ArrowLeft className="h-5 w-5" />
+            <span className="text-sm">Voltar</span>
+          </button>
 
-        <div className="flex-1 overflow-y-auto space-y-2">
-          {likedTracks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <Heart className="h-16 w-16 mb-4 text-[#f0e0d0]/20" />
-              <p className="text-[#a08070]">Ainda não tens favoritos</p>
-              <p className="text-sm text-[#706050] mt-2">Adiciona músicas da pesquisa</p>
+          <div className="mb-6 flex items-center gap-3 sm:gap-4">
+            <div 
+              className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${accentHex}20` }}
+            >
+              <Heart className="h-8 w-8 sm:h-10 sm:w-10" style={{ color: accentHex }} />
             </div>
-          ) : (
-            likedTracks.map((track, index) => (
-              <div 
-                key={`${track.id}-${index}`} 
-                className="flex items-center gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-3 hover:bg-[#1a1a1a] transition-colors"
-              >
-                <img src={track.thumbnail} alt={track.title} className="h-12 w-12 rounded-lg object-cover" />
-                <div className="flex-1 min-w-0">
-                  <p className="truncate font-medium text-[#f0e0d0]">{track.title}</p>
-                  <p className="truncate text-sm text-[#a08070]">{track.artist}</p>
-                </div>
-                <button
-                  onClick={() => playTrack(track, likedTracks)}
-                  className="rounded-full p-2"
-                  style={{ backgroundColor: `${accentHex}30` }}
-                >
-                  <Play className="h-4 w-4" style={{ color: accentHex }} />
-                </button>
-                <TrackMenu 
-                  onRemove={() => handleRemoveFromLiked(track.id)}
-                  isLikedView={true}
-                />
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-[#f0e0d0]">Favoritos</h2>
+              <p className="text-sm text-[#a08070]">{likedTracks.length} músicas</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 w-full">
+            {likedTracks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Heart className="h-16 w-16 mb-4 text-[#f0e0d0]/20" />
+                <p className="text-[#a08070]">Ainda não tens favoritos</p>
+                <p className="text-sm text-[#706050] mt-2">Adiciona músicas da pesquisa</p>
               </div>
-            ))
-          )}
+            ) : (
+              likedTracks.map((track, index) => (
+                <div 
+                  key={`${track.id}-${index}`} 
+                  className="flex items-center gap-2 sm:gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-2 sm:p-3 hover:bg-[#1a1a1a] transition-colors w-full"
+                >
+                  <img src={track.thumbnail} alt={track.title} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate font-medium text-[#f0e0d0] text-sm">{track.title}</p>
+                    <p className="truncate text-xs sm:text-sm text-[#a08070]">{track.artist}</p>
+                  </div>
+                  <button
+                    onClick={() => playTrack(track, likedTracks)}
+                    className="rounded-full p-1.5 sm:p-2 flex-shrink-0"
+                    style={{ backgroundColor: `${accentHex}30` }}
+                  >
+                    <Play className="h-3 w-3 sm:h-4 sm:w-4" style={{ color: accentHex }} />
+                  </button>
+                  <TrackMenu 
+                    onRemove={() => handleRemoveFromLiked(track.id)}
+                    isLikedView={true}
+                  />
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     )
@@ -580,37 +538,39 @@ export default function LibraryTab() {
   // Import View
   if (view === "import") {
     return (
-      <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
-        <button 
-          onClick={() => setView("list")} 
-          className="mb-4 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span className="text-sm">Voltar</span>
-        </button>
-
-        <h2 className="mb-6 text-2xl font-bold text-[#f0e0d0]">Importar Playlist</h2>
-
-        <div className="rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-6 space-y-4">
-          <p className="text-sm text-[#a08070]">
-            Cola o ID da playlist que queres importar. A playlist será adicionada à tua biblioteca com todas as músicas.
-          </p>
-          
-          <input
-            value={importId}
-            onChange={(e) => setImportId(e.target.value)}
-            placeholder="ID da playlist (ex: abc123...)"
-            className="w-full rounded-xl bg-[#0a0a0a] border border-[#f0e0d0]/10 px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#a08070]/50"
-          />
-          
-          <button
-            onClick={handleImportPlaylist}
-            disabled={!importId.trim() || importing}
-            className="w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ backgroundColor: accentHex }}
+      <div className="flex min-h-0 flex-1 flex-col w-full max-w-full overflow-hidden">
+        <div className="px-4 sm:px-6 pb-6 pt-4 flex-1 overflow-y-auto">
+          <button 
+            onClick={() => setView("list")} 
+            className="mb-4 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]"
           >
-            {importing ? "A importar..." : "Importar Playlist"}
+            <ArrowLeft className="h-5 w-5" />
+            <span className="text-sm">Voltar</span>
           </button>
+
+          <h2 className="mb-6 text-2xl font-bold text-[#f0e0d0]">Importar Playlist</h2>
+
+          <div className="rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-6 space-y-4">
+            <p className="text-sm text-[#a08070]">
+              Cola o ID da playlist que queres importar. A playlist será adicionada à tua biblioteca com todas as músicas.
+            </p>
+            
+            <input
+              value={importId}
+              onChange={(e) => setImportId(e.target.value)}
+              placeholder="ID da playlist (ex: abc123...)"
+              className="w-full rounded-xl bg-[#0a0a0a] border border-[#f0e0d0]/10 px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#a08070]/50"
+            />
+            
+            <button
+              onClick={handleImportPlaylist}
+              disabled={!importId.trim() || importing}
+              className="w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50"
+              style={{ backgroundColor: accentHex }}
+            >
+              {importing ? "A importar..." : "Importar Playlist"}
+            </button>
+          </div>
         </div>
       </div>
     )
