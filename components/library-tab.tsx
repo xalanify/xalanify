@@ -83,6 +83,8 @@ export default function LibraryTab() {
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [likedTracks, setLikedTracks] = useState<Track[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [hasInitialData, setHasInitialData] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState("")
   const [viewPlaylist, setViewPlaylist] = useState<Playlist | null>(null)
@@ -201,17 +203,20 @@ export default function LibraryTab() {
     }
   }, [user, isAdmin])
 
-  // Load from cache immediately on mount, then refresh from server
+  // Load from cache immediately on mount, then refresh from server silently
   useEffect(() => {
     if (user) {
-      // First load from cache (instant)
+      // First load from cache (instant - no loading spinner)
       const cached = getCachedLibrary(user.id)
       if (cached) {
         setPlaylists(cached.playlists)
         setLikedTracks(cached.likedTracks)
+        setHasInitialData(true)
       }
-      // Then refresh from server
-      loadData(true)
+      // Then silently refresh from server in background (no loading UI)
+      loadData(true).then(() => {
+        setHasInitialData(true)
+      })
     }
   }, [user?.id])
 
