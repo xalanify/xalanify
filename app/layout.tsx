@@ -64,18 +64,22 @@ export default function RootLayout({
               navigator.serviceWorker.register('/sw.js')
                 .then((registration) => {
                   console.log('SW registered:', registration);
+                  setInterval(() => registration.update(), 30000);
                 })
                 .catch((error) => {
                   console.log('SW registration failed:', error);
                 });
+              navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'NEW_VERSION') {
+                  console.log('Nova versao disponivel!');
+                }
+              });
             });
           }
           
-          // Detectar Brave e mostrar botão de instalação
           window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             window.deferredPrompt = e;
-            console.log('PWA install prompt available');
           });
         `}} />
       </head>
