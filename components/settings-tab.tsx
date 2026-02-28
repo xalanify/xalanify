@@ -9,20 +9,15 @@ import {
   ArrowLeft,
   Palette,
   Wrench,
-  FlaskConical,
   Brain,
   Plus,
-  Heart,
   Search,
   Play,
   Sparkles,
-  Copy,
-  Check,
-  Trash2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useTheme } from "@/lib/theme-context"
-import { likeTrack, createPlaylist, subscribeToPlaylists, subscribeToLikedTracks, addTrackToPlaylist, deletePlaylist } from "@/lib/db"
+import { likeTrack, createPlaylist, subscribeToPlaylists, subscribeToLikedTracks, addTrackToPlaylist } from "@/lib/db"
 import { searchMusic, searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
 import { type Track } from "@/lib/player-context"
 import { toast } from "sonner"
@@ -38,31 +33,7 @@ const THEME_COLORS = [
   { id: "yellow" as const, name: "Amarelo", hex: "#EAB308" },
 ]
 
-const DEMO_TRACKS = [
-  {
-    id: "demo-1",
-    title: "Demo Pulse",
-    artist: "Xalanify Lab",
-    thumbnail: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400",
-    duration: 205,
-  },
-  {
-    id: "demo-2",
-    title: "Neon Streets",
-    artist: "Xalanify Lab",
-    thumbnail: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400",
-    duration: 188,
-  },
-  {
-    id: "demo-3",
-    title: "Night Session",
-    artist: "Xalanify Lab",
-    thumbnail: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=400",
-    duration: 233,
-  },
-]
-
-type SettingsView = "menu" | "profile" | "customization" | "credits" | "tools" | "smart_recommendations" | "discover_playlists" | "discover_detail"
+type SettingsView = "menu" | "profile" | "customization" | "credits" | "tools" | "smart_recommendations" | "discover_playlists"
 
 export default function SettingsTab() {
   const { user, profile, isAdmin, signOut } = useAuth()
@@ -70,14 +41,11 @@ export default function SettingsTab() {
   const [activeView, setActiveView] = useState<SettingsView>("menu")
   const [myPlaylists, setMyPlaylists] = useState<any[]>([])
   const [likedTracks, setLikedTracks] = useState<Track[]>([])
-  const [experimentMsg, setExperimentMsg] = useState("")
   
-  // Smart recommendations
   const [smartLoading, setSmartLoading] = useState(false)
   const [smartResults, setSmartResults] = useState<Track[]>([])
   const [smartMsg, setSmartMsg] = useState("")
 
-  // Discover playlists
   const [discoverQuery, setDiscoverQuery] = useState("")
   const [discoverResults, setDiscoverResults] = useState<PlaylistSuggestion[]>([])
   const [discoverLoading, setDiscoverLoading] = useState(false)
@@ -106,38 +74,6 @@ export default function SettingsTab() {
     return user.email.charAt(0).toUpperCase()
   }, [profile?.username, user?.email])
 
-  async function handleCreateDemoPlaylist() {
-    if (!userId) return
-    setExperimentMsg("A criar...")
-    const created = await createPlaylist("Demo: Testes")
-    if (created) {
-      toast.success("Playlist criada!")
-      setExperimentMsg("")
-    } else {
-      toast.error("Erro ao criar playlist")
-      setExperimentMsg("")
-    }
-  }
-
-  async function handleAddDemoFavorite() {
-    if (!userId) return
-    setExperimentMsg("A adicionar...")
-    await likeTrack(DEMO_TRACKS[0] as Track)
-    toast.success("Favorito adicionado!")
-    setExperimentMsg("")
-  }
-
-  async function handleSeedAll() {
-    if (!userId) return
-    setExperimentMsg("A adicionar...")
-    for (const track of DEMO_TRACKS) {
-      await likeTrack(track as Track)
-    }
-    toast.success(`${DEMO_TRACKS.length} favoritos adicionados!`)
-    setExperimentMsg("")
-  }
-
-  // Smart recommendations based on user's library
   async function handleSmartRecommendations() {
     if (!userId) return
     setSmartLoading(true)
@@ -186,7 +122,6 @@ export default function SettingsTab() {
     toast.success("Adicionado aos favoritos!")
   }
 
-  // Discover playlists
   async function handleDiscoverSearch() {
     if (!discoverQuery.trim()) return
     setDiscoverLoading(true)
@@ -197,25 +132,19 @@ export default function SettingsTab() {
 
   async function handleAddDiscoverPlaylist(item: PlaylistSuggestion) {
     if (!userId) return
-    
     setAddingPlaylist(true)
-    
-    // Create playlist with image
     const created = await createPlaylist(item.title, item.thumbnail)
     
     if (created) {
-      // Add all tracks from the preview
       for (const track of item.previewTracks) {
         await addTrackToPlaylist(created.id, track)
       }
-      
       toast.success(`Playlist "${item.title}" adicionada com ${item.previewTracks.length} músicas!`)
       setSelectedDiscoverPlaylist(null)
       setActiveView("tools")
     } else {
       toast.error("Erro ao adicionar playlist")
     }
-    
     setAddingPlaylist(false)
   }
 
@@ -286,13 +215,12 @@ export default function SettingsTab() {
         <div className="rounded-3xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-6 text-center">
           <h2 className="mb-4 text-2xl font-bold text-[#f0e0d0]">Créditos</h2>
           <p className="text-lg text-[#f0e0d0]">Criado por Xalana</p>
-          <p className="mt-4 text-sm text-[#a08070]">Xalanify · 2024</p>
+          <p className="mt-4 text-sm text-[#a08070]">Xalanify · 2026</p>
         </div>
       </div>
     )
   }
 
-  // Admin Tools View
   if (activeView === "tools" && isAdmin) {
     return (
       <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
@@ -307,41 +235,8 @@ export default function SettingsTab() {
 
         <div className="space-y-3">
           <p className="text-sm text-[#a08070] mb-4">Ferramentas de teste apenas para administradores</p>
-          
-          <button onClick={handleCreateDemoPlaylist} className="w-full flex items-center justify-between rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}20` }}>
-                <FlaskConical className="h-5 w-5" style={{ color: accentHex }} />
-              </div>
-              <span className="text-[#f0e0d0]">Criar playlist demo</span>
-            </div>
-            <Plus className="h-5 w-5" style={{ color: accentHex }} />
-          </button>
 
-          <button onClick={handleAddDemoFavorite} className="w-full flex items-center justify-between rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}20` }}>
-                <Heart className="h-5 w-5" style={{ color: accentHex }} />
-              </div>
-              <span className="text-[#f0e0d0]">Adicionar favorito demo</span>
-            </div>
-            <Plus className="h-5 w-5" style={{ color: accentHex }} />
-          </button>
-
-          <button onClick={handleSeedAll} className="w-full flex items-center justify-between rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}20` }}>
-                <Plus className="h-5 w-5" style={{ color: accentHex }} />
-              </div>
-              <span className="text-[#f0e0d0]">Adicionar todos os demos</span>
-            </div>
-            <span className="text-xs text-[#a08070]">+3 músicas</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveView("smart_recommendations")}
-            className="w-full flex items-center justify-between rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all"
-          >
+          <button onClick={() => setActiveView("smart_recommendations")} className="w-full flex items-center justify-between rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}20` }}>
                 <Brain className="h-5 w-5" style={{ color: accentHex }} />
@@ -354,10 +249,7 @@ export default function SettingsTab() {
             <ChevronRight className="h-5 w-5 text-[#a08070]" />
           </button>
 
-          <button 
-            onClick={() => setActiveView("discover_playlists")}
-            className="w-full flex items-center justify-between rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all"
-          >
+          <button onClick={() => setActiveView("discover_playlists")} className="w-full flex items-center justify-between rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}20` }}>
                 <Sparkles className="h-5 w-5" style={{ color: accentHex }} />
@@ -369,14 +261,11 @@ export default function SettingsTab() {
             </div>
             <ChevronRight className="h-5 w-5 text-[#a08070]" />
           </button>
-
-          {experimentMsg && <p className="text-sm text-center" style={{ color: accentHex }}>{experimentMsg}</p>}
         </div>
       </div>
     )
   }
 
-  // Smart Recommendations View (Admin)
   if (activeView === "smart_recommendations" && isAdmin) {
     return (
       <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
@@ -413,11 +302,7 @@ export default function SettingsTab() {
                 <p className="truncate font-medium text-[#f0e0d0]">{track.title}</p>
                 <p className="truncate text-sm text-[#a08070]">{track.artist}</p>
               </div>
-              <button
-                onClick={() => handleAddRecommended(track)}
-                className="rounded-full p-2"
-                style={{ backgroundColor: `${accentHex}30` }}
-              >
+              <button onClick={() => handleAddRecommended(track)} className="rounded-full p-2" style={{ backgroundColor: `${accentHex}30` }}>
                 <Plus className="h-4 w-4" style={{ color: accentHex }} />
               </button>
             </div>
@@ -427,7 +312,6 @@ export default function SettingsTab() {
     )
   }
 
-  // Discover Playlists View (Admin)
   if (activeView === "discover_playlists" && isAdmin) {
     return (
       <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
@@ -465,21 +349,13 @@ export default function SettingsTab() {
 
         <div className="flex-1 overflow-y-auto space-y-3">
           {selectedDiscoverPlaylist ? (
-            // Show playlist details
             <div className="space-y-4">
-              <button 
-                onClick={() => setSelectedDiscoverPlaylist(null)}
-                className="text-sm text-[#a08070] hover:text-[#f0e0d0]"
-              >
+              <button onClick={() => setSelectedDiscoverPlaylist(null)} className="text-sm text-[#a08070] hover:text-[#f0e0d0]">
                 ← Voltar aos resultados
               </button>
               
               <div className="flex items-center gap-4">
-                <img 
-                  src={selectedDiscoverPlaylist.thumbnail} 
-                  alt={selectedDiscoverPlaylist.title}
-                  className="h-24 w-24 rounded-xl object-cover"
-                />
+                <img src={selectedDiscoverPlaylist.thumbnail} alt={selectedDiscoverPlaylist.title} className="h-24 w-24 rounded-xl object-cover" />
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-[#f0e0d0]">{selectedDiscoverPlaylist.title}</h3>
                   <p className="text-sm text-[#a08070]">{selectedDiscoverPlaylist.trackCount} músicas</p>
@@ -509,7 +385,6 @@ export default function SettingsTab() {
               </div>
             </div>
           ) : (
-            // Show search results
             <>
               {discoverResults.length === 0 && !discoverLoading && discoverQuery && (
                 <p className="text-center text-[#a08070] py-10">Nenhuma playlist encontrada</p>
@@ -521,11 +396,7 @@ export default function SettingsTab() {
                   onClick={() => setSelectedDiscoverPlaylist(item)}
                   className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all text-left"
                 >
-                  <img 
-                    src={item.thumbnail} 
-                    alt={item.title}
-                    className="h-16 w-16 rounded-xl object-cover flex-shrink-0"
-                  />
+                  <img src={item.thumbnail} alt={item.title} className="h-16 w-16 rounded-xl object-cover flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-[#f0e0d0] truncate">{item.title}</p>
                     <p className="text-sm text-[#a08070]">{item.trackCount} músicas</p>
@@ -541,7 +412,6 @@ export default function SettingsTab() {
     )
   }
 
-  // Main menu
   return (
     <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
       <h2 className="mb-6 text-2xl font-bold text-[#f0e0d0]">Ajustes</h2>
@@ -569,7 +439,6 @@ export default function SettingsTab() {
           <ChevronRight className="h-5 w-5 text-[#a08070]" />
         </button>
 
-        {/* Admin only: Tools */}
         {isAdmin && (
           <button onClick={() => setActiveView("tools")} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
@@ -577,7 +446,7 @@ export default function SettingsTab() {
             </div>
             <div className="flex-1 text-left">
               <p className="font-medium text-[#f0e0d0]">Ferramentas</p>
-              <p className="text-sm text-[#a08070]">Testes e experimentos (Admin)</p>
+              <p className="text-sm text-[#a08070]">Testes (Admin)</p>
             </div>
             <ChevronRight className="h-5 w-5 text-[#a08070]" />
           </button>
@@ -594,10 +463,7 @@ export default function SettingsTab() {
           <ChevronRight className="h-5 w-5 text-[#a08070]" />
         </button>
 
-        <button 
-          onClick={signOut}
-          className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-red-500/20 mt-6"
-        >
+        <button onClick={signOut} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-red-500/20 mt-6">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/20">
             <LogOut className="h-6 w-6 text-red-400" />
           </div>

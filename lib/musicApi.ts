@@ -66,32 +66,80 @@ async function searchMusicFromITunes(query: string) {
 
 export async function searchMusic(query: string) {
   try {
+    // First try Spotify
     const token = await getSpotifyToken()
-    if (!token) {
-      return searchMusicFromITunes(query)
+    if (token) {
+      const res = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=50`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+
+      const data = await res.json()
+      const tracks = data.tracks?.items.map((item: any) => ({
+        id: item.id,
+        title: item.name,
+        artist: item.artists[0].name,
+        thumbnail: item.album.images?.[0]?.url || item.album.images?.[1]?.url || item.album.images?.[2]?.url || "",
+        duration: item.duration_ms / 1000,
+        youtubeId: null,
+        previewUrl: item.preview_url || null,
+        source: "spotify" as const,
+      })) || []
+
+      if (tracks.length > 0) {
+        // For tracks without preview, try to get YouTube ID
+        const tracksWithYoutube = await Promise.all(
+          tracks.map(async (track: any) => {
+            if (!track.previewUrl) {
+              const youtubeId = await getYoutubeId(track.title, track.artist)
+              return { ...track, youtubeId }
+            }
+            return track
+          })
+        )
+        return tracksWithYoutube
+      }
     }
+    
+    // Fallback to iTunes
+    const itunesTracks = await searchMusicFromITunes(query)
+    if (itunesTracks.length > 0) return itunesTracks
+    
+    // Final fallback: YouTube search
+    return searchMusicFromYouTube(query)
+  } catch {
+    // Try iTunes as fallback
+    const itunesTracks = await searchMusicFromITunes(query)
+    if (itunesTracks.length > 0) return itunesTracks
+    
+    // Final fallback: YouTube
+    return searchMusicFromYouTube(query)
+  }
+}
+
+// YouTube search fallback
+async function searchMusicFromYouTube(query: string) {
+  try {
+    const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY
+    if (!apiKey) return []
 
     const res = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=50`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&key=${apiKey}&maxResults=20`
     )
-
     const data = await res.json()
-    const tracks = data.tracks?.items.map((item: any) => ({
-      id: item.id,
-      title: item.name,
-      artist: item.artists[0].name,
-      thumbnail: item.album.images?.[0]?.url || item.album.images?.[1]?.url || item.album.images?.[2]?.url || "",
-      duration: item.duration_ms / 1000,
-      youtubeId: null,
-      previewUrl: item.preview_url || null,
-      source: "spotify" as const,
-    })) || []
 
-    if (tracks.length > 0) return tracks
-    return searchMusicFromITunes(query)
+    return (data.items || []).map((item: any) => ({
+      id: `youtube-${item.id.videoId}`,
+      title: item.snippet.title,
+      artist: item.snippet.channelTitle,
+      thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || "",
+      duration: 0,
+      youtubeId: item.id.videoId,
+      previewUrl: null,
+      source: "youtube" as const,
+    }))
   } catch {
-    return searchMusicFromITunes(query)
+    return []
   }
 }
 
