@@ -76,6 +76,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!ytId) {
       console.log("[Player] 🔍 A procurar YouTube ID para:", track.title, "-", track.artist)
       ytId = await getYoutubeId(track.title, track.artist)
+      
+      if (!ytId) {
+        console.log("[Player] ❌ Não foi possível encontrar YouTube ID para:", track.title)
+      }
     }
 
     // Se tem YouTube ID, obter stream direto via Invidious
@@ -85,7 +89,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (streamUrl) {
         console.log("[Player] ✅ Stream direto obtido via Invidious!")
       } else {
-        console.log("[Player] ⚠️ Falha ao obter stream Invidious, usando YouTube embed")
+        console.log("[Player] ⚠️ Falha ao obter stream Invidious, usando YouTube embed como fallback")
       }
     }
 
@@ -93,7 +97,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       triedYouTubeIdsRef.current.push(ytId)
     }
 
-    console.log("[Player] ▶️ A reproduzir:", track.title, "YouTube ID:", ytId, "Stream:", streamUrl ? "Sim" : "Não")
+    console.log("[Player] ▶️ A reproduzir:", track.title, "YouTube ID:", ytId, "Stream direto:", streamUrl ? "Sim" : "Não (vai usar YouTube embed)")
 
     // Usar streamUrl se disponível, caso contrário usar YouTube embed
     setCurrentTrack({ ...track, youtubeId: ytId ?? null, previewUrl: streamUrl })

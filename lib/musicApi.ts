@@ -46,12 +46,16 @@ async function getSpotifyToken() {
   }
 }
 
-// Instâncias Invidious para obter streams diretos
+// Instâncias Invidious para obter streams diretos (mais instâncias para backup)
 const INVIDIOUS_API = [
   "https://invidious.snopyta.org",
   "https://invidious.kavin.rocks",
   "https://invidious.namazso.eu",
   "https://yewtu.be",
+  "https://invidious.projectsegfau.lt",
+  "https://iv.ggtyler.dev",
+  "https://invidious.moomoo.io",
+  "https://invidious.tube",
 ]
 
 let invidiousIndex = 0

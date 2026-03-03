@@ -1,29 +1,31 @@
-# TODO - Melhorias na Pesquisa e Player
+# Music Playback Fix - Completed
 
-## Tarefas Completas:
+## Changes Made:
 
-### 1. [lib/preferences.ts] ✅
-- [x] Removido opção retryMethod (YouTube/SoundCloud)
-- [x] Manter apenas autoRetry
+### 1. lib/musicApi.ts ✅
+- Added 4 more Invidious instances for backup:
+  - https://invidious.projectsegfau.lt
+  - https://iv.ggtyler.dev
+  - https://invidious.moomoo.io
+  - https://invidious.tube
 
-### 2. [lib/player-context.tsx] ✅
-- [x] Lógica de retry usa sempre YouTube
-- [x] Logging detalhado na consola
-- [x] Detecção automática de música presa/travada
+### 2. components/audio-engine.tsx ✅
+- Added the same 4 additional Invidious instances
+- This ensures both the API and player use the same backup instances
 
-### 3. [lib/musicApi.ts] ✅
-- [x] Prioriza YouTube na pesquisa (músicas completas)
-- [x] Fallback para alternativas mais fiáveis
-- [x] Abordagem Musify-like (YouTube primeiro)
-- [x] Streams diretos via Invidious
+### 3. lib/player-context.tsx ✅
+- Added better logging when YouTube ID is not found
+- Improved console messages to show what fallback is being used
+- Added explicit message when stream fails and will use YouTube embed
 
-### 4. [components/track-menu.tsx] ✅
-- [x] Opção "Adicionar a Playlist" (mostrar playlists existentes da biblioteca)
-- [x] Removido opção "Partilhar Música"
+## How the Playback Works:
+1. Track clicked → Check if it has youtubeId
+2. If no youtubeId → Search YouTube API using title + artist
+3. If has youtubeId → Try to get direct audio stream via Invidious
+4. If Invidious fails → Fall back to YouTube embed (ReactPlayer)
+5. If no youtubeId and no previewUrl → Track cannot be played
 
-### 5. [components/settings-tab.tsx] ✅
-- [x] Removido UI de seleção de método de retry
-- [x] Mantido apenas toggle de auto-retry
-
-### 6. [app/page.tsx] ✅
-- [x] Passa playlists existentes para o track menu
+## Notes:
+- If songs still don't play, check browser console for error messages
+- The YouTube embed fallback should work even if all Invidious instances are down
+- The YouTube API key from .env is used for searching and getting video details

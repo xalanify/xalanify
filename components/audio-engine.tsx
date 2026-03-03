@@ -3,12 +3,16 @@
 import { useEffect, useState, useRef, lazy, Suspense } from "react"
 import { usePlayer } from "@/lib/player-context"
 
-// Instâncias Invidious públicas (alternam se uma falhar)
+// Instâncias Invidious públicas (alternam se uma falhar) - mais instâncias para backup
 const INVIDIOUS_INSTANCES = [
   "https://invidious.snopyta.org",
   "https://invidious.kavin.rocks",
   "https://invidious.namazso.eu",
   "https://yewtu.be",
+  "https://invidious.projectsegfau.lt",
+  "https://iv.ggtyler.dev",
+  "https://invidious.moomoo.io",
+  "https://invidious.tube",
 ]
 
 let currentInstanceIndex = 0
@@ -66,20 +70,33 @@ export default function AudioEngine() {
   const [loadingStream, setLoadingStream] = useState(false)
   const [useInvidious, setUseInvidious] = useState(true)
   const streamAudioRef = useRef<HTMLAudioElement | null>(null)
+  const [invidiousTimeout, setInvidiousTimeout] = useState(false)
   
   // Carregar stream do Invidious quando muda o youtubeId
   useEffect(() => {
     if (!currentTrack?.youtubeId) {
       setStreamUrl(null)
+      setUseInvidious(true)
+      setInvidiousTimeout(false)
       return
     }
 
-    // Primeiro tentar Invidious
-    setLoadingStream(true)
+    // Reset states
+    setInvidiousTimeout(false)
     setUseInvidious(true)
+    setLoadingStream(true)
+    
+    // Timeout de 5 segundos - se Invidious não responder, usar YouTube embed
+    const timeoutId = setTimeout(() => {
+      console.log("[AudioEngine] ⏱️ Timeout Invidious, usando YouTube embed")
+      setInvidiousTimeout(true)
+      setUseInvidious(false)
+      setLoadingStream(false)
+    }, 5000)
     
     getInvidiousStreamUrl(currentTrack.youtubeId)
       .then((url) => {
+        clearTimeout(timeoutId)
         if (url) {
           setStreamUrl(url)
           console.log("[AudioEngine] ✅ Usando stream Invidious")
@@ -89,12 +106,15 @@ export default function AudioEngine() {
         }
       })
       .catch(() => {
+        clearTimeout(timeoutId)
         console.log("[AudioEngine] ❌ Erro Invidious")
         setUseInvidious(false)
       })
       .finally(() => {
         setLoadingStream(false)
       })
+      
+    return () => clearTimeout(timeoutId)
   }, [currentTrack?.youtubeId])
 
   // Controlar reprodução do stream
