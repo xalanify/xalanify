@@ -46,6 +46,46 @@ async function getSpotifyToken() {
   }
 }
 
+// Search tracks from Spotify
+async function searchSpotifyTracks(query: string): Promise<PlaylistTrackPreview[]> {
+  try {
+    const token = await getSpotifyToken()
+    if (!token) {
+      console.log("[MusicAPI] ⚠️ Sem token Spotify")
+      return []
+    }
+
+    const res = await fetch(
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=15`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+
+    if (!res.ok) {
+      console.log(`[MusicAPI] ❌ Spotify erro ${res.status}`)
+      return []
+    }
+
+    const data = await res.json()
+    const tracks = data.tracks?.items || []
+
+    console.log("[MusicAPI] ✅ Encontradas", tracks.length, "músicas no Spotify")
+
+    return tracks.map((track: any) => ({
+      id: `spotify-${track.id}`,
+      title: track.name,
+      artist: track.artists?.map((a: any) => a.name).join(", ") || "Desconhecido",
+      thumbnail: track.album?.images?.[0]?.url || "",
+      duration: (track.duration_ms || 0) / 1000,
+      youtubeId: null,
+      previewUrl: track.preview_url || null,
+      source: "spotify" as const,
+    }))
+  } catch (e) {
+    console.log("[MusicAPI] ❌ Spotify exception:", e)
+    return []
+  }
+}
+
 // Instâncias Invidious para obter streams diretos (mais instâncias para backup)
 const INVIDIOUS_API = [
   "https://invidious.snopyta.org",
@@ -281,28 +321,50 @@ async function getMultipleYoutubeIds(title: string, artist: string, limit = 5): 
   return allIds
 }
 
-export async function searchMusic(query: string) {
+export type SearchSource = "all" | "spotify" | "youtube"
+
+export async function searchMusic(query: string, source: SearchSource = "all") {
   // Verificar cache
-  const cacheKey = query.toLowerCase().trim()
+  const cacheKey = `${source}:${query.toLowerCase().trim()}`
   const cached = searchCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-    console.log("[MusicAPI] 📦 Usando cache para:", query)
+    console.log("[MusicAPI] 📦 Usando cache para:", query, "source:", source)
     return cached.data
   }
 
-  console.log("[MusicAPI] 🔍 A pesquisar música:", query)
+  console.log("[MusicAPI] 🔍 A pesquisar música:", query, "source:", source)
   
-  // Usar APENAS YouTube para resultados (mais rápido e confiável)
-  const youtubeTracks = await searchMusicFromYouTube(query)
+  let results: PlaylistTrackPreview[] = []
   
-  if (youtubeTracks.length > 0) {
-    console.log("[MusicAPI] ✅ Encontradas", youtubeTracks.length, "músicas no YouTube")
-    searchCache.set(cacheKey, { data: youtubeTracks, timestamp: Date.now() })
-    return youtubeTracks
+  // Search from requested sources
+  if (source === "all" || source === "spotify") {
+    const spotifyTracks = await searchSpotifyTracks(query)
+    results = [...results, ...spotifyTracks]
+  }
+  
+  if (source === "all" || source === "youtube") {
+    const youtubeTracks = await searchMusicFromYouTube(query)
+    results = [...results, ...youtubeTracks]
+  }
+
+  if (results.length > 0) {
+    console.log("[MusicAPI] ✅ Encontradas", results.length, "músicas (Spotify:", results.filter(r => r.source === "spotify").length, "YouTube:", results.filter(r => r.source === "youtube").length, ")")
+    searchCache.set(cacheKey, { data: results, timestamp: Date.now() })
+    return results
   }
 
   console.log("[MusicAPI] ❌ Nenhuma música encontrada")
   return []
+}
+
+// Função específica para buscar apenas do Spotify
+export async function searchSpotify(query: string): Promise<PlaylistTrackPreview[]> {
+  return searchMusic(query, "spotify")
+}
+
+// Função específica para buscar apenas do YouTube
+export async function searchYouTube(query: string): Promise<PlaylistTrackPreview[]> {
+  return searchMusic(query, "youtube")
 }
 
 // Função exportada para buscar retry com múltiplos IDs

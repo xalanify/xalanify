@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { Search, MoreHorizontal, Play } from "lucide-react"
-import { searchMusic } from "@/lib/musicApi"
+import { searchMusic, type SearchSource } from "@/lib/musicApi"
 import { usePlayer, type Track } from "@/lib/player-context"
 import { useTheme } from "@/lib/theme-context"
 
@@ -16,15 +16,27 @@ interface SearchTabProps {
 
 export default function SearchTab({ onTrackMenu, query, setQuery, results, setResults }: SearchTabProps) {
   const [searching, setSearching] = useState(false)
+  const [sourceFilter, setSourceFilter] = useState<SearchSource>("all")
   const { play, setQueue } = usePlayer()
   const { accentHex } = useTheme()
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return
     setSearching(true)
-    const tracks = await searchMusic(query)
+    const tracks = await searchMusic(query, sourceFilter)
     setResults(tracks)
     setSearching(false)
+  }, [query, sourceFilter, setResults])
+
+  // Re-search when source filter changes
+  const handleSourceChange = useCallback(async (source: SearchSource) => {
+    setSourceFilter(source)
+    if (query.trim()) {
+      setSearching(true)
+      const tracks = await searchMusic(query, source)
+      setResults(tracks)
+      setSearching(false)
+    }
   }, [query, setResults])
 
   const handleKeyDown = useCallback(
@@ -37,6 +49,16 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
   function handlePlay(track: Track) {
     setQueue(results)
     play(track)
+  }
+
+  // Get source badge styles
+  function getSourceBadge(source?: string) {
+    if (source === "spotify") {
+      return { bg: "#1DB954", text: "#fff", label: "Spotify" }
+    } else if (source === "youtube") {
+      return { bg: "#FF0000", text: "#fff", label: "YouTube" }
+    }
+    return null
   }
 
   return (
@@ -53,6 +75,24 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
           placeholder="Pesquisar musicas..."
           className="w-full bg-transparent text-sm text-[#f0e0d0] placeholder-[#706050] focus:outline-none"
         />
+      </div>
+
+      {/* Source Filter Tabs */}
+      <div className="mt-3 flex gap-2">
+        {(["all", "spotify", "youtube"] as SearchSource[]).map((source) => (
+          <button
+            key={source}
+            onClick={() => handleSourceChange(source)}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+              sourceFilter === source
+                ? "text-white"
+                : "bg-[#1a1a1a]/60 text-[#a08070] hover:text-[#f0e0d0]"
+            }`}
+            style={sourceFilter === source ? { backgroundColor: accentHex } : {}}
+          >
+            {source === "all" ? "Tudo" : source === "spotify" ? "Spotify" : "YouTube"}
+          </button>
+        ))}
       </div>
 
       <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto hide-scrollbar">
@@ -75,46 +115,59 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
           </div>
         )}
 
-        {results.map((track) => (
-          <div
-            key={track.id}
-            className="flex w-full items-center gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-3 text-left transition-all duration-200 hover:bg-[#1a1a1a]"
-          >
-            <button
-              onClick={() => handlePlay(track)}
-              className="shrink-0"
+        {results.map((track) => {
+          const badge = getSourceBadge(track.source)
+          
+          return (
+            <div
+              key={track.id}
+              className="flex w-full items-center gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-3 text-left transition-all duration-200 hover:bg-[#1a1a1a]"
             >
-              <img
-                src={track.thumbnail}
-                alt={track.title}
-                className="h-12 w-12 shrink-0 rounded-lg object-cover"
-              />
-            </button>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-[#f0e0d0]">{track.title}</p>
-              <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
+              <button
+                onClick={() => handlePlay(track)}
+                className="shrink-0 relative"
+              >
+                <img
+                  src={track.thumbnail}
+                  alt={track.title}
+                  className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                />
+                {/* Source badge on thumbnail */}
+                {badge && (
+                  <div
+                    className="absolute -bottom-1 -right-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold"
+                    style={{ backgroundColor: badge.bg, color: badge.text }}
+                  >
+                    {badge.label === "Spotify" ? "SP" : "YT"}
+                  </div>
+                )}
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-[#f0e0d0]">{track.title}</p>
+                <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
+              </div>
+              <button
+                onClick={() => handlePlay(track)}
+                className="rounded-full p-2 shrink-0"
+                style={{ backgroundColor: `${accentHex}30` }}
+                aria-label="Tocar"
+              >
+                <Play className="h-4 w-4" style={{ color: accentHex }} />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
+                  onTrackMenu?.(track, rect)
+                }}
+                className="shrink-0 p-2 rounded-full hover:bg-[#f0e0d0]/10 text-[#a08070] transition-colors"
+                aria-label="Mais opcoes"
+              >
+                <MoreHorizontal className="h-5 w-5" />
+              </button>
             </div>
-            <button
-              onClick={() => handlePlay(track)}
-              className="rounded-full p-2 shrink-0"
-              style={{ backgroundColor: `${accentHex}30` }}
-              aria-label="Tocar"
-            >
-              <Play className="h-4 w-4" style={{ color: accentHex }} />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
-                onTrackMenu?.(track, rect)
-              }}
-              className="shrink-0 p-2 rounded-full hover:bg-[#f0e0d0]/10 text-[#a08070] transition-colors"
-              aria-label="Mais opcoes"
-            >
-              <MoreHorizontal className="h-5 w-5" />
-            </button>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

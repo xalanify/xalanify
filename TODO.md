@@ -1,31 +1,17 @@
-# Music Playback Fix - Completed
+# TODO - Search Enhancement with Spotify API
 
-## Changes Made:
+## Phase 1: Update lib/musicApi.ts
+- [x] Add `searchSpotifyTracks()` function to search tracks using Spotify API
+- [x] Modify `searchMusic()` to search both Spotify AND YouTube
+- [x] Return combined results with source badges (spotify/youtube)
+- [x] Add Spotify track search function
 
-### 1. lib/musicApi.ts ✅
-- Added 4 more Invidious instances for backup:
-  - https://invidious.projectsegfau.lt
-  - https://iv.ggtyler.dev
-  - https://invidious.moomoo.io
-  - https://invidious.tube
+## Phase 2: Update components/search-tab.tsx
+- [x] Add source filter tabs (All/Spotify/YouTube)
+- [x] Display source badge on each track card
+- [x] Enhance UI to show different sources clearly
 
-### 2. components/audio-engine.tsx ✅
-- Added the same 4 additional Invidious instances
-- This ensures both the API and player use the same backup instances
-
-### 3. lib/player-context.tsx ✅
-- Added better logging when YouTube ID is not found
-- Improved console messages to show what fallback is being used
-- Added explicit message when stream fails and will use YouTube embed
-
-## How the Playback Works:
-1. Track clicked → Check if it has youtubeId
-2. If no youtubeId → Search YouTube API using title + artist
-3. If has youtubeId → Try to get direct audio stream via Invidious
-4. If Invidious fails → Fall back to YouTube embed (ReactPlayer)
-5. If no youtubeId and no previewUrl → Track cannot be played
-
-## Notes:
-- If songs still don't play, check browser console for error messages
-- The YouTube embed fallback should work even if all Invidious instances are down
-- The YouTube API key from .env is used for searching and getting video details
+## Phase 3: Testing
+- [ ] Verify Spotify search returns tracks with thumbnails
+- [ ] Verify YouTube search still works
+- [ ] Verify clicking a card plays the audio via ReactPlayer
