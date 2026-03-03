@@ -14,6 +14,7 @@ import FullPlayer from "@/components/full-player"
 import AudioEngine from "@/components/audio-engine"
 import TrackMenu from "@/components/track-menu"
 import { Toaster } from "@/components/ui/sonner"
+import { getPlaylists } from "@/lib/supabase"
 
 function SplashScreen({ accentHex }: { accentHex: string }) {
   return (
@@ -41,6 +42,19 @@ function XalanifyApp() {
   const [showSplash, setShowSplash] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Track[]>([])
+  const [libraryKey, setLibraryKey] = useState(0)
+  const [userPlaylists, setUserPlaylists] = useState<{id: string, name: string}[]>([])
+
+  // Fetch user playlists for track menu
+  useEffect(() => {
+    if (user?.uid) {
+      getPlaylists(user.uid).then((data: any) => {
+        if (data && Array.isArray(data)) {
+          setUserPlaylists(data.map((p: any) => ({ id: p.id, name: p.name })))
+        }
+      })
+    }
+  }, [user, libraryKey])
 
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 1500)
@@ -55,6 +69,10 @@ function XalanifyApp() {
     { id: "library" as const, label: "Biblioteca", icon: Library },
     { id: "settings" as const, label: "Ajustes", icon: Settings },
   ]
+
+  function handleLibraryUpdate() {
+    setLibraryKey(prev => prev + 1)
+  }
 
   return (
     <div className="relative flex h-dvh min-h-0 flex-col overflow-hidden bg-[#0a0a0a] text-[#f0e0d0]">
@@ -75,7 +93,7 @@ function XalanifyApp() {
             setResults={setSearchResults}
           />
         )}
-        {activeTab === "library" && <LibraryTab />}
+        {activeTab === "library" && <LibraryTab key={libraryKey} />}
         {activeTab === "settings" && <SettingsTab />}
       </div>
 
@@ -128,6 +146,8 @@ function XalanifyApp() {
           track={menuTrack} 
           anchorRect={menuAnchorRect} 
           onClose={() => { setMenuTrack(null); setMenuAnchorRect(null) }}
+          onLibraryUpdate={handleLibraryUpdate}
+          playlists={userPlaylists}
         />
       )}
     </div>

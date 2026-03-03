@@ -1,6 +1,10 @@
 const CLIENT_ID = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID
 const CLIENT_SECRET = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET
 
+// Cache para evitar chamadas repetidas
+const searchCache = new Map<string, { data: any[]; timestamp: number }>()
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutos
+
 export interface PlaylistTrackPreview {
   id: string
   title: string
@@ -9,7 +13,7 @@ export interface PlaylistTrackPreview {
   duration: number
   youtubeId: string | null
   previewUrl?: string | null
-  source?: "spotify" | "youtube" | "itunes"
+  source?: "spotify" | "youtube" | "itunes" | "soundcloud"
   isTestContent?: boolean
   testLabel?: string
 }
@@ -42,92 +46,59 @@ async function getSpotifyToken() {
   }
 }
 
-async function searchMusicFromITunes(query: string) {
-  try {
-    const res = await fetch(
-      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=50`
-    )
-    const data = await res.json()
+// Instâncias Invidious para obter streams diretos
+const INVIDIOUS_API = [
+  "https://invidious.snopyta.org",
+  "https://invidious.kavin.rocks",
+  "https://invidious.namazso.eu",
+  "https://yewtu.be",
+]
 
-    return (data.results || []).map((item: any) => ({
-      id: `itunes-${item.trackId}`,
-      title: item.trackName || "Faixa",
-      artist: item.artistName || "Desconhecido",
-      thumbnail: (item.artworkUrl100 || item.artworkUrl60 || "").replace("100x100bb", "600x600bb"),
-      duration: Math.floor((item.trackTimeMillis || 0) / 1000),
-      youtubeId: null,
-      previewUrl: item.previewUrl || null,
-      source: "itunes" as const,
-    }))
-  } catch {
-    return []
-  }
-}
+let invidiousIndex = 0
 
-export async function searchMusic(query: string) {
-  try {
-    // First try Spotify
-    const token = await getSpotifyToken()
-    if (token) {
-      const res = await fetch(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=50`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-
-      const data = await res.json()
-      const tracks = data.tracks?.items.map((item: any) => ({
-        id: item.id,
-        title: item.name,
-        artist: item.artists[0].name,
-        thumbnail: item.album.images?.[0]?.url || item.album.images?.[1]?.url || item.album.images?.[2]?.url || "",
-        duration: item.duration_ms / 1000,
-        youtubeId: null,
-        previewUrl: item.preview_url || null,
-        source: "spotify" as const,
-      })) || []
-
-      if (tracks.length > 0) {
-        // For tracks without preview, try to get YouTube ID
-        const tracksWithYoutube = await Promise.all(
-          tracks.map(async (track: any) => {
-            if (!track.previewUrl) {
-              const youtubeId = await getYoutubeId(track.title, track.artist)
-              return { ...track, youtubeId }
-            }
-            return track
-          })
-        )
-        return tracksWithYoutube
+// Obter stream de áudio direto do Invidious
+async function getAudioStreamUrl(videoId: string): Promise<string | null> {
+  for (let i = 0; i < INVIDIOUS_API.length; i++) {
+    const instance = INVIDIOUS_API[invidiousIndex]
+    invidiousIndex = (invidiousIndex + 1) % INVIDIOUS_API.length
+    
+    try {
+      const response = await fetch(`${instance}/api/v1/videos/${videoId}`)
+      if (!response.ok) continue
+      
+      const data = await response.json()
+      const audioStreams = data.adaptiveFormats?.filter((f: any) => f.type?.includes("audio"))
+      
+      if (audioStreams && audioStreams.length > 0) {
+        const bestAudio = audioStreams.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))[0]
+        return bestAudio.url
       }
+    } catch {
+      // Continuar para próxima instância
     }
-    
-    // Fallback to iTunes
-    const itunesTracks = await searchMusicFromITunes(query)
-    if (itunesTracks.length > 0) return itunesTracks
-    
-    // Final fallback: YouTube search
-    return searchMusicFromYouTube(query)
-  } catch {
-    // Try iTunes as fallback
-    const itunesTracks = await searchMusicFromITunes(query)
-    if (itunesTracks.length > 0) return itunesTracks
-    
-    // Final fallback: YouTube
-    return searchMusicFromYouTube(query)
   }
+  return null
 }
 
-// YouTube search fallback
-async function searchMusicFromYouTube(query: string) {
+// YouTube search RÁPIDO com múltiplas queries de fallback
+async function searchMusicFromYouTube(query: string): Promise<PlaylistTrackPreview[]> {
   try {
     const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY
-    if (!apiKey) return []
+    if (!apiKey) {
+      console.log("[MusicAPI] ⚠️ Sem API Key do YouTube")
+      return []
+    }
 
     const res = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&key=${apiKey}&maxResults=20`
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&key=${apiKey}&maxResults=10`
     )
-    const data = await res.json()
+    
+    if (!res.ok) {
+      console.log(`[MusicAPI] ❌ YouTube erro ${res.status}`)
+      return []
+    }
 
+    const data = await res.json()
     return (data.items || []).map((item: any) => ({
       id: `youtube-${item.id.videoId}`,
       title: item.snippet.title,
@@ -138,10 +109,208 @@ async function searchMusicFromYouTube(query: string) {
       previewUrl: null,
       source: "youtube" as const,
     }))
-  } catch {
+  } catch (e) {
+    console.log("[MusicAPI] ❌ YouTube exception:", e)
     return []
   }
 }
+
+// Normalizar texto para comparação (remover acentos, converter para minúsculas)
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim()
+}
+
+// Verificar se o artista do resultado corresponde ao artista da música
+function artistMatches(resultArtist: string, targetArtist: string): boolean {
+  const normalizedResult = normalizeText(resultArtist)
+  const normalizedTarget = normalizeText(targetArtist)
+  
+  // Verificação direta
+  if (normalizedResult.includes(normalizedTarget) || normalizedTarget.includes(normalizedResult)) {
+    return true
+  }
+  
+  // Verificar primeiras palavras
+  const resultWords = normalizedResult.split(" ").slice(0, 2).join(" ")
+  const targetWords = normalizedTarget.split(" ").slice(0, 2).join(" ")
+  
+  return resultWords === targetWords || normalizedResult.includes(targetWords.split(" ")[0])
+}
+
+// Verificar se o título corresponde
+function titleMatches(resultTitle: string, targetTitle: string): boolean {
+  const normalizedResult = normalizeText(resultTitle)
+  const normalizedTarget = normalizeText(targetTitle)
+  
+  // Verificação direta
+  if (normalizedResult.includes(normalizedTarget) || normalizedTarget.includes(normalizedResult)) {
+    return true
+  }
+  
+  // Verificar primeiras palavras do título
+  const resultWords = normalizedResult.split(" ").slice(0, 4).join(" ")
+  const targetWords = normalizedTarget.split(" ").slice(0, 4).join(" ")
+  
+  return resultWords.includes(targetWords) || targetWords.includes(resultWords)
+}
+
+// Buscar YouTube ID - LÓGICA: primeiro título, verificar artista, depois título+artista
+export async function getYoutubeId(title: string, artist: string): Promise<string | null> {
+  console.log("[MusicAPI] 🔍 A procurar YouTube para:", title, "-", artist)
+  
+  const normalizedTitle = normalizeText(title)
+  const normalizedArtist = normalizeText(artist)
+  
+  // ===== FASE 1: Pesquisar apenas pelo TÍTULO =====
+  console.log(`[MusicAPI] 🔎 Fase 1: Pesquisar apenas por título: "${title}"`)
+  const titleResults = await searchMusicFromYouTube(title)
+  
+  if (titleResults.length > 0) {
+    console.log(`[MusicAPI] 📋 Encontrados ${titleResults.length} resultados para o título`)
+    
+    // Procurar resultado que tenha título E artista correspondentes
+    const matchingResult = titleResults.find(r => {
+      // Ignorar live streams e resultados inválidos
+      if (r.title.toLowerCase().includes('live') || 
+          r.title.toLowerCase().includes('stream') ||
+          r.title.toLowerCase().includes('full album') ||
+          r.title.toLowerCase().includes('playlist')) {
+        return false
+      }
+      // Verificar se título corresponde E artista corresponde
+      return titleMatches(r.title, title) && artistMatches(r.artist, artist)
+    })
+    
+    if (matchingResult) {
+      console.log("[MusicAPI] ✅ YouTube ID encontrado (título + artista corresponde):", matchingResult.youtubeId, "-", matchingResult.title)
+      return matchingResult.youtubeId
+    }
+    
+    // Se não encontrou com artista, usar primeiro resultado válido cujo título corresponda
+    const validResult = titleResults.find(r => 
+      !r.title.toLowerCase().includes('live') && 
+      !r.title.toLowerCase().includes('stream') &&
+      !r.title.toLowerCase().includes('full album') &&
+      !r.title.toLowerCase().includes('playlist') &&
+      titleMatches(r.title, title)
+    )
+    
+    if (validResult) {
+      console.log("[MusicAPI] ✅ YouTube ID encontrado (título corresponde):", validResult.youtubeId, "-", validResult.title)
+      return validResult.youtubeId
+    }
+  }
+  
+  // ===== FASE 2: Pesquisar com TÍTULO + ARTISTA =====
+  console.log(`[MusicAPI] 🔎 Fase 2: Pesquisar com título + artista: "${title} ${artist}"`)
+  const fullResults = await searchMusicFromYouTube(`${title} ${artist}`)
+  
+  if (fullResults.length > 0) {
+    const validResult = fullResults.find(r => 
+      !r.title.toLowerCase().includes('live') && 
+      !r.title.toLowerCase().includes('stream') &&
+      !r.title.toLowerCase().includes('full album') &&
+      !r.title.toLowerCase().includes('playlist')
+    )
+    
+    if (validResult) {
+      console.log("[MusicAPI] ✅ YouTube ID encontrado (título + artista):", validResult.youtubeId, "-", validResult.title)
+      return validResult.youtubeId
+    }
+  }
+  
+  // ===== FASE 3: Retry com variações =====
+  console.log("[MusicAPI] 🔎 Fase 3: Tentando variações...")
+  const variations = [
+    `${title} ${artist} audio`,
+    `${title} ${artist} lyrics`,
+    `${title} ${artist} music`,
+    `${artist} ${title}`,
+  ]
+  
+  for (const query of variations) {
+    const results = await searchMusicFromYouTube(query)
+    if (results.length > 0) {
+      const validResult = results.find(r => 
+        !r.title.toLowerCase().includes('live') && 
+        !r.title.toLowerCase().includes('stream')
+      )
+      if (validResult) {
+        console.log("[MusicAPI] ✅ YouTube ID encontrado (variação):", validResult.youtubeId, "-", validResult.title)
+        return validResult.youtubeId
+      }
+    }
+  }
+  
+  console.log("[MusicAPI] ❌ YouTube ID não encontrado")
+  return null
+}
+
+// Buscar múltiplos YouTube IDs (para retry)
+async function getMultipleYoutubeIds(title: string, artist: string, limit = 5): Promise<string[]> {
+  const queries = [
+    `${title} ${artist} official audio`,
+    `${title} ${artist} audio`,
+    `${title} ${artist} lyrics`,
+    `${title} ${artist} music video`,
+    `${title} ${artist}`,
+  ]
+
+  const allIds: string[] = []
+  
+  for (const query of queries) {
+    const results = await searchMusicFromYouTube(query)
+    for (const result of results) {
+      if (result.youtubeId && !allIds.includes(result.youtubeId)) {
+        allIds.push(result.youtubeId)
+        if (allIds.length >= limit) break
+      }
+    }
+    if (allIds.length >= limit) break
+  }
+  
+  return allIds
+}
+
+export async function searchMusic(query: string) {
+  // Verificar cache
+  const cacheKey = query.toLowerCase().trim()
+  const cached = searchCache.get(cacheKey)
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    console.log("[MusicAPI] 📦 Usando cache para:", query)
+    return cached.data
+  }
+
+  console.log("[MusicAPI] 🔍 A pesquisar música:", query)
+  
+  // Usar APENAS YouTube para resultados (mais rápido e confiável)
+  const youtubeTracks = await searchMusicFromYouTube(query)
+  
+  if (youtubeTracks.length > 0) {
+    console.log("[MusicAPI] ✅ Encontradas", youtubeTracks.length, "músicas no YouTube")
+    searchCache.set(cacheKey, { data: youtubeTracks, timestamp: Date.now() })
+    return youtubeTracks
+  }
+
+  console.log("[MusicAPI] ❌ Nenhuma música encontrada")
+  return []
+}
+
+// Função exportada para buscar retry com múltiplos IDs
+export async function getYoutubeIdsForRetry(title: string, artist: string): Promise<string[]> {
+  console.log("[MusicAPI] 🔍 A procurar IDs alternativos para retry:", title, "-", artist)
+  const ids = await getMultipleYoutubeIds(title, artist, 5)
+  console.log("[MusicAPI] ✅ Encontrados", ids.length, "IDs alternativos")
+  return ids
+}
+
+// Exportar função para obter stream direto (para uso no player)
+export { getAudioStreamUrl }
 
 export async function searchPlaylistSuggestions(query: string): Promise<PlaylistSuggestion[]> {
   const [spotifyPlaylists, youtubePlaylists] = await Promise.all([
@@ -254,6 +423,12 @@ async function getYoutubePlaylists(query: string): Promise<PlaylistSuggestion[]>
     const res = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&q=${encodeURIComponent(query)}&key=${apiKey}&maxResults=12`
     )
+    
+    if (res.status === 403) {
+      console.log("[MusicAPI] YouTube playlists - quota excedida")
+      return []
+    }
+    
     const data = await res.json()
 
     const playlists = await Promise.all(
@@ -286,21 +461,5 @@ async function getYoutubePlaylists(query: string): Promise<PlaylistSuggestion[]>
     return playlists
   } catch {
     return []
-  }
-}
-
-export async function getYoutubeId(title: string, artist: string) {
-  const query = `${title} ${artist} audio`
-  try {
-    const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY
-    if (!apiKey) return null
-
-    const res = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&key=${apiKey}&type=video&maxResults=1`
-    )
-    const data = await res.json()
-    return data.items?.[0]?.id?.videoId || null
-  } catch {
-    return null
   }
 }

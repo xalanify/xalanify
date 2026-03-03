@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Search, MoreHorizontal } from "lucide-react"
+import { Search, MoreHorizontal, Play } from "lucide-react"
 import { searchMusic } from "@/lib/musicApi"
 import { usePlayer, type Track } from "@/lib/player-context"
+import { useTheme } from "@/lib/theme-context"
 
 interface SearchTabProps {
   onTrackMenu?: (track: Track, triggerRect: DOMRect) => void
@@ -16,6 +17,7 @@ interface SearchTabProps {
 export default function SearchTab({ onTrackMenu, query, setQuery, results, setResults }: SearchTabProps) {
   const [searching, setSearching] = useState(false)
   const { play, setQueue } = usePlayer()
+  const { accentHex } = useTheme()
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return
@@ -39,7 +41,7 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
 
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
-      <div className="glass-card-strong flex items-center gap-3 rounded-xl px-4 py-3">
+      <div className="flex items-center gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 px-4 py-3">
         <Search className="h-5 w-5 shrink-0 text-[#a08070]" />
         <input
           id="search-query"
@@ -53,7 +55,7 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
         />
       </div>
 
-      <div className="mt-4 min-h-0 flex-1 space-y-2.5 overflow-y-auto hide-scrollbar">
+      <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto hide-scrollbar">
         {searching && (
           <div className="flex items-center justify-center py-20">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#e63946] border-t-transparent" />
@@ -62,7 +64,7 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
 
         {!searching && results.length === 0 && query && (
           <p className="py-20 text-center text-sm text-[#706050]">
-            Sem resultados para &quot;{query}&quot;
+            Sem resultados para "{query}"
           </p>
         )}
 
@@ -74,32 +76,44 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
         )}
 
         {results.map((track) => (
-          <button
+          <div
             key={track.id}
-            onClick={() => handlePlay(track)}
-            className="glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 active:scale-[0.99] active:bg-[rgba(255,255,255,0.08)]"
+            className="flex w-full items-center gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-3 text-left transition-all duration-200 hover:bg-[#1a1a1a]"
           >
-            <img
-              src={track.thumbnail}
-              alt={track.title}
-              className="h-12 w-12 shrink-0 rounded-lg object-cover"
-            />
+            <button
+              onClick={() => handlePlay(track)}
+              className="shrink-0"
+            >
+              <img
+                src={track.thumbnail}
+                alt={track.title}
+                className="h-12 w-12 shrink-0 rounded-lg object-cover"
+              />
+            </button>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-[#f0e0d0]">{track.title}</p>
               <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
             </div>
+            <button
+              onClick={() => handlePlay(track)}
+              className="rounded-full p-2 shrink-0"
+              style={{ backgroundColor: `${accentHex}30` }}
+              aria-label="Tocar"
+            >
+              <Play className="h-4 w-4" style={{ color: accentHex }} />
+            </button>
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
                 onTrackMenu?.(track, rect)
               }}
-              className="shrink-0 p-1.5 text-[#706050] transition-all duration-200 hover:text-[#a08070] active:scale-95"
+              className="shrink-0 p-2 rounded-full hover:bg-[#f0e0d0]/10 text-[#a08070] transition-colors"
               aria-label="Mais opcoes"
             >
               <MoreHorizontal className="h-5 w-5" />
             </button>
-          </button>
+          </div>
         ))}
       </div>
     </div>

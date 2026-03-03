@@ -25,7 +25,8 @@ import {
   subscribeToLikedTracks, 
   removeTrackFromPlaylist,
   addTrackToPlaylist,
-  unlikeTrack 
+  unlikeTrack,
+  likeTrack
 } from "@/lib/db"
 import { toast } from "sonner"
 
@@ -102,12 +103,19 @@ function PlaylistMenu({
 // Menu de 3 pontinhos para músicas
 function TrackMenu({ 
   onRemove, 
-  isLikedView = false 
+  onAddToPlaylist,
+  onAddToFavorites,
+  isLikedView = false,
+  playlists = []
 }: { 
   onRemove: () => void
+  onAddToPlaylist?: (playlistId: string) => void
+  onAddToFavorites?: () => void
   isLikedView?: boolean
+  playlists?: { id: string; name: string }[]
 }) {
   const [open, setOpen] = useState(false)
+  const [showPlaylists, setShowPlaylists] = useState(false)
 
   return (
     <div className="relative flex-shrink-0">
@@ -120,15 +128,61 @@ function TrackMenu({
       
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl bg-[#1a1a1a] border border-[#f0e0d0]/10 shadow-xl overflow-hidden">
-            <button 
-              onClick={() => { onRemove(); setOpen(false) }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span className="text-sm">{isLikedView ? "Remover dos favoritos" : "Remover da playlist"}</span>
-            </button>
+          <div className="fixed inset-0 z-40" onClick={() => { setOpen(false); setShowPlaylists(false) }} />
+          <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl bg-[#1a1a1a] border border-[#f0e0d0]/10 shadow-xl overflow-hidden">
+            {showPlaylists ? (
+              <div className="p-2">
+                <button 
+                  onClick={() => setShowPlaylists(false)}
+                  className="flex items-center gap-2 px-2 py-1 text-xs text-[#a08070] hover:text-[#f0e0d0] mb-2"
+                >
+                  ← Voltar
+                </button>
+                <p className="px-2 py-1 text-xs text-[#a08070] uppercase">Escolher Playlist</p>
+                {playlists.length === 0 ? (
+                  <p className="px-2 py-2 text-xs text-[#706050]">Sem playlists</p>
+                ) : (
+                  playlists.map(pl => (
+                    <button
+                      key={pl.id}
+                      onClick={() => { onAddToPlaylist?.(pl.id); setOpen(false); setShowPlaylists(false) }}
+                      className="w-full flex items-center gap-2 px-2 py-2 text-left text-sm text-[#f0e0d0] hover:bg-[#f0e0d0]/10 rounded-lg"
+                    >
+                      <Music className="h-4 w-4 text-[#a08070]" />
+                      <span className="truncate">{pl.name}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : (
+              <>
+                {!isLikedView && onAddToFavorites && (
+                  <button 
+                    onClick={() => { onAddToFavorites(); setOpen(false) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-[#f0e0d0] hover:bg-[#f0e0d0]/10 transition-colors"
+                  >
+                    <Heart className="h-4 w-4 text-[#e63946]" />
+                    <span className="text-sm">Adicionar aos Favoritos</span>
+                  </button>
+                )}
+                {onAddToPlaylist && (
+                  <button 
+                    onClick={() => setShowPlaylists(true)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-[#f0e0d0] hover:bg-[#f0e0d0]/10 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 text-[#a08070]" />
+                    <span className="text-sm">Adicionar a Playlist</span>
+                  </button>
+                )}
+                <button 
+                  onClick={() => { onRemove(); setOpen(false) }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="text-sm">{isLikedView ? "Remover dos favoritos" : "Remover da playlist"}</span>
+                </button>
+              </>
+            )}
           </div>
         </>
       )}
@@ -222,6 +276,24 @@ export default function LibraryTab() {
     }
   }
 
+  async function handleAddToFavorites(track: Track) {
+    const ok = await likeTrack(track)
+    if (ok) {
+      toast.success("Adicionado aos favoritos!")
+    } else {
+      toast.error("Erro ao adicionar")
+    }
+  }
+
+  async function handleAddTrackToPlaylist(track: Track, playlistId: string) {
+    const ok = await addTrackToPlaylist(playlistId, track)
+    if (ok) {
+      toast.success("Música adicionada à playlist!")
+    } else {
+      toast.error("Erro ao adicionar")
+    }
+  }
+
   async function handleImportPlaylist() {
     if (!importId.trim() || !userId) {
       toast.error("Insere um ID válido")
@@ -231,7 +303,6 @@ export default function LibraryTab() {
     setImporting(true)
     
     try {
-      // Procurar nas playlists do user atual
       const sourcePlaylist = playlists.find(p => p.id === importId)
       
       if (!sourcePlaylist) {
@@ -240,14 +311,12 @@ export default function LibraryTab() {
         return
       }
       
-      // Criar nova playlist com os dados
       const created = await createPlaylist(
         `${sourcePlaylist.name} (Importada)`, 
         sourcePlaylist.image_url || undefined
       )
       
       if (created) {
-        // Adicionar todas as músicas
         for (const track of sourcePlaylist.tracks) {
           await addTrackToPlaylist(created.id, track)
         }
@@ -268,6 +337,9 @@ export default function LibraryTab() {
     setQueue(tracks)
     play(track)
   }
+
+  // Get other playlists for "add to playlist" menu
+  const otherPlaylists = playlists.filter(p => p.id !== selectedPlaylist?.id)
 
   // List View - Cards retangulares um em baixo do outro
   if (view === "list") {
@@ -447,7 +519,12 @@ export default function LibraryTab() {
                   key={`${track.id}-${index}`} 
                   className="flex items-center gap-2 sm:gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-2 sm:p-3 hover:bg-[#1a1a1a] transition-colors w-full"
                 >
-                  <img src={track.thumbnail} alt={track.title} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover flex-shrink-0" />
+                  <button
+                    onClick={() => playTrack(track, selectedPlaylist.tracks)}
+                    className="shrink-0"
+                  >
+                    <img src={track.thumbnail} alt={track.title} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover" />
+                  </button>
                   <div className="flex-1 min-w-0">
                     <p className="truncate font-medium text-[#f0e0d0] text-sm">{track.title}</p>
                     <p className="truncate text-xs sm:text-sm text-[#a08070]">{track.artist}</p>
@@ -461,6 +538,9 @@ export default function LibraryTab() {
                   </button>
                   <TrackMenu 
                     onRemove={() => handleRemoveFromPlaylist(track.id)}
+                    onAddToFavorites={() => handleAddToFavorites(track)}
+                    onAddToPlaylist={(playlistId) => handleAddTrackToPlaylist(track, playlistId)}
+                    playlists={otherPlaylists}
                   />
                 </div>
               ))
@@ -510,7 +590,12 @@ export default function LibraryTab() {
                   key={`${track.id}-${index}`} 
                   className="flex items-center gap-2 sm:gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-2 sm:p-3 hover:bg-[#1a1a1a] transition-colors w-full"
                 >
-                  <img src={track.thumbnail} alt={track.title} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover flex-shrink-0" />
+                  <button
+                    onClick={() => playTrack(track, likedTracks)}
+                    className="shrink-0"
+                  >
+                    <img src={track.thumbnail} alt={track.title} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover" />
+                  </button>
                   <div className="flex-1 min-w-0">
                     <p className="truncate font-medium text-[#f0e0d0] text-sm">{track.title}</p>
                     <p className="truncate text-xs sm:text-sm text-[#a08070]">{track.artist}</p>
@@ -524,7 +609,9 @@ export default function LibraryTab() {
                   </button>
                   <TrackMenu 
                     onRemove={() => handleRemoveFromLiked(track.id)}
+                    onAddToPlaylist={(playlistId) => handleAddTrackToPlaylist(track, playlistId)}
                     isLikedView={true}
+                    playlists={playlists}
                   />
                 </div>
               ))

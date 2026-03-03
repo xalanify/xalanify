@@ -12,14 +12,15 @@ import {
   Brain,
   Plus,
   Search,
-  Play,
   Sparkles,
+  RefreshCw,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useTheme } from "@/lib/theme-context"
 import { likeTrack, createPlaylist, subscribeToPlaylists, subscribeToLikedTracks, addTrackToPlaylist } from "@/lib/db"
 import { searchMusic, searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
 import { type Track } from "@/lib/player-context"
+import { getPreferences, setPreferences } from "@/lib/preferences"
 import { toast } from "sonner"
 
 const THEME_COLORS = [
@@ -33,7 +34,7 @@ const THEME_COLORS = [
   { id: "yellow" as const, name: "Amarelo", hex: "#EAB308" },
 ]
 
-type SettingsView = "menu" | "profile" | "customization" | "credits" | "tools" | "smart_recommendations" | "discover_playlists"
+type SettingsView = "menu" | "profile" | "customization" | "credits" | "tools" | "smart_recommendations" | "discover_playlists" | "player_settings"
 
 export default function SettingsTab() {
   const { user, profile, isAdmin, signOut } = useAuth()
@@ -52,6 +53,9 @@ export default function SettingsTab() {
   const [selectedDiscoverPlaylist, setSelectedDiscoverPlaylist] = useState<PlaylistSuggestion | null>(null)
   const [addingPlaylist, setAddingPlaylist] = useState(false)
 
+  // Player settings - apenas autoRetry
+  const [playerPrefs, setPlayerPrefs] = useState<{ autoRetry: boolean }>({ autoRetry: true })
+
   const userId = user?.uid || ""
 
   useEffect(() => {
@@ -67,6 +71,12 @@ export default function SettingsTab() {
       unsubLiked()
     }
   }, [userId])
+
+  // Load player preferences
+  useEffect(() => {
+    const prefs = getPreferences()
+    setPlayerPrefs(prefs)
+  }, [])
 
   const initials = useMemo(() => {
     if (profile?.username) return profile.username.charAt(0).toUpperCase()
@@ -148,6 +158,13 @@ export default function SettingsTab() {
     setAddingPlaylist(false)
   }
 
+  function handleAutoRetryToggle() {
+    const newValue = !playerPrefs.autoRetry
+    setPreferences({ autoRetry: newValue })
+    setPlayerPrefs(prev => ({ ...prev, autoRetry: newValue }))
+    toast.success(newValue ? "Retry automático ativado" : "Retry automático desativado")
+  }
+
   if (activeView === "profile") {
     return (
       <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
@@ -221,6 +238,47 @@ export default function SettingsTab() {
     )
   }
 
+  if (activeView === "player_settings" && isAdmin) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
+        <button onClick={() => setActiveView("tools")} className="mb-6 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+        
+        <h2 className="mb-4 text-2xl font-bold text-[#f0e0d0] flex items-center gap-3">
+          <RefreshCw className="h-6 w-6" style={{ color: accentHex }} />
+          Configurações do Player
+        </h2>
+
+        <p className="text-sm text-[#a08070] mb-6">
+          O sistema usa automaticamente YouTube para reproduzir músicas completas.
+        </p>
+
+        <div className="space-y-4">
+          {/* Auto Retry Toggle */}
+          <div className="rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <RefreshCw className="h-5 w-5" style={{ color: accentHex }} />
+                <div>
+                  <p className="text-[#f0e0d0] font-medium">Retry Automático</p>
+                  <p className="text-xs text-[#a08070]">Tentar novamente automaticamente quando a música falha</p>
+                </div>
+              </div>
+              <button
+                onClick={handleAutoRetryToggle}
+                className={`relative h-6 w-11 rounded-full transition-colors ${playerPrefs.autoRetry ? 'bg-green-500' : 'bg-[#3a3a3a]'}`}
+              >
+                <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${playerPrefs.autoRetry ? 'left-6' : 'left-1'}`} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (activeView === "tools" && isAdmin) {
     return (
       <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
@@ -234,7 +292,18 @@ export default function SettingsTab() {
         </h2>
 
         <div className="space-y-3">
-          <p className="text-sm text-[#a08070] mb-4">Ferramentas de teste apenas para administradores</p>
+          <button onClick={() => setActiveView("player_settings")} className="w-full flex items-center justify-between rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}20` }}>
+                <RefreshCw className="h-5 w-5" style={{ color: accentHex }} />
+              </div>
+              <div className="text-left">
+                <span className="text-[#f0e0d0] block">Configurações do Player</span>
+                <span className="text-xs text-[#a08070]">Retry automático</span>
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 text-[#a08070]" />
+          </button>
 
           <button onClick={() => setActiveView("smart_recommendations")} className="w-full flex items-center justify-between rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
             <div className="flex items-center gap-3">
@@ -402,7 +471,6 @@ export default function SettingsTab() {
                     <p className="text-sm text-[#a08070]">{item.trackCount} músicas</p>
                     <p className="text-xs text-[#706050] truncate">{item.description}</p>
                   </div>
-                  <Play className="h-5 w-5 text-[#a08070]" />
                 </button>
               ))}
             </>
