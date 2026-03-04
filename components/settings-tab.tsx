@@ -15,6 +15,8 @@ import {
   Sparkles,
   RefreshCw,
   History,
+  Download,
+  Check,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useTheme } from "@/lib/theme-context"
@@ -57,6 +59,52 @@ export default function SettingsTab() {
 
   // Player settings - apenas autoRetry
   const [playerPrefs, setPlayerPrefs] = useState<{ autoRetry: boolean }>({ autoRetry: true })
+  
+  // PWA installation states
+  const [canInstall, setCanInstall] = useState(false)
+  const [isInstalled, setIsInstalled] = useState(false)
+  const [installing, setInstalling] = useState(false)
+
+  // Check PWA install availability
+  useEffect(() => {
+    // Check if already installed
+    const checkInstalled = () => {
+      if (window.isPWAInstalled) {
+        setIsInstalled(window.isPWAInstalled())
+      }
+    }
+    checkInstalled()
+    
+    // Listen for install availability
+    const handleInstallAvailable = () => setCanInstall(true)
+    window.addEventListener('pwa-install-available', handleInstallAvailable)
+    
+    // Also check deferredPrompt directly
+    if (window.deferredPrompt) {
+      setCanInstall(true)
+    }
+    
+    return () => {
+      window.removeEventListener('pwa-install-available', handleInstallAvailable)
+    }
+  }, [])
+
+  // Handle PWA installation
+  async function handleInstallPWA() {
+    if (!window.installPWA) return
+    setInstalling(true)
+    try {
+      const success = await window.installPWA()
+      if (success) {
+        setIsInstalled(true)
+        setCanInstall(false)
+        toast.success("Xalanify adicionado ao ecrã inicial!")
+      }
+    } catch (error) {
+      console.error("Install failed:", error)
+    }
+    setInstalling(false)
+  }
 
   const userId = user?.uid || ""
 
@@ -594,6 +642,36 @@ export default function SettingsTab() {
           </div>
           <ChevronRight className="h-5 w-5 text-[#a08070]" />
         </button>
+
+        {/* Install PWA Button */}
+        {(canInstall || !isInstalled) && (
+          <button 
+            onClick={handleInstallPWA} 
+            disabled={installing}
+            className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all"
+          >
+            <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+              {isInstalled ? (
+                <Check className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
+              ) : (
+                <Download className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
+              )}
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-medium text-[#f0e0d0]">
+                {isInstalled ? "Instalado" : "Instalar App"}
+              </p>
+              <p className="text-sm text-[#a08070]">
+                {isInstalled ? "Adicionado ao ecrã inicial" : "Adicionar ao ecrã inicial"}
+              </p>
+            </div>
+            {installing ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#a08070] border-t-transparent" />
+            ) : (
+              <ChevronRight className="h-5 w-5 text-[#a08070]" />
+            )}
+          </button>
+        )}
 
         <button onClick={signOut} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-red-500/20 mt-6">
           <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-red-500/20">

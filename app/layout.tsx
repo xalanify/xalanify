@@ -2,6 +2,15 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
+// Types for PWA functions
+declare global {
+  interface Window {
+    installPWA?: () => Promise<boolean>
+    isPWAInstalled?: () => boolean
+    deferredPrompt?: any
+  }
+}
+
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
@@ -60,6 +69,35 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.svg" />
         <link rel="mask-icon" href="/icon-192.svg" color="#1a0a0a" />
         <script dangerouslySetInnerHTML={{ __html: `
+          let deferredPrompt = null;
+          
+          // Armazena o evento de instalação
+          window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Dispara evento customizado para mostrar o botão
+            window.dispatchEvent(new CustomEvent('pwa-install-available'));
+          });
+          
+          // Função global para instalar a PWA
+          window.installPWA = async function() {
+            if (!deferredPrompt) return false;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+              deferredPrompt = null;
+              window.dispatchEvent(new CustomEvent('pwa-installed'));
+            }
+            return outcome === 'accepted';
+          };
+          
+          // Verifica se já está instalado
+          window.isPWAInstalled = function() {
+            return window.matchMedia('(display-mode: standalone)').matches || 
+                   window.matchMedia('(display-mode: fullscreen)').matches ||
+                   window.matchMedia('(display-mode: minimal-ui)').matches;
+          };
+
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
               navigator.serviceWorker.register('/sw.js')
