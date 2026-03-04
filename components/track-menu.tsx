@@ -121,22 +121,22 @@ export default function TrackMenu({
   return (
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
-        className="absolute rounded-2xl border border-[#f0e0d0]/10 p-3 shadow-2xl overflow-hidden"
+        className="absolute rounded-[18px] glass-card p-3 shadow-2xl overflow-hidden"
         style={{
           left: menuPosition?.left ?? 12,
           top: menuPosition?.top ?? 90,
           width: menuPosition?.width ?? 280,
-          background: "#1a1a1a",
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Track Info */}
         <div className="mb-3 flex items-center gap-3">
-          <img src={track.thumbnail} alt={track.title} className="h-12 w-12 rounded-lg object-cover" />
+          <img src={track.thumbnail} alt={track.title} className="h-12 w-12 rounded-[10px] object-cover" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-[#f0e0d0]">{track.title}</p>
-            <p className="truncate text-xs text-[#a08070]">{track.artist}</p>
+            <p className="truncate text-[17px] font-semibold text-[#D2B48C]">{track.title}</p>
+            <p className="truncate text-[14px] text-[#8E8E93]">{track.artist}</p>
           </div>
-          <button onClick={onClose} className="p-1 text-[#706050] hover:text-[#a08070]" aria-label="Fechar">
+          <button onClick={onClose} className="p-1 text-[#8E8E93] hover:text-[#D2B48C]" aria-label="Fechar">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -147,21 +147,21 @@ export default function TrackMenu({
           <div className="space-y-1">
             <button 
               onClick={() => setShowPlaylists(false)}
-              className="flex items-center gap-2 text-xs text-[#a08070] hover:text-[#f0e0d0] mb-2"
+              className="flex items-center gap-2 text-xs text-[#8E8E93] hover:text-[#D2B48C] mb-2"
             >
               <ArrowLeft className="h-3 w-3" /> Voltar
             </button>
-            <p className="text-xs uppercase tracking-wide text-[#a08070] px-1">Escolher Playlist</p>
+            <p className="text-xs uppercase tracking-wide text-[#8E8E93] px-1">Escolher Playlist</p>
             {playlistData.length === 0 ? (
-              <p className="py-3 text-center text-xs text-[#706050]">Sem playlists. Cria uma na Biblioteca.</p>
+              <p className="py-3 text-center text-xs text-[#8E8E93]/50">Sem playlists. Cria uma na Biblioteca.</p>
             ) : (
               playlistData.map((pl) => (
                 <button
                   key={pl.id}
                   onClick={() => handleAddToPlaylist(pl.id)}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[#f0e0d0] hover:bg-[#f0e0d0]/10"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[#D2B48C] hover:bg-[#D2B48C]/10"
                 >
-                  <Music className="h-4 w-4 text-[#a08070]" />
+                  <Music className="h-4 w-4 text-[#8E8E93]" />
                   <span className="truncate">{pl.name}</span>
                 </button>
               ))
@@ -180,7 +180,7 @@ export default function TrackMenu({
             ) : (
               <button
                 onClick={handleLike}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-[#f0e0d0] hover:bg-[#f0e0d0]/10 transition-colors"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-[#D2B48C] hover:bg-[#D2B48C]/10 transition-colors"
               >
                 <Heart className="h-4 w-4 text-[#e63946]" />
                 <span>Adicionar aos Favoritos</span>
@@ -188,9 +188,9 @@ export default function TrackMenu({
             )}
             <button
               onClick={() => setShowPlaylists(true)}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-[#f0e0d0] hover:bg-[#f0e0d0]/10 transition-colors"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-[#D2B48C] hover:bg-[#D2B48C]/10 transition-colors"
             >
-              <Plus className="h-4 w-4 text-[#a08070]" />
+              <Plus className="h-4 w-4 text-[#8E8E93]" />
               <span>Adicionar a Playlist</span>
             </button>
           </div>

@@ -582,65 +582,70 @@ export default function SettingsTab() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-4 sm:px-6 pb-6 pt-4 w-full max-w-full">
-      <h2 className="mb-6 text-2xl font-bold text-[#f0e0d0]">Ajustes</h2>
+    <div className="flex min-h-0 flex-1 flex-col px-5 pb-6 pt-4 w-full max-w-full">
+      {/* Header - Title at left with margin 16-20px */}
+      <h2 className="mb-5 text-[34px] font-bold text-[#D2B48C]">Ajustes</h2>
       
       <div className="space-y-3 overflow-y-auto w-full">
-        <button onClick={() => setActiveView("profile")} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+        {/* Settings Cards - Glass Card Style with exact dimensions */}
+        <button onClick={() => setActiveView("profile")} className="w-full flex items-center gap-4 rounded-[18px] glass-card p-4 hover:bg-[#1a1a1a] transition-all h-[76px]">
+          {/* Left: Icon 48-56px, rounded 8-12px */}
+          <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-[10px]" style={{ backgroundColor: `${accentHex}30` }}>
             <User className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
           </div>
+          {/* Center: Title (Bege, 17pt, Semi-bold) + Subtitle (Gray, 14pt) */}
           <div className="flex-1 text-left">
-            <p className="font-medium text-[#f0e0d0]">Perfil</p>
-            <p className="text-sm text-[#a08070]">{profile?.username || "Editar perfil"}</p>
+            <p className="font-semibold text-[17px] text-[#D2B48C]">Perfil</p>
+            <p className="text-[14px] text-[#8E8E93]">{profile?.username || "Editar perfil"}</p>
           </div>
-          <ChevronRight className="h-5 w-5 text-[#a08070]" />
+          {/* Right: Arrow */}
+          <ChevronRight className="h-5 w-5 text-[#8E8E93]" />
         </button>
 
-        <button onClick={() => setActiveView("customization")} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+        <button onClick={() => setActiveView("customization")} className="w-full flex items-center gap-4 rounded-[18px] glass-card p-4 hover:bg-[#1a1a1a] transition-all h-[76px]">
+          <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-[10px]" style={{ backgroundColor: `${accentHex}30` }}>
             <Palette className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
           </div>
           <div className="flex-1 text-left">
-            <p className="font-medium text-[#f0e0d0]">Personalização</p>
-            <p className="text-sm text-[#a08070]">Tema e cores</p>
+            <p className="font-semibold text-[17px] text-[#D2B48C]">Personalização</p>
+            <p className="text-[14px] text-[#8E8E93]">Tema e cores</p>
           </div>
-          <ChevronRight className="h-5 w-5 text-[#a08070]" />
+          <ChevronRight className="h-5 w-5 text-[#8E8E93]" />
         </button>
 
-        <button onClick={() => setActiveView("updates")} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+        <button onClick={() => setActiveView("updates")} className="w-full flex items-center gap-4 rounded-[18px] glass-card p-4 hover:bg-[#1a1a1a] transition-all h-[76px]">
+          <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-[10px]" style={{ backgroundColor: `${accentHex}30` }}>
             <History className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
           </div>
           <div className="flex-1 text-left">
-            <p className="font-medium text-[#f0e0d0]">Atualizações</p>
-            <p className="text-sm text-[#a08070]">Histórico de alterações</p>
+            <p className="font-semibold text-[17px] text-[#D2B48C]">Atualizações</p>
+            <p className="text-[14px] text-[#8E8E93]">Histórico de alterações</p>
           </div>
-          <ChevronRight className="h-5 w-5 text-[#a08070]" />
+          <ChevronRight className="h-5 w-5 text-[#8E8E93]" />
         </button>
 
         {isAdmin && (
-          <button onClick={() => setActiveView("tools")} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-            <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+          <button onClick={() => setActiveView("tools")} className="w-full flex items-center gap-4 rounded-[18px] glass-card p-4 hover:bg-[#1a1a1a] transition-all h-[76px]">
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-[10px]" style={{ backgroundColor: `${accentHex}30` }}>
               <Wrench className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
             </div>
             <div className="flex-1 text-left">
-              <p className="font-medium text-[#f0e0d0]">Ferramentas</p>
-              <p className="text-sm text-[#a08070]">Testes (Admin)</p>
+              <p className="font-semibold text-[17px] text-[#D2B48C]">Ferramentas</p>
+              <p className="text-[14px] text-[#8E8E93]">Admin</p>
             </div>
-            <ChevronRight className="h-5 w-5 text-[#a08070]" />
+            <ChevronRight className="h-5 w-5 text-[#8E8E93]" />
           </button>
         )}
 
-        <button onClick={() => setActiveView("credits")} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+        <button onClick={() => setActiveView("credits")} className="w-full flex items-center gap-4 rounded-[18px] glass-card p-4 hover:bg-[#1a1a1a] transition-all h-[76px]">
+          <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-[10px]" style={{ backgroundColor: `${accentHex}30` }}>
             <Info className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
           </div>
           <div className="flex-1 text-left">
-            <p className="font-medium text-[#f0e0d0]">Créditos</p>
-            <p className="text-sm text-[#a08070]">Sobre a app</p>
+            <p className="font-semibold text-[17px] text-[#D2B48C]">Créditos</p>
+            <p className="text-[14px] text-[#8E8E93]">Sobre a app</p>
           </div>
-          <ChevronRight className="h-5 w-5 text-[#a08070]" />
+          <ChevronRight className="h-5 w-5 text-[#8E8E93]" />
         </button>
 
         {/* Install PWA Button */}
@@ -648,9 +653,9 @@ export default function SettingsTab() {
           <button 
             onClick={handleInstallPWA} 
             disabled={installing}
-            className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all"
+            className="w-full flex items-center gap-4 rounded-[18px] glass-card p-4 hover:bg-[#1a1a1a] transition-all h-[76px]"
           >
-            <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-[10px]" style={{ backgroundColor: `${accentHex}30` }}>
               {isInstalled ? (
                 <Check className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
               ) : (
@@ -658,27 +663,28 @@ export default function SettingsTab() {
               )}
             </div>
             <div className="flex-1 text-left">
-              <p className="font-medium text-[#f0e0d0]">
+              <p className="font-semibold text-[17px] text-[#D2B48C]">
                 {isInstalled ? "Instalado" : "Instalar App"}
               </p>
-              <p className="text-sm text-[#a08070]">
+              <p className="text-[14px] text-[#8E8E93]">
                 {isInstalled ? "Adicionado ao ecrã inicial" : "Adicionar ao ecrã inicial"}
               </p>
             </div>
             {installing ? (
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#a08070] border-t-transparent" />
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#8E8E93] border-t-transparent" />
             ) : (
-              <ChevronRight className="h-5 w-5 text-[#a08070]" />
+              <ChevronRight className="h-5 w-5 text-[#8E8E93]" />
             )}
           </button>
         )}
 
-        <button onClick={signOut} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-red-500/20 mt-6">
-          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-red-500/20">
+        {/* Logout Button */}
+        <button onClick={signOut} className="w-full flex items-center gap-4 rounded-[18px] glass-card p-4 hover:bg-red-500/20 mt-6 h-[76px]">
+          <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-[10px] bg-red-500/20">
             <LogOut className="h-6 w-6 sm:h-7 sm:w-7 text-red-400" />
           </div>
           <div className="flex-1 text-left">
-            <p className="font-medium text-red-400">Terminar Sessão</p>
+            <p className="font-semibold text-[17px] text-red-400">Terminar Sessão</p>
           </div>
         </button>
       </div>

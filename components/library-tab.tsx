@@ -345,64 +345,70 @@ export default function LibraryTab() {
   if (view === "list") {
     return (
       <div className="flex min-h-0 flex-1 flex-col w-full max-w-full overflow-hidden">
-        <div className="px-4 sm:px-6 pb-6 pt-4 flex-1 overflow-y-auto">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-[#f0e0d0]">Biblioteca</h2>
+        <div className="px-5 pb-6 pt-4 flex-1 overflow-y-auto">
+          {/* Header - Title at left with margin 16-20px */}
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-[34px] font-bold text-[#D2B48C]">Biblioteca</h2>
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all active:scale-95 flex-shrink-0"
-              style={{ backgroundColor: accentHex }}
+              className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all active:scale-95 flex-shrink-0 bg-[#3B82F6]"
             >
               <Plus className="h-4 w-4" />
-              Nova
+              + Playlist
             </button>
           </div>
 
           <div className="space-y-3 w-full">
-            {/* Favoritos Card */}
+            {/* Favoritos Card - Glass Card Style */}
             <button
               onClick={() => setView("liked")}
-              className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all active:scale-95"
+              className="w-full flex items-center gap-4 rounded-[18px] glass-card p-4 hover:bg-[#1a1a1a] transition-all active:scale-95 h-[76px]"
             >
+              {/* Left: Icon 48-56px, rounded 8-12px */}
               <div 
-                className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: `${accentHex}20` }}
+                className="h-12 w-12 sm:h-14 sm:w-14 rounded-[10px] flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${accentHex}30` }}
               >
-                <Heart className="h-7 w-7 sm:h-8 sm:w-8" style={{ color: accentHex }} />
+                <Heart className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
               </div>
+              {/* Center: Title (Bege, 17pt, Semi-bold) + Subtitle (Gray, 14pt) */}
               <div className="flex-1 text-left min-w-0">
-                <p className="font-semibold text-[#f0e0d0] truncate">Favoritos</p>
-                <p className="text-sm text-[#a08070]">{likedTracks.length} músicas</p>
+                <p className="font-semibold text-[17px] text-[#D2B48C] truncate">Favoritos</p>
+                <p className="text-[14px] text-[#8E8E93]">{likedTracks.length} músicas</p>
               </div>
-              <Play className="h-5 w-5 text-[#a08070] flex-shrink-0" />
+              {/* Right: Arrow */}
+              <Play className="h-5 w-5 text-[#8E8E93] flex-shrink-0" />
             </button>
 
             {/* Playlists */}
             {playlists.map((playlist) => (
               <div
                 key={playlist.id}
-                className="w-full flex items-center gap-3 sm:gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-3 sm:p-4 hover:bg-[#1a1a1a] transition-all"
+                className="w-full flex items-center gap-3 sm:gap-4 rounded-[18px] glass-card p-3 sm:p-4 hover:bg-[#1a1a1a] transition-all h-[76px]"
               >
                 <button
                   onClick={() => { setSelectedPlaylist(playlist); setView("playlist") }}
                   className="flex-1 flex items-center gap-3 sm:gap-4 text-left min-w-0"
                 >
+                  {/* Left: Icon 48-56px, rounded 8-12px */}
                   <div 
-                    className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
-                    style={{ backgroundColor: playlist.image_url ? "transparent" : `${accentHex}20` }}
+                    className="h-12 w-12 sm:h-14 sm:w-14 rounded-[10px] flex items-center justify-center flex-shrink-0 overflow-hidden"
+                    style={{ backgroundColor: playlist.image_url ? "transparent" : `${accentHex}30` }}
                   >
                     {playlist.image_url ? (
                       <img src={playlist.image_url} alt={playlist.name} className="h-full w-full object-cover" />
                     ) : (
-                      <Music className="h-7 w-7 sm:h-8 sm:w-8" style={{ color: accentHex }} />
+                      <Music className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
                     )}
                   </div>
+                  {/* Center: Title (Bege, 17pt, Semi-bold) + Subtitle (Gray, 14pt) */}
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[#f0e0d0] truncate text-sm sm:text-base">{playlist.name}</p>
-                    <p className="text-xs sm:text-sm text-[#a08070]">{playlist.tracks.length} músicas</p>
+                    <p className="font-semibold text-[17px] text-[#D2B48C] truncate text-sm sm:text-base">{playlist.name}</p>
+                    <p className="text-[14px] text-[#8E8E93]">{playlist.tracks.length} músicas</p>
                   </div>
                 </button>
                 
+                {/* Right: 3 dots menu */}
                 <PlaylistMenu 
                   onDelete={() => handleDeletePlaylist(playlist.id)}
                   shareId={playlist.id}
@@ -410,20 +416,22 @@ export default function LibraryTab() {
               </div>
             ))}
 
-            {/* Import Playlist Card */}
+            {/* Import Playlist Card - Dashed border style */}
             <button
               onClick={() => setView("import")}
-              className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-dashed border-[#f0e0d0]/20 p-4 hover:border-[#f0e0d0]/40 hover:bg-[#1a1a1a] transition-all active:scale-95"
+              className="w-full flex items-center gap-4 rounded-[18px] glass-card p-4 hover:bg-[#1a1a1a] transition-all active:scale-95 h-[76px]"
             >
+              {/* Left: Icon 48-56px, rounded 8-12px */}
               <div 
-                className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: `${accentHex}10` }}
+                className="h-12 w-12 sm:h-14 sm:w-14 rounded-[10px] flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${accentHex}15` }}
               >
-                <Download className="h-7 w-7 sm:h-8 sm:w-8 text-[#a08070]" />
+                <Download className="h-6 w-6 sm:h-7 sm:w-7 text-[#8E8E93]" />
               </div>
+              {/* Center: Title (Bege, 17pt, Semi-bold) + Subtitle (Gray, 14pt) */}
               <div className="flex-1 text-left min-w-0">
-                <p className="font-semibold text-[#f0e0d0]">Importar Playlist</p>
-                <p className="text-sm text-[#a08070]">Por ID</p>
+                <p className="font-semibold text-[17px] text-[#D2B48C]">+ Importar</p>
+                <p className="text-[14px] text-[#8E8E93]">Por ID</p>
               </div>
             </button>
           </div>
@@ -432,28 +440,27 @@ export default function LibraryTab() {
         {/* Create Modal */}
         {showCreate && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
-            <div className="w-full max-w-sm rounded-2xl bg-[#1a1a1a] border border-[#f0e0d0]/10 p-6">
-              <h3 className="mb-4 text-lg font-bold text-[#f0e0d0]">Nova Playlist</h3>
+            <div className="w-full max-w-sm rounded-2xl glass-card p-6">
+              <h3 className="mb-4 text-lg font-bold text-[#D2B48C]">Nova Playlist</h3>
               <input
                 value={newPlaylistName}
                 onChange={(e) => setNewPlaylistName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreatePlaylist()}
                 placeholder="Nome da playlist..."
                 autoFocus
-                className="mb-4 w-full rounded-xl bg-[#0a0a0a] border border-[#f0e0d0]/10 px-4 py-3 text-sm text-[#f0e0d0] placeholder-[#a08070]/50"
+                className="mb-4 w-full rounded-xl bg-[#000000] border border-[rgba(255,255,255,0.1)] px-4 py-3 text-sm text-[#D2B48C] placeholder-[#8E8E93]/50"
               />
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowCreate(false)}
-                  className="flex-1 rounded-xl py-3 text-sm font-medium text-[#a08070] hover:text-[#f0e0d0]"
+                  className="flex-1 rounded-xl py-3 text-sm font-medium text-[#8E8E93] hover:text-[#D2B48C]"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleCreatePlaylist}
                   disabled={!newPlaylistName.trim()}
-                  className="flex-1 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50"
-                  style={{ backgroundColor: accentHex }}
+                  className="flex-1 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50 bg-[#3B82F6]"
                 >
                   Criar
                 </button>

@@ -125,23 +125,23 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
       </div>
 
       <div className="px-8 pb-10">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-xl font-bold text-[#f0e0d0]">
-              {currentTrack.title}
-            </h2>
-            <p className="truncate text-sm text-[#a08070]">{currentTrack.artist}</p>
-          </div>
+          <div className="mb-6 flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-xl font-bold text-[#D2B48C]">
+                {currentTrack.title}
+              </h2>
+              <p className="truncate text-sm text-[#8E8E93]">{currentTrack.artist}</p>
+            </div>
           <button
             onClick={handleLike}
-            className={`shrink-0 p-2 ${liked ? "text-[#e63946]" : "text-[#706050]"}`}
+            className={`shrink-0 p-2 ${liked ? "text-[#e63946]" : "text-[#8E8E93]"}`}
             aria-label="Adicionar aos favoritos"
           >
             <Heart className={`h-6 w-6 ${liked ? "fill-current" : ""}`} />
           </button>
         </div>
 
-        <div className="mb-6">
+          <div className="mb-6">
           <input
             id="player-seek"
             name="seek"
@@ -156,7 +156,7 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
               background: `linear-gradient(to right, ${accentHex} ${fraction * 100}%, rgba(255,255,255,0.1) ${fraction * 100}%)`,
             }}
           />
-          <div className="mt-1 flex justify-between text-xs text-[#706050]">
+          <div className="mt-1 flex justify-between text-xs text-[#8E8E93]">
             <span>{formatTime(progress)}</span>
             <span>{formatTime(duration)}</span>
           </div>
@@ -165,7 +165,7 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
         <div className="mb-6 flex items-center gap-3">
           <button
             onClick={() => setVolume(volume <= 0.01 ? 0.85 : 0)}
-            className="p-1 text-[#a08070]"
+            className="p-1 text-[#8E8E93]"
             aria-label="Ativar ou silenciar volume"
           >
             {volume <= 0.01 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
@@ -187,7 +187,7 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
         <div className="flex items-center justify-center gap-8">
           <button
             onClick={previous}
-            className="p-3 text-[#f0e0d0]"
+            className="p-3 text-[#D2B48C]"
             aria-label="Anterior"
           >
             <SkipBack className="h-7 w-7 fill-current" />
@@ -206,8 +206,8 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
           </button>
           <button
             onClick={next}
-            className="p-3 text-[#f0e0d0]"
-            aria-label="Proxima"
+            className="p-3 text-[#D2B48C]"
+            aria-label="Próxima"
           >
             <SkipForward className="h-7 w-7 fill-current" />
           </button>

@@ -136,16 +136,16 @@ function XalanifyApp() {
         {activeTab === "settings" && <SettingsTab />}
       </div>
 
-      {/* Bottom Player + Navigation */}
-      <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/95 to-transparent">
+      {/* Bottom Player + Navigation - Glass Tab Bar */}
+      <div className="absolute inset-x-0 bottom-0 z-20">
         {currentTrack && (
           <MiniPlayer 
             onExpand={() => setShowFullPlayer(true)} 
           />
         )}
         
-        {/* Navigation */}
-        <nav className="mx-4 mb-4 flex items-center justify-around rounded-2xl bg-[#1a1a1a]/80 backdrop-blur-md border border-[#f0e0d0]/10 px-2 py-3">
+        {/* Navigation - Glass Effect Tab Bar */}
+        <nav className="mx-4 mb-4 flex items-center justify-around rounded-2xl glass-card px-2 py-3">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id
             return (
@@ -160,11 +160,11 @@ function XalanifyApp() {
               >
                 <tab.icon 
                   className="h-5 w-5 transition-colors" 
-                  style={{ color: isActive ? accentHex : "#a08070" }} 
+                  style={{ color: isActive ? accentHex : "#8E8E93" }} 
                 />
                 <span 
                   className="text-[11px] font-medium transition-colors"
-                  style={{ color: isActive ? accentHex : "#a08070" }}
+                  style={{ color: isActive ? accentHex : "#8E8E93" }}
                 >
                   {tab.label}
                 </span>

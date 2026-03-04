@@ -1,0 +1,12 @@
+# Pasta de Referências para Design
+
+Por favor, coloque as imagens de referência nesta pasta com os seguintes nomes sugeridos:
+
+- Ajustes.png ou Ajustes.jpg
+- Biblioteca.png ou Biblioteca.jpg
+- Pesquisar.png ou Pesquisar.jpg
+- Playlist.png ou Playlist.jpg
+- Perfil.png ou Perfil.jpg
+
+Depois de colocar as imagens, diga-me que estão prontas para eu analisar!
+
