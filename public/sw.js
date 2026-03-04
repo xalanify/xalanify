@@ -1,8 +1,10 @@
 // Xalanify Service Worker - com suporte para background media e auto-update
-const CACHE_NAME = 'xalanify-v3';
+const CACHE_NAME = 'xalanify-v4';
 const urlsToCache = [
   '/',
   '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
   '/icon-192.svg',
   '/icon-512.svg'
 ];
@@ -147,3 +149,4 @@ self.addEventListener('notificationclick', (event) => {
     clients.openWindow('/')
   );
 });
+
