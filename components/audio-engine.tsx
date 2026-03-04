@@ -3,53 +3,8 @@
 import { useEffect, useState, useRef, lazy, Suspense } from "react"
 import { usePlayer } from "@/lib/player-context"
 
-// Instâncias Invidious públicas (alternam se uma falhar) - mais instâncias para backup
-const INVIDIOUS_INSTANCES = [
-  "https://invidious.snopyta.org",
-  "https://invidious.kavin.rocks",
-  "https://invidious.namazso.eu",
-  "https://yewtu.be",
-  "https://invidious.projectsegfau.lt",
-  "https://iv.ggtyler.dev",
-  "https://invidious.moomoo.io",
-  "https://invidious.tube",
-]
-
-let currentInstanceIndex = 0
-
-async function getInvidiousStreamUrl(videoId: string): Promise<string | null> {
-  for (let i = 0; i < INVIDIOUS_INSTANCES.length; i++) {
-    const instance = INVIDIOUS_INSTANCES[currentInstanceIndex]
-    currentInstanceIndex = (currentInstanceIndex + 1) % INVIDIOUS_INSTANCES.length
-    
-    try {
-      const response = await fetch(`${instance}/api/v1/videos/${videoId}`)
-      if (!response.ok) continue
-      
-      const data = await response.json()
-      
-      // Procurar stream de áudio
-      const audioStreams = data.adaptiveFormats?.filter((f: any) => f.type?.includes("audio"))
-      
-      if (audioStreams && audioStreams.length > 0) {
-        const bestAudio = audioStreams.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))[0]
-        console.log("[AudioEngine] ✅ Stream Invidious obtido")
-        return bestAudio.url
-      }
-    } catch {
-      console.log("[AudioEngine] ❌ Instância Invidious falhou:", instance)
-    }
-  }
-  
-  return null
-}
-
 // Lazy load React Player
 const ReactPlayer = lazy(() => import("react-player/youtube"))
-
-function LoadingPlayer() {
-  return null
-}
 
 export default function AudioEngine() {
   const {
@@ -64,104 +19,121 @@ export default function AudioEngine() {
     volume,
     progress,
     duration,
+    resume,
+    pause,
   } = usePlayer()
 
   const [streamUrl, setStreamUrl] = useState<string | null>(null)
-  const [loadingStream, setLoadingStream] = useState(false)
-  const [useInvidious, setUseInvidious] = useState(true)
+  const [useDirectStream, setUseDirectStream] = useState(true)
+  const wakeLockRef = useRef<any>(null)
   const streamAudioRef = useRef<HTMLAudioElement | null>(null)
-  const [invidiousTimeout, setInvidiousTimeout] = useState(false)
-  
-  // Carregar stream do Invidious quando muda o youtubeId
+  const lastVideoIdRef = useRef<string | null>(null)
+
+  // Wake Lock
+  useEffect(() => {
+    async function requestWakeLock() {
+      if (!currentTrack || !isPlaying) {
+        if (wakeLockRef.current) {
+          try { await wakeLockRef.current.release() } catch {}
+          wakeLockRef.current = null
+        }
+        return
+      }
+
+      if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+        try {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen')
+        } catch {}
+      }
+    }
+    requestWakeLock()
+    return () => {
+      if (wakeLockRef.current) {
+        try { wakeLockRef.current.release() } catch {}
+      }
+    }
+  }, [currentTrack, isPlaying])
+
+  // Reset quando muda track
+  useEffect(() => {
+    if (currentTrack?.youtubeId && currentTrack.youtubeId !== lastVideoIdRef.current) {
+      lastVideoIdRef.current = currentTrack.youtubeId
+      setStreamUrl(null)
+      setUseDirectStream(true)
+    }
+  }, [currentTrack?.youtubeId])
+
+  // Carregar stream via API route (proxy server-side)
   useEffect(() => {
     if (!currentTrack?.youtubeId) {
       setStreamUrl(null)
-      setUseInvidious(true)
-      setInvidiousTimeout(false)
       return
     }
 
-    // Reset states
-    setInvidiousTimeout(false)
-    setUseInvidious(true)
-    setLoadingStream(true)
+    const videoId = currentTrack.youtubeId
     
-    // Timeout de 5 segundos - se Invidious não responder, usar YouTube embed
-    const timeoutId = setTimeout(() => {
-      console.log("[AudioEngine] ⏱️ Timeout Invidious, usando YouTube embed")
-      setInvidiousTimeout(true)
-      setUseInvidious(false)
-      setLoadingStream(false)
-    }, 5000)
-    
-    getInvidiousStreamUrl(currentTrack.youtubeId)
-      .then((url) => {
-        clearTimeout(timeoutId)
-        if (url) {
-          setStreamUrl(url)
-          console.log("[AudioEngine] ✅ Usando stream Invidious")
+    // Usar API route como proxy para evitar CORS
+    fetch(`/api/stream/${videoId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.url) {
+          setStreamUrl(data.url)
+          console.log("[AudioEngine] ✅ Stream direto obtido!")
         } else {
-          console.log("[AudioEngine] ⚠️ Invidious falhou")
-          setUseInvidious(false)
+          console.log("[AudioEngine] ❌ Stream não encontrado")
+          setUseDirectStream(false)
         }
       })
-      .catch(() => {
-        clearTimeout(timeoutId)
-        console.log("[AudioEngine] ❌ Erro Invidious")
-        setUseInvidious(false)
+      .catch(err => {
+        console.log("[AudioEngine] ❌ Erro ao buscar stream:", err)
+        setUseDirectStream(false)
       })
-      .finally(() => {
-        setLoadingStream(false)
-      })
-      
-    return () => clearTimeout(timeoutId)
   }, [currentTrack?.youtubeId])
 
-  // Controlar reprodução do stream
+  // Controlar stream
   useEffect(() => {
-    if (!streamUrl || !streamAudioRef.current) return
+    if (!streamUrl || !streamAudioRef.current || !useDirectStream) return
 
     if (isPlaying) {
       streamAudioRef.current.play().catch(() => {
-        console.log("[AudioEngine] ⚠️ Stream falhou, tentando YouTube")
-        setUseInvidious(false)
+        console.log("[AudioEngine] ❌ Stream falhou")
+        setUseDirectStream(false)
+        setStreamUrl(null)
       })
     } else {
       streamAudioRef.current.pause()
     }
-  }, [isPlaying, streamUrl])
+  }, [isPlaying, streamUrl, useDirectStream])
 
-  // Atualizar volume
+  // Volume
   useEffect(() => {
     if (streamAudioRef.current) {
       streamAudioRef.current.volume = volume
     }
   }, [volume])
 
-  // Media Session API
+  // Media Session
   useEffect(() => {
     if (!currentTrack || !("mediaSession" in navigator)) return
 
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentTrack.title || "Unknown Title",
-      artist: currentTrack.artist || "Unknown Artist",
+      title: currentTrack.title || "Unknown",
+      artist: currentTrack.artist || "Unknown",
       album: "Xalanify",
       artwork: [{ src: currentTrack.thumbnail || "/icon-512.svg", sizes: "512x512", type: "image/png" }],
     })
 
     try {
-      navigator.mediaSession.setActionHandler("play", () => isPlaying ? null : null)
-      navigator.mediaSession.setActionHandler("pause", () => null)
+      navigator.mediaSession.setActionHandler("play", () => resume?.())
+      navigator.mediaSession.setActionHandler("pause", () => pause?.())
       navigator.mediaSession.setActionHandler("previoustrack", () => previous?.())
       navigator.mediaSession.setActionHandler("nexttrack", () => next?.())
     } catch {}
-  }, [currentTrack, next, previous])
+  }, [currentTrack, next, previous, resume, pause])
 
   useEffect(() => {
     if (!("mediaSession" in navigator) || !currentTrack) return
-    try {
-      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused"
-    } catch {}
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused"
   }, [isPlaying, currentTrack])
 
   useEffect(() => {
@@ -171,7 +143,7 @@ export default function AudioEngine() {
     } catch {}
   }, [progress, duration, currentTrack])
 
-  // Fallback para previewUrl (iTunes)
+  // Fallback preview
   useEffect(() => {
     if (!audioRef.current || currentTrack?.youtubeId || !currentTrack?.previewUrl) return
     if (isPlaying) audioRef.current.play().catch(() => {})
@@ -185,10 +157,14 @@ export default function AudioEngine() {
 
   if (!currentTrack) return null
 
+  const youtubeUrl = currentTrack.youtubeId 
+    ? `https://www.youtube.com/watch?v=${currentTrack.youtubeId}`
+    : null
+
   return (
     <div className="pointer-events-none fixed -left-[9999px] -top-[9999px] h-0 w-0 overflow-hidden opacity-0">
-      {/* Stream do Invidious (preferido) */}
-      {useInvidious && streamUrl && !loadingStream && (
+      {/* Direct Stream via API proxy */}
+      {useDirectStream && streamUrl && (
         <audio
           ref={streamAudioRef}
           src={streamUrl}
@@ -196,38 +172,47 @@ export default function AudioEngine() {
           preload="auto"
           onTimeUpdate={(e) => setProgress((e.currentTarget as HTMLAudioElement).currentTime)}
           onLoadedMetadata={(e) => setDuration((e.currentTarget as HTMLAudioElement).duration || 0)}
-          onEnded={next}
+          onEnded={() => next?.()}
           onError={() => {
-            console.log("[AudioEngine] ❌ Erro stream, fallback YouTube")
-            setUseInvidious(false)
+            console.log("[AudioEngine] ❌ Stream error")
+            setUseDirectStream(false)
             setStreamUrl(null)
           }}
         />
       )}
 
-      {/* YouTube Embed (fallback) */}
-      {!useInvidious && currentTrack.youtubeId && (
+      {/* YouTube Embed Fallback */}
+      {!useDirectStream && youtubeUrl && (
         <Suspense fallback={null}>
           <ReactPlayer
             ref={playerRef}
-            url={`https://www.youtube.com/watch?v=${currentTrack.youtubeId}`}
+            url={youtubeUrl}
             playing={isPlaying}
             volume={volume}
             muted={volume <= 0}
             controls={false}
             width={0}
             height={0}
+            playsInline={true}
             onProgress={({ playedSeconds }: { playedSeconds: number }) => setProgress(playedSeconds)}
             onDuration={(d: number) => setDuration(d)}
-            onEnded={next}
+            onEnded={() => next?.()}
+            onReady={() => console.log("[AudioEngine] ✅ YouTube ready")}
+            onError={(e: any) => console.log("[AudioEngine] ❌ YouTube error:", e)}
             config={{
-              playerVars: { autoplay: 1, controls: 0, disablekb: 1, modestbranding: 1 },
+              playerVars: { 
+                autoplay: 1, 
+                controls: 0, 
+                disablekb: 1, 
+                modestbranding: 1,
+                playsinline: 1,
+              },
             }}
           />
         </Suspense>
       )}
 
-      {/* iTunes Preview (fallback final) */}
+      {/* Spotify Preview */}
       {!currentTrack.youtubeId && currentTrack.previewUrl && (
         <audio
           key={currentTrack.id}
@@ -237,9 +222,10 @@ export default function AudioEngine() {
           preload="auto"
           onTimeUpdate={(e) => setProgress((e.currentTarget as HTMLAudioElement).currentTime)}
           onLoadedMetadata={(e) => setDuration((e.currentTarget as HTMLAudioElement).duration || 0)}
-          onEnded={next}
+          onEnded={() => next?.()}
         />
       )}
     </div>
   )
 }
+

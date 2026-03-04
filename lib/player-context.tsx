@@ -1,8 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react"
-import { getYoutubeId, getYoutubeIdsForRetry, getAudioStreamUrl, searchMusic } from "./musicApi"
-import { getPreferences } from "./preferences"
+import { getYoutubeId } from "./musicApi"
 
 export interface Track {
   id: string
@@ -51,133 +50,47 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const playerRef = useRef<any>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   
-  // Track retry attempts
-  const retryCountRef = useRef(0)
-  const lastProgressRef = useRef(0)
-  const isRetrying = useRef(false)
   const currentTrackRef = useRef<Track | null>(null)
-  const triedYouTubeIdsRef = useRef<string[]>([])
 
-  // Keep track of current track
   useEffect(() => {
     currentTrackRef.current = currentTrack
   }, [currentTrack])
 
+  // Play - Simples e direto
   const play = useCallback(async (track: Track) => {
     setProgress(0)
-    retryCountRef.current = 0
-    lastProgressRef.current = Date.now()
-    triedYouTubeIdsRef.current = []
+    setDuration(0)
 
     let ytId = track.youtubeId
-    let streamUrl = track.previewUrl
 
-    // Se não tem YouTube ID, procurar
+    // Se não tem YouTube ID, buscar
     if (!ytId) {
       console.log("[Player] 🔍 A procurar YouTube ID para:", track.title, "-", track.artist)
       ytId = await getYoutubeId(track.title, track.artist)
-      
-      if (!ytId) {
-        console.log("[Player] ❌ Não foi possível encontrar YouTube ID para:", track.title)
-      }
     }
 
-    // Se tem YouTube ID, obter stream direto via Invidious
-    if (ytId && !streamUrl) {
-      console.log("[Player] 🎵 A obter stream direto para YouTube ID:", ytId)
-      streamUrl = await getAudioStreamUrl(ytId)
-      if (streamUrl) {
-        console.log("[Player] ✅ Stream direto obtido via Invidious!")
-      } else {
-        console.log("[Player] ⚠️ Falha ao obter stream Invidious, usando YouTube embed como fallback")
-      }
-    }
+    console.log("[Player] ▶️ A reproduzir:", track.title, "YouTube ID:", ytId)
 
-    if (ytId) {
-      triedYouTubeIdsRef.current.push(ytId)
-    }
-
-    console.log("[Player] ▶️ A reproduzir:", track.title, "YouTube ID:", ytId, "Stream direto:", streamUrl ? "Sim" : "Não (vai usar YouTube embed)")
-
-    // Usar streamUrl se disponível, caso contrário usar YouTube embed
-    setCurrentTrack({ ...track, youtubeId: ytId ?? null, previewUrl: streamUrl })
+    // Guardar track com YouTube ID
+    setCurrentTrack({ ...track, youtubeId: ytId ?? null })
     setIsPlaying(true)
   }, [])
 
+  // Retry - para usar quando Piped/YouTube fail
   const retryTrack = useCallback(async () => {
     const track = currentTrackRef.current
     if (!track) return
     
-    console.log("[Player] 🔄 Retry attempt #" + retryCountRef.current + " for:", track.title)
-    retryCountRef.current += 1
+    console.log("[Player] 🔄 Retry para:", track.title)
     
-    // Buscar múltiplos IDs alternativos
-    const alternativeIds = await getYoutubeIdsForRetry(track.title, track.artist)
+    const newId = await getYoutubeId(track.title, track.artist)
     
-    // Filtrar IDs que já tentamos
-    const newIds = alternativeIds.filter(id => !triedYouTubeIdsRef.current.includes(id))
-    
-    console.log("[Player] 📋 IDs alternativos encontrados:", newIds.length)
-    
-    if (newIds.length > 0) {
-      // Usar o primeiro ID alternativo
-      const newId = newIds[0]
-      triedYouTubeIdsRef.current.push(newId)
-      
-      console.log("[Player] ✅ A tentar ID alternativo:", newId)
-      
-      // Obter stream direto para o novo ID
-      const streamUrl = await getAudioStreamUrl(newId)
-      if (streamUrl) {
-        console.log("[Player] ✅ Stream direto obtido via Invidious no retry!")
-      }
-      
-      setCurrentTrack({ ...track, youtubeId: newId, previewUrl: streamUrl })
+    if (newId) {
+      console.log("[Player] ✅ Novo YouTube ID:", newId)
+      setCurrentTrack({ ...track, youtubeId: newId })
       setIsPlaying(true)
-    } else {
-      console.log("[Player] ❌ Sem mais IDs alternativos disponíveis")
-      // Tentar buscar de novo com query diferente
-      const freshId = await getYoutubeId(track.title, track.artist)
-      if (freshId && !triedYouTubeIdsRef.current.includes(freshId)) {
-        triedYouTubeIdsRef.current.push(freshId)
-        console.log("[Player] ✅ Nova pesquisa encontrou ID:", freshId)
-        
-        // Obter stream direto
-        const streamUrl = await getAudioStreamUrl(freshId)
-        if (streamUrl) {
-          console.log("[Player] ✅ Stream direto obtido via Invidious!")
-        }
-        
-        setCurrentTrack({ ...track, youtubeId: freshId, previewUrl: streamUrl })
-        setIsPlaying(true)
-      } else {
-        console.log("[Player] ❌ Não foi possível encontrar alternativa")
-      }
     }
   }, [])
-
-  // Monitor progress and auto-retry if stuck
-  useEffect(() => {
-    if (!currentTrack || !isPlaying || isRetrying.current) return
-    
-    const prefs = getPreferences()
-    if (!prefs.autoRetry) return
-    
-    const now = Date.now()
-    const timeSinceLastUpdate = now - lastProgressRef.current
-    
-    // Detectar se música está presa (progress não avança por mais de 5 segundos)
-    if (timeSinceLastUpdate > 5000 && progress > 0 && progress < 1 && retryCountRef.current < 5) {
-      isRetrying.current = true
-      console.log("[Player] ⚠️ Música presa, a fazer retry...", { progress, retryCount: retryCountRef.current })
-      
-      retryTrack().finally(() => {
-        isRetrying.current = false
-      })
-    }
-    
-    lastProgressRef.current = now
-  }, [progress, currentTrack, isPlaying, retryTrack])
 
   const pause = useCallback(() => setIsPlaying(false), [])
   const resume = useCallback(() => setIsPlaying(true), [])
@@ -205,7 +118,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audioRef.current.currentTime = fraction * duration
       return
     }
-
     if (playerRef.current) {
       playerRef.current.seekTo(fraction, "fraction")
     }
@@ -216,6 +128,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setVolumeState(nextValue)
   }, [])
 
+  // Volume localStorage
   useEffect(() => {
     const stored = localStorage.getItem("xalanify.volume")
     if (!stored) return
@@ -229,9 +142,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("xalanify.volume", String(volume))
   }, [volume])
 
+  // Media Session
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
-
     if (!currentTrack) {
       navigator.mediaSession.metadata = null
       return
@@ -308,3 +221,4 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 export function usePlayer() {
   return useContext(PlayerContext)
 }
+

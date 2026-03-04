@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Settings, Library } from "lucide-react"
+import { Search, Settings, Library, Sparkles, X } from "lucide-react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { PlayerProvider, usePlayer, type Track } from "@/lib/player-context"
 import { ThemeProvider, useTheme } from "@/lib/theme-context"
@@ -15,6 +15,7 @@ import AudioEngine from "@/components/audio-engine"
 import TrackMenu from "@/components/track-menu"
 import { Toaster } from "@/components/ui/sonner"
 import { getPlaylists } from "@/lib/supabase"
+import { checkForNewVersion, markVersionAsSeen, getWhatsNewMessage, autoClearCacheIfNeeded } from "@/lib/versions"
 
 function SplashScreen({ accentHex }: { accentHex: string }) {
   return (
@@ -44,6 +45,22 @@ function XalanifyApp() {
   const [searchResults, setSearchResults] = useState<Track[]>([])
   const [libraryKey, setLibraryKey] = useState(0)
   const [userPlaylists, setUserPlaylists] = useState<{id: string, name: string}[]>([])
+  const [showWhatsNew, setShowWhatsNew] = useState(false)
+  const [whatsNewMessage, setWhatsNewMessage] = useState("")
+
+  // Auto-clear cache and check for updates on app start
+  useEffect(() => {
+    // Auto clear cache once per day
+    autoClearCacheIfNeeded()
+    
+    // Check for new version
+    const newUpdate = checkForNewVersion()
+    if (newUpdate) {
+      setWhatsNewMessage(getWhatsNewMessage())
+      setShowWhatsNew(true)
+      markVersionAsSeen()
+    }
+  }, [])
 
   // Fetch user playlists for track menu
   useEffect(() => {
@@ -78,6 +95,28 @@ function XalanifyApp() {
     <div className="relative flex h-dvh min-h-0 flex-col overflow-hidden bg-[#0a0a0a] text-[#f0e0d0]">
       <AudioEngine />
       <Toaster position="top-center" richColors />
+
+      {/* What's New Modal */}
+      {showWhatsNew && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
+          <div className="w-full max-w-sm rounded-3xl bg-[#1a1a1a] border border-[#f0e0d0]/10 p-6 animate-in fade-in zoom-in duration-300">
+            <div className="flex items-center justify-center mb-4">
+              <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: `${accentHex}30` }}>
+                <Sparkles className="h-8 w-8" style={{ color: accentHex }} />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold text-center text-[#f0e0d0] mb-2">Novidades!</h2>
+            <p className="text-sm text-[#a08070] text-center mb-6">{whatsNewMessage}</p>
+            <button
+              onClick={() => setShowWhatsNew(false)}
+              className="w-full rounded-xl py-3 text-sm font-semibold text-white"
+              style={{ backgroundColor: accentHex }}
+            >
+              Continuar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className={`flex-1 overflow-y-auto ${currentTrack ? "pb-[160px]" : "pb-[100px]"}`}>

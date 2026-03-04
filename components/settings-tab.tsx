@@ -14,6 +14,7 @@ import {
   Search,
   Sparkles,
   RefreshCw,
+  History,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useTheme } from "@/lib/theme-context"
@@ -21,6 +22,7 @@ import { likeTrack, createPlaylist, subscribeToPlaylists, subscribeToLikedTracks
 import { searchMusic, searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
 import { type Track } from "@/lib/player-context"
 import { getPreferences, setPreferences } from "@/lib/preferences"
+import { CHANGELOG, APP_VERSION } from "@/lib/versions"
 import { toast } from "sonner"
 
 const THEME_COLORS = [
@@ -34,7 +36,7 @@ const THEME_COLORS = [
   { id: "yellow" as const, name: "Amarelo", hex: "#EAB308" },
 ]
 
-type SettingsView = "menu" | "profile" | "customization" | "credits" | "tools" | "smart_recommendations" | "discover_playlists" | "player_settings"
+type SettingsView = "menu" | "profile" | "customization" | "credits" | "updates" | "tools" | "smart_recommendations" | "discover_playlists" | "player_settings"
 
 export default function SettingsTab() {
   const { user, profile, isAdmin, signOut } = useAuth()
@@ -233,6 +235,57 @@ export default function SettingsTab() {
           <h2 className="mb-4 text-2xl font-bold text-[#f0e0d0]">Créditos</h2>
           <p className="text-lg text-[#f0e0d0]">Criado por Xalana</p>
           <p className="mt-4 text-sm text-[#a08070]">Xalanify · 2026</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (activeView === "updates") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
+        <button onClick={() => setActiveView("menu")} className="mb-6 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+        
+        <h2 className="mb-2 text-2xl font-bold text-[#f0e0d0] flex items-center gap-3">
+          <History className="h-6 w-6" style={{ color: accentHex }} />
+          Atualizações
+        </h2>
+        
+        <p className="mb-6 text-sm text-[#a08070]">
+          Versão atual: <span style={{ color: accentHex }}>{APP_VERSION}</span>
+        </p>
+
+        <div className="flex-1 overflow-y-auto space-y-4">
+          {CHANGELOG.map((update, index) => (
+            <div 
+              key={update.version} 
+              className="rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4"
+              style={{ borderColor: index === 0 ? `${accentHex}40` : undefined }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-[#f0e0d0]">{update.version}</span>
+                  {index === 0 && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: accentHex }}>
+                      NOVO
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-[#a08070]">{update.date}</span>
+              </div>
+              <h3 className="text-sm font-medium text-[#f0e0d0] mb-2">{update.title}</h3>
+              <ul className="space-y-1">
+                {update.changes.map((change, i) => (
+                  <li key={i} className="text-xs text-[#a08070] flex items-start gap-2">
+                    <span className="text-[#f0e0d0]/50">•</span>
+                    {change}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       </div>
     )
@@ -481,13 +534,13 @@ export default function SettingsTab() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4">
+    <div className="flex min-h-0 flex-1 flex-col px-4 sm:px-6 pb-6 pt-4 w-full max-w-full">
       <h2 className="mb-6 text-2xl font-bold text-[#f0e0d0]">Ajustes</h2>
       
-      <div className="space-y-3 overflow-y-auto">
+      <div className="space-y-3 overflow-y-auto w-full">
         <button onClick={() => setActiveView("profile")} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
-            <User className="h-6 w-6" style={{ color: accentHex }} />
+          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+            <User className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
           </div>
           <div className="flex-1 text-left">
             <p className="font-medium text-[#f0e0d0]">Perfil</p>
@@ -497,8 +550,8 @@ export default function SettingsTab() {
         </button>
 
         <button onClick={() => setActiveView("customization")} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
-            <Palette className="h-6 w-6" style={{ color: accentHex }} />
+          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+            <Palette className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
           </div>
           <div className="flex-1 text-left">
             <p className="font-medium text-[#f0e0d0]">Personalização</p>
@@ -507,10 +560,21 @@ export default function SettingsTab() {
           <ChevronRight className="h-5 w-5 text-[#a08070]" />
         </button>
 
+        <button onClick={() => setActiveView("updates")} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
+          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+            <History className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-medium text-[#f0e0d0]">Atualizações</p>
+            <p className="text-sm text-[#a08070]">Histórico de alterações</p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-[#a08070]" />
+        </button>
+
         {isAdmin && (
           <button onClick={() => setActiveView("tools")} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
-              <Wrench className="h-6 w-6" style={{ color: accentHex }} />
+            <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+              <Wrench className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
             </div>
             <div className="flex-1 text-left">
               <p className="font-medium text-[#f0e0d0]">Ferramentas</p>
@@ -521,8 +585,8 @@ export default function SettingsTab() {
         )}
 
         <button onClick={() => setActiveView("credits")} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-[#1a1a1a] transition-all">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
-            <Info className="h-6 w-6" style={{ color: accentHex }} />
+          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl" style={{ backgroundColor: `${accentHex}20` }}>
+            <Info className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
           </div>
           <div className="flex-1 text-left">
             <p className="font-medium text-[#f0e0d0]">Créditos</p>
@@ -532,8 +596,8 @@ export default function SettingsTab() {
         </button>
 
         <button onClick={signOut} className="w-full flex items-center gap-4 rounded-2xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-4 hover:bg-red-500/20 mt-6">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/20">
-            <LogOut className="h-6 w-6 text-red-400" />
+          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-red-500/20">
+            <LogOut className="h-6 w-6 sm:h-7 sm:w-7 text-red-400" />
           </div>
           <div className="flex-1 text-left">
             <p className="font-medium text-red-400">Terminar Sessão</p>

@@ -86,45 +86,7 @@ async function searchSpotifyTracks(query: string): Promise<PlaylistTrackPreview[
   }
 }
 
-// Instâncias Invidious para obter streams diretos (mais instâncias para backup)
-const INVIDIOUS_API = [
-  "https://invidious.snopyta.org",
-  "https://invidious.kavin.rocks",
-  "https://invidious.namazso.eu",
-  "https://yewtu.be",
-  "https://invidious.projectsegfau.lt",
-  "https://iv.ggtyler.dev",
-  "https://invidious.moomoo.io",
-  "https://invidious.tube",
-]
-
-let invidiousIndex = 0
-
-// Obter stream de áudio direto do Invidious
-async function getAudioStreamUrl(videoId: string): Promise<string | null> {
-  for (let i = 0; i < INVIDIOUS_API.length; i++) {
-    const instance = INVIDIOUS_API[invidiousIndex]
-    invidiousIndex = (invidiousIndex + 1) % INVIDIOUS_API.length
-    
-    try {
-      const response = await fetch(`${instance}/api/v1/videos/${videoId}`)
-      if (!response.ok) continue
-      
-      const data = await response.json()
-      const audioStreams = data.adaptiveFormats?.filter((f: any) => f.type?.includes("audio"))
-      
-      if (audioStreams && audioStreams.length > 0) {
-        const bestAudio = audioStreams.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))[0]
-        return bestAudio.url
-      }
-    } catch {
-      // Continuar para próxima instância
-    }
-  }
-  return null
-}
-
-// YouTube search RÁPIDO com múltiplas queries de fallback
+// YouTube search - USA A API KEY DIRETAMENTE
 async function searchMusicFromYouTube(query: string): Promise<PlaylistTrackPreview[]> {
   try {
     const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY
@@ -159,7 +121,7 @@ async function searchMusicFromYouTube(query: string): Promise<PlaylistTrackPrevi
   }
 }
 
-// Normalizar texto para comparação (remover acentos, converter para minúsculas)
+// Normalizar texto
 function normalizeText(text: string): string {
   return text
     .toLowerCase()
@@ -169,73 +131,57 @@ function normalizeText(text: string): string {
     .trim()
 }
 
-// Verificar se o artista do resultado corresponde ao artista da música
 function artistMatches(resultArtist: string, targetArtist: string): boolean {
   const normalizedResult = normalizeText(resultArtist)
   const normalizedTarget = normalizeText(targetArtist)
   
-  // Verificação direta
   if (normalizedResult.includes(normalizedTarget) || normalizedTarget.includes(normalizedResult)) {
     return true
   }
   
-  // Verificar primeiras palavras
   const resultWords = normalizedResult.split(" ").slice(0, 2).join(" ")
   const targetWords = normalizedTarget.split(" ").slice(0, 2).join(" ")
   
   return resultWords === targetWords || normalizedResult.includes(targetWords.split(" ")[0])
 }
 
-// Verificar se o título corresponde
 function titleMatches(resultTitle: string, targetTitle: string): boolean {
   const normalizedResult = normalizeText(resultTitle)
   const normalizedTarget = normalizeText(targetTitle)
   
-  // Verificação direta
   if (normalizedResult.includes(normalizedTarget) || normalizedTarget.includes(normalizedResult)) {
     return true
   }
   
-  // Verificar primeiras palavras do título
   const resultWords = normalizedResult.split(" ").slice(0, 4).join(" ")
   const targetWords = normalizedTarget.split(" ").slice(0, 4).join(" ")
   
   return resultWords.includes(targetWords) || targetWords.includes(resultWords)
 }
 
-// Buscar YouTube ID - LÓGICA: primeiro título, verificar artista, depois título+artista
+// Buscar YouTube ID - simples e direto
 export async function getYoutubeId(title: string, artist: string): Promise<string | null> {
   console.log("[MusicAPI] 🔍 A procurar YouTube para:", title, "-", artist)
   
-  const normalizedTitle = normalizeText(title)
-  const normalizedArtist = normalizeText(artist)
-  
-  // ===== FASE 1: Pesquisar apenas pelo TÍTULO =====
-  console.log(`[MusicAPI] 🔎 Fase 1: Pesquisar apenas por título: "${title}"`)
+  // Fase 1: Pesquisar apenas pelo título
   const titleResults = await searchMusicFromYouTube(title)
   
   if (titleResults.length > 0) {
-    console.log(`[MusicAPI] 📋 Encontrados ${titleResults.length} resultados para o título`)
-    
-    // Procurar resultado que tenha título E artista correspondentes
     const matchingResult = titleResults.find(r => {
-      // Ignorar live streams e resultados inválidos
       if (r.title.toLowerCase().includes('live') || 
           r.title.toLowerCase().includes('stream') ||
           r.title.toLowerCase().includes('full album') ||
           r.title.toLowerCase().includes('playlist')) {
         return false
       }
-      // Verificar se título corresponde E artista corresponde
       return titleMatches(r.title, title) && artistMatches(r.artist, artist)
     })
     
     if (matchingResult) {
-      console.log("[MusicAPI] ✅ YouTube ID encontrado (título + artista corresponde):", matchingResult.youtubeId, "-", matchingResult.title)
+      console.log("[MusicAPI] ✅ YouTube ID encontrado:", matchingResult.youtubeId)
       return matchingResult.youtubeId
     }
     
-    // Se não encontrou com artista, usar primeiro resultado válido cujo título corresponda
     const validResult = titleResults.find(r => 
       !r.title.toLowerCase().includes('live') && 
       !r.title.toLowerCase().includes('stream') &&
@@ -245,13 +191,12 @@ export async function getYoutubeId(title: string, artist: string): Promise<strin
     )
     
     if (validResult) {
-      console.log("[MusicAPI] ✅ YouTube ID encontrado (título corresponde):", validResult.youtubeId, "-", validResult.title)
+      console.log("[MusicAPI] ✅ YouTube ID encontrado:", validResult.youtubeId)
       return validResult.youtubeId
     }
   }
   
-  // ===== FASE 2: Pesquisar com TÍTULO + ARTISTA =====
-  console.log(`[MusicAPI] 🔎 Fase 2: Pesquisar com título + artista: "${title} ${artist}"`)
+  // Fase 2: Pesquisar com título + artista
   const fullResults = await searchMusicFromYouTube(`${title} ${artist}`)
   
   if (fullResults.length > 0) {
@@ -263,18 +208,16 @@ export async function getYoutubeId(title: string, artist: string): Promise<strin
     )
     
     if (validResult) {
-      console.log("[MusicAPI] ✅ YouTube ID encontrado (título + artista):", validResult.youtubeId, "-", validResult.title)
+      console.log("[MusicAPI] ✅ YouTube ID encontrado:", validResult.youtubeId)
       return validResult.youtubeId
     }
   }
   
-  // ===== FASE 3: Retry com variações =====
-  console.log("[MusicAPI] 🔎 Fase 3: Tentando variações...")
+  // Fase 3: Variações
   const variations = [
     `${title} ${artist} audio`,
     `${title} ${artist} lyrics`,
     `${title} ${artist} music`,
-    `${artist} ${title}`,
   ]
   
   for (const query of variations) {
@@ -285,7 +228,7 @@ export async function getYoutubeId(title: string, artist: string): Promise<strin
         !r.title.toLowerCase().includes('stream')
       )
       if (validResult) {
-        console.log("[MusicAPI] ✅ YouTube ID encontrado (variação):", validResult.youtubeId, "-", validResult.title)
+        console.log("[MusicAPI] ✅ YouTube ID encontrado:", validResult.youtubeId)
         return validResult.youtubeId
       }
     }
@@ -295,40 +238,13 @@ export async function getYoutubeId(title: string, artist: string): Promise<strin
   return null
 }
 
-// Buscar múltiplos YouTube IDs (para retry)
-async function getMultipleYoutubeIds(title: string, artist: string, limit = 5): Promise<string[]> {
-  const queries = [
-    `${title} ${artist} official audio`,
-    `${title} ${artist} audio`,
-    `${title} ${artist} lyrics`,
-    `${title} ${artist} music video`,
-    `${title} ${artist}`,
-  ]
-
-  const allIds: string[] = []
-  
-  for (const query of queries) {
-    const results = await searchMusicFromYouTube(query)
-    for (const result of results) {
-      if (result.youtubeId && !allIds.includes(result.youtubeId)) {
-        allIds.push(result.youtubeId)
-        if (allIds.length >= limit) break
-      }
-    }
-    if (allIds.length >= limit) break
-  }
-  
-  return allIds
-}
-
 export type SearchSource = "all" | "spotify" | "youtube"
 
 export async function searchMusic(query: string, source: SearchSource = "all") {
-  // Verificar cache
   const cacheKey = `${source}:${query.toLowerCase().trim()}`
   const cached = searchCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-    console.log("[MusicAPI] 📦 Usando cache para:", query, "source:", source)
+    console.log("[MusicAPI] 📦 Usando cache para:", query)
     return cached.data
   }
 
@@ -336,7 +252,6 @@ export async function searchMusic(query: string, source: SearchSource = "all") {
   
   let results: PlaylistTrackPreview[] = []
   
-  // Search from requested sources
   if (source === "all" || source === "spotify") {
     const spotifyTracks = await searchSpotifyTracks(query)
     results = [...results, ...spotifyTracks]
@@ -348,7 +263,7 @@ export async function searchMusic(query: string, source: SearchSource = "all") {
   }
 
   if (results.length > 0) {
-    console.log("[MusicAPI] ✅ Encontradas", results.length, "músicas (Spotify:", results.filter(r => r.source === "spotify").length, "YouTube:", results.filter(r => r.source === "youtube").length, ")")
+    console.log("[MusicAPI] ✅ Encontradas", results.length, "músicas")
     searchCache.set(cacheKey, { data: results, timestamp: Date.now() })
     return results
   }
@@ -357,26 +272,13 @@ export async function searchMusic(query: string, source: SearchSource = "all") {
   return []
 }
 
-// Função específica para buscar apenas do Spotify
 export async function searchSpotify(query: string): Promise<PlaylistTrackPreview[]> {
   return searchMusic(query, "spotify")
 }
 
-// Função específica para buscar apenas do YouTube
 export async function searchYouTube(query: string): Promise<PlaylistTrackPreview[]> {
   return searchMusic(query, "youtube")
 }
-
-// Função exportada para buscar retry com múltiplos IDs
-export async function getYoutubeIdsForRetry(title: string, artist: string): Promise<string[]> {
-  console.log("[MusicAPI] 🔍 A procurar IDs alternativos para retry:", title, "-", artist)
-  const ids = await getMultipleYoutubeIds(title, artist, 5)
-  console.log("[MusicAPI] ✅ Encontrados", ids.length, "IDs alternativos")
-  return ids
-}
-
-// Exportar função para obter stream direto (para uso no player)
-export { getAudioStreamUrl }
 
 export async function searchPlaylistSuggestions(query: string): Promise<PlaylistSuggestion[]> {
   const [spotifyPlaylists, youtubePlaylists] = await Promise.all([
@@ -529,3 +431,4 @@ async function getYoutubePlaylists(query: string): Promise<PlaylistSuggestion[]>
     return []
   }
 }
+

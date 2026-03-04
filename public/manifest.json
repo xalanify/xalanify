@@ -7,12 +7,19 @@
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "fullscreen"],
-  "background_color": "#1a0a0a",
+  "background_color": "#0a0a0a",
   "theme_color": "#e63946",
   "orientation": "portrait-primary",
   "categories": ["music", "entertainment"],
   "prefer_related_applications": false,
   "related_applications": [],
+  "permissions": [
+    "background-media-playback",
+    "notifications",
+    "fullscreen",
+    "accelerometer",
+    "gyroscope"
+  ],
   "shortcuts": [
     {
       "name": "Pesquisar",

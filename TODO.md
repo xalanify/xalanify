@@ -1,17 +1,9 @@
-# TODO - Search Enhancement with Spotify API
+# TODO - Melhorias na App
 
-## Phase 1: Update lib/musicApi.ts
-- [x] Add `searchSpotifyTracks()` function to search tracks using Spotify API
-- [x] Modify `searchMusic()` to search both Spotify AND YouTube
-- [x] Return combined results with source badges (spotify/youtube)
-- [x] Add Spotify track search function
+## Concluído
+- [x] 1. Atualizar lib/versions.ts com nova versão e funções melhoradas
+- [x] 2. Corrigir tamanho dos cards em settings-tab.tsx (h-12 -> h-14)
+- [x] 3. Adicionar view de Atualizações em settings-tab.tsx
+- [x] 4. Adicionar verificação de versão e notificação em page.tsx
+- [x] 5. Testar as alterações (build concluído com sucesso)
 
-## Phase 2: Update components/search-tab.tsx
-- [x] Add source filter tabs (All/Spotify/YouTube)
-- [x] Display source badge on each track card
-- [x] Enhance UI to show different sources clearly
-
-## Phase 3: Testing
-- [ ] Verify Spotify search returns tracks with thumbnails
-- [ ] Verify YouTube search still works
-- [ ] Verify clicking a card plays the audio via ReactPlayer
