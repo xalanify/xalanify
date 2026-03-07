@@ -8,15 +8,35 @@ interface MiniPlayerProps {
   onExpand: () => void
 }
 
+function hexToRgb(hex: string) {
+  const normalized = hex.replace("#", "")
+  const full = normalized.length === 3
+    ? normalized.split("").map((c) => c + c).join("")
+    : normalized
+
+  const int = Number.parseInt(full, 16)
+  const r = (int >> 16) & 255
+  const g = (int >> 8) & 255
+  const b = int & 255
+  return { r, g, b }
+}
+
 export default function MiniPlayer({ onExpand }: MiniPlayerProps) {
   const { currentTrack, isPlaying, play, pause } = usePlayer()
   const { accentHex } = useTheme()
 
   if (!currentTrack) return null
 
+  // Create solid gradient background from accent color
+  const solidBackground = `linear-gradient(135deg, ${accentHex} 0%, ${accentHex}cc 100%)`
+
   return (
     <div 
-      className="mx-4 mb-3 flex items-center gap-3 rounded-[18px] glass-card p-3 cursor-pointer active:scale-[0.98] transition-transform"
+      className="mx-4 mb-3 flex items-center gap-3 rounded-[18px] p-3 cursor-pointer active:scale-[0.98] transition-transform"
+      style={{ 
+        background: solidBackground,
+        boxShadow: `0 4px 20px ${accentHex}40`
+      }}
       onClick={onExpand}
     >
       {/* Thumbnail - 48px, rounded 8-12px */}
@@ -28,15 +48,14 @@ export default function MiniPlayer({ onExpand }: MiniPlayerProps) {
       
       {/* Center: Title (Bege, 17pt, Semi-bold) + Subtitle (Gray, 14pt) */}
       <div className="flex-1 min-w-0">
-        <p className="truncate font-semibold text-[17px] text-[#D2B48C]">{currentTrack.title}</p>
-        <p className="truncate text-[14px] text-[#8E8E93]">{currentTrack.artist}</p>
+        <p className="truncate font-semibold text-[17px] text-white">{currentTrack.title}</p>
+        <p className="truncate text-[14px] text-white/70">{currentTrack.artist}</p>
       </div>
 
-      {/* Play/Pause Button */}
+      {/* Play/Pause Button - White for contrast */}
       <button
         onClick={(e) => { e.stopPropagation(); isPlaying ? pause() : play(currentTrack) }}
-        className="rounded-full p-2.5 text-white transition-all active:scale-90"
-        style={{ backgroundColor: accentHex }}
+        className="rounded-full p-2.5 bg-white text-black transition-all active:scale-90"
       >
         {isPlaying ? (
           <Pause className="h-5 w-5" />
@@ -48,10 +67,11 @@ export default function MiniPlayer({ onExpand }: MiniPlayerProps) {
       {/* Expand Button */}
       <button
         onClick={(e) => { e.stopPropagation(); onExpand() }}
-        className="rounded-full p-2 text-[#8E8E93] hover:text-[#D2B48C]"
+        className="rounded-full p-2 text-white/70 hover:text-white"
       >
         <ChevronUp className="h-5 w-5" />
       </button>
     </div>
   )
 }
+

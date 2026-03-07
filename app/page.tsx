@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Settings, Library, Sparkles } from "lucide-react"
+import { Search, Settings, Library } from "lucide-react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { PlayerProvider, usePlayer, type Track } from "@/lib/player-context"
 import { ThemeProvider, useTheme } from "@/lib/theme-context"
@@ -15,13 +15,6 @@ import AudioEngine from "@/components/audio-engine"
 import TrackMenu from "@/components/track-menu"
 import { Toaster } from "@/components/ui/sonner"
 import { getPlaylists } from "@/lib/supabase"
-import { 
-  checkForNewVersion, 
-  markVersionAsSeen, 
-  autoClearCacheIfNeeded,
-  smartVersionCheck,
-  type AppUpdate
-} from "@/lib/versions"
 
 function SplashScreen({ accentHex }: { accentHex: string }) {
   return (
@@ -33,61 +26,6 @@ function SplashScreen({ accentHex }: { accentHex: string }) {
       <div className="text-center">
         <h1 className="text-5xl font-bold tracking-tight text-[#D2B48C]">Xalanify</h1>
         <p className="mt-3 text-sm tracking-[0.3em] text-[#8E8E93] uppercase">Em Desenvolvimento</p>
-      </div>
-    </div>
-  )
-}
-
-// What's New Modal with glass card style
-function WhatsNewModal({ 
-  update, 
-  onClose 
-}: { 
-  update: AppUpdate
-  onClose: () => void 
-}) {
-  const { accentHex } = useTheme()
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
-      <div className="w-full max-w-sm rounded-[18px] glass-card p-6 animate-in fade-in zoom-in duration-300">
-        {/* Header with icon */}
-        <div className="flex items-center justify-center mb-4">
-          <div 
-            className="h-16 w-16 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: `${accentHex}30` }}
-          >
-            <Sparkles className="h-8 w-8" style={{ color: accentHex }} />
-          </div>
-        </div>
-
-        {/* Title and version */}
-        <div className="text-center mb-2">
-          <h2 className="text-xl font-bold text-[#D2B48C] mb-1">Nova Versão!</h2>
-          <p className="text-sm" style={{ color: accentHex }}>v{update.version}</p>
-        </div>
-
-        {/* Version title */}
-        <h3 className="text-center text-[#8E8E93] font-medium mb-4">{update.title}</h3>
-
-        {/* Changes list */}
-        <div className="space-y-2 mb-6 max-h-[200px] overflow-y-auto">
-          {update.changes.map((change, index) => (
-            <div key={index} className="flex items-start gap-2">
-              <span className="text-[#8E8E93] mt-1">•</span>
-              <p className="text-sm text-[#D2B48C]/80">{change}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Continue button */}
-        <button
-          onClick={onClose}
-          className="w-full rounded-xl py-3 text-sm font-semibold text-white"
-          style={{ backgroundColor: accentHex }}
-        >
-          Continuar
-        </button>
       </div>
     </div>
   )
@@ -106,57 +44,17 @@ function XalanifyApp() {
   const [searchResults, setSearchResults] = useState<Track[]>([])
   const [libraryKey, setLibraryKey] = useState(0)
   const [userPlaylists, setUserPlaylists] = useState<{id: string, name: string}[]>([])
-  const [showWhatsNew, setShowWhatsNew] = useState(false)
-  const [currentUpdate, setCurrentUpdate] = useState<AppUpdate | null>(null)
 
-  // Smart version check on app start
-  useEffect(() => {
-    // First, do auto clear cache
-    autoClearCacheIfNeeded()
-    
-    // Then check for version changes
-    const initApp = async () => {
-      // Check if we need to force refresh (version changed)
-      const result = await smartVersionCheck()
-      
-      // If no refresh needed, check for new version to show modal
-      if (!result.hasUpdate) {
-        const update = checkForNewVersion()
-        if (update) {
-          setCurrentUpdate(update)
-          setShowWhatsNew(true)
-          markVersionAsSeen()
-        }
-      }
-    }
-    
-    initApp()
-  }, [])
-
-  // Check version on app focus (when user returns to app)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        // App became visible - check for updates
-        const update = checkForNewVersion()
-        if (update && !showWhatsNew) {
-          setCurrentUpdate(update)
-          setShowWhatsNew(true)
-          markVersionAsSeen()
-        }
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [showWhatsNew])
+  // Create solid gradient for tab bar from accent color
+  const tabBarBackground = `linear-gradient(135deg, ${accentHex} 0%, ${accentHex}cc 100%)`
 
   // Fetch user playlists for track menu
   useEffect(() => {
     if (user?.uid) {
-      getPlaylists(user.uid).then((data: any) => {
-        if (data && Array.isArray(data)) {
-          setUserPlaylists(data.map((p: any) => ({ id: p.id, name: p.name })))
+      getPlaylists(user.uid).then((data: unknown) => {
+        const playlists = data as Array<{id: string, name: string}>
+        if (playlists && Array.isArray(playlists)) {
+          setUserPlaylists(playlists.map((p) => ({ id: p.id, name: p.name })))
         }
       })
     }
@@ -167,9 +65,8 @@ function XalanifyApp() {
     return () => clearTimeout(timer)
   }, [])
 
-  function handleWhatsNewClose() {
-    setShowWhatsNew(false)
-    setCurrentUpdate(null)
+  function handleLibraryUpdate() {
+    setLibraryKey((prev) => prev + 1)
   }
 
   if (showSplash || loading) return <SplashScreen accentHex={accentHex} />
@@ -181,22 +78,10 @@ function XalanifyApp() {
     { id: "settings" as const, label: "Ajustes", icon: Settings },
   ]
 
-  function handleLibraryUpdate() {
-    setLibraryKey(prev => prev + 1)
-  }
-
   return (
     <div className="relative flex h-dvh min-h-0 flex-col overflow-hidden bg-[#000000] text-[#D2B48C]">
       <AudioEngine />
       <Toaster position="top-center" richColors />
-
-      {/* What's New Modal */}
-      {showWhatsNew && currentUpdate && (
-        <WhatsNewModal 
-          update={currentUpdate} 
-          onClose={handleWhatsNewClose} 
-        />
-      )}
 
       {/* Main Content */}
       <div className={`flex-1 overflow-y-auto ${currentTrack ? "pb-[160px]" : "pb-[100px]"}`}>
@@ -216,7 +101,7 @@ function XalanifyApp() {
         {activeTab === "settings" && <SettingsTab />}
       </div>
 
-      {/* Bottom Player + Navigation - Glass Tab Bar */}
+      {/* Bottom Player + Navigation - Solid Tab Bar */}
       <div className="absolute inset-x-0 bottom-0 z-20">
         {currentTrack && (
           <MiniPlayer 
@@ -224,8 +109,14 @@ function XalanifyApp() {
           />
         )}
         
-        {/* Navigation - Glass Effect Tab Bar */}
-        <nav className="mx-4 mb-4 flex items-center justify-around rounded-2xl glass-card px-2 py-3">
+        {/* Navigation - Solid Background with gradient from accent color */}
+        <nav 
+          className="mx-4 mb-4 flex items-center justify-around rounded-2xl px-2 py-3"
+          style={{ 
+            background: tabBarBackground,
+            boxShadow: `0 4px 20px ${accentHex}40`
+          }}
+        >
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id
             return (
@@ -234,17 +125,17 @@ function XalanifyApp() {
                 onClick={() => setActiveTab(tab.id)}
                 className="flex flex-col items-center gap-1.5 px-6 py-2 transition-all duration-200 active:scale-95 rounded-xl"
                 style={{ 
-                  backgroundColor: isActive ? `${accentHex}20` : "transparent",
+                  backgroundColor: isActive ? "rgba(255,255,255,0.2)" : "transparent",
                 }}
                 aria-label={tab.label}
               >
                 <tab.icon 
                   className="h-5 w-5 transition-colors" 
-                  style={{ color: isActive ? accentHex : "#8E8E93" }} 
+                  style={{ color: isActive ? "#ffffff" : "rgba(255,255,255,0.7)" }} 
                 />
                 <span 
                   className="text-[11px] font-medium transition-colors"
-                  style={{ color: isActive ? accentHex : "#8E8E93" }}
+                  style={{ color: isActive ? "#ffffff" : "rgba(255,255,255,0.7)" }}
                 >
                   {tab.label}
                 </span>

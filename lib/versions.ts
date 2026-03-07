@@ -1,8 +1,8 @@
 // Version and changelog management
 // Auto-updates when version changes
 
-export const APP_VERSION = "0.67.0"
-export const APP_VERSION_DATE = "2026-01-21"
+export const APP_VERSION = "0.67.2"
+export const APP_VERSION_DATE = "2026-01-22"
 
 export interface AppUpdate {
   version: string
@@ -13,6 +13,28 @@ export interface AppUpdate {
 }
 
 export const CHANGELOG: AppUpdate[] = [
+  {
+    version: "0.67.2",
+    date: "2026-01-22",
+    title: "Mini Player Sólido & Correções",
+    changes: [
+      "Mini player com cor sólida (gradiente da cor de destaque)",
+      "Barra de navegação com cor sólida",
+      "Melhor visibilidade sobre o conteúdo",
+      "Correção do sistema de reprodução YouTube",
+    ],
+    isNew: true,
+  },
+  {
+    version: "0.67.1",
+    date: "2026-01-21",
+    title: "Correções do Player",
+    changes: [
+      "Sistema de reprodução YouTube IFrame API",
+      "Barra de progresso funcional com seek",
+      "Melhorias no background playback",
+    ],
+  },
   {
     version: "0.67.0",
     date: "2026-01-21",
@@ -25,7 +47,6 @@ export const CHANGELOG: AppUpdate[] = [
       "Barra de navegação com efeito glass",
       "Melhorias no background playback",
     ],
-    isNew: true,
   },
   {
     version: "0.66.8",

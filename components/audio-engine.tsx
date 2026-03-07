@@ -1,7 +1,50 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useRef, useState } from "react"
 import { usePlayer } from "@/lib/player-context"
+
+// YouTube Player API types
+interface YouTubePlayer {
+  playVideo: () => void
+  pauseVideo: () => void
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void
+  getCurrentTime: () => number
+  getDuration: () => number
+  getPlayerState: () => number
+  loadVideoById: (videoId: string) => void
+  cueVideoById: (videoId: string) => void
+  setVolume: (volume: number) => void
+  getVolume: () => number
+  destroy: () => void
+}
+
+interface YouTubeConfig {
+  height: string
+  width: string
+  playerVars: Record<string, number | string>
+  events: {
+    onReady?: () => void
+    onStateChange?: (event: { data: number }) => void
+    onError?: (event: { data: number }) => void
+  }
+}
+
+declare global {
+  interface Window {
+    onYouTubeIframeAPIReady: () => void
+    YT: {
+      Player: new (elementId: string, config: YouTubeConfig) => YouTubePlayer
+      PlayerState: {
+        BUFFERING: number
+        CUED: number
+        ENDED: number
+        PAUSED: number
+        PLAYING: number
+        UNSTARTED: number
+      }
+    }
+  }
+}
 
 export default function AudioEngine() {
   const {
@@ -11,8 +54,6 @@ export default function AudioEngine() {
     setDuration,
     next,
     previous,
-    playerRef,
-    audioRef,
     volume,
     progress,
     duration,
@@ -20,58 +61,181 @@ export default function AudioEngine() {
     pause,
   } = usePlayer()
 
-  const [streamUrl, setStreamUrl] = useState<string | null>(null)
-  const [useDirectStream, setUseDirectStream] = useState(true)
-  const [streamError, setStreamError] = useState(false)
-  const wakeLockRef = useRef<any>(null)
-  const streamAudioRef = useRef<HTMLAudioElement | null>(null)
-  const lastVideoIdRef = useRef<string | null>(null)
-  const retryCountRef = useRef(0)
-  const isMobileRef = useRef(false)
+  const [isReady, setIsReady] = useState(false)
+  const [playerReady, setPlayerReady] = useState(false)
+  const ytPlayerRef = useRef<YouTubePlayer | null>(null)
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const isSeekingRef = useRef(false)
+  const lastTrackIdRef = useRef<string | null>(null)
 
-  // Detect mobile device
+  // ========== LOAD YOUTUBE IFRAME API ==========
   useEffect(() => {
-    if (typeof navigator !== 'undefined') {
-      isMobileRef.current = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    if (typeof window === 'undefined') return
+
+    // If already loaded
+    if (window.YT && window.YT.Player) {
+      setIsReady(true)
+      return
     }
-  }, [])
 
-  // ========== WAKE LOCK - Keep screen on while playing ==========
-  const requestWakeLock = useCallback(async () => {
-    if (!currentTrack || !isPlaying) return
+    // Load the API
+    const tag = document.createElement('script')
+    tag.src = 'https://www.youtube.com/iframe_api'
+    const firstScriptTag = document.getElementsByTagName('script')[0]
+    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
 
-    if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
-      try {
-        wakeLockRef.current = await (navigator as any).wakeLock.request('screen')
-        console.log("[AudioEngine] 🔒 Wake Lock ativado")
-      } catch (err) {
-        console.log("[AudioEngine] ⚠️ Wake Lock não disponível")
+    window.onYouTubeIframeAPIReady = () => {
+      setIsReady(true)
+    }
+
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
       }
     }
-  }, [currentTrack, isPlaying])
+  }, [])
 
-  const releaseWakeLock = useCallback(async () => {
-    if (wakeLockRef.current) {
+  // ========== CREATE YOUTUBE PLAYER ==========
+  useEffect(() => {
+    if (!isReady || typeof window === 'undefined') return
+    if (ytPlayerRef.current) return
+
+    try {
+      const player = new window.YT.Player('youtube-audio-player', {
+        height: '0',
+        width: '0',
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          modestbranding: 1,
+          rel: 0,
+          showinfo: 0,
+          playsinline: 1,
+        },
+        events: {
+          onReady: () => {
+            console.log("[AudioEngine] ✅ YouTube Player Ready")
+            setPlayerReady(true)
+          },
+          onStateChange: (event) => {
+            // Video ended - play next
+            if (event.data === window.YT.PlayerState.ENDED) {
+              console.log("[AudioEngine] 🎵 Track ended")
+              next?.()
+            }
+            // Video buffering
+            if (event.data === window.YT.PlayerState.BUFFERING) {
+              console.log("[AudioEngine] ⏳ Buffering...")
+            }
+            // Video playing
+            if (event.data === window.YT.PlayerState.PLAYING) {
+              console.log("[AudioEngine] ▶️ Playing")
+            }
+            // Video paused
+            if (event.data === window.YT.PlayerState.PAUSED) {
+              console.log("[AudioEngine] ⏸️ Paused")
+            }
+          },
+          onError: () => {
+            console.log("[AudioEngine] ❌ YouTube Error")
+            // Try to skip to next track on error
+            next?.()
+          },
+        },
+      })
+
+      ytPlayerRef.current = player as unknown as YouTubePlayer
+    } catch (err) {
+      console.log("[AudioEngine] ❌ Error creating player:", err)
+    }
+  }, [isReady, next])
+
+  // ========== HANDLE TRACK CHANGE ==========
+  useEffect(() => {
+    if (!currentTrack || !playerReady || !ytPlayerRef.current) return
+    if (currentTrack.id === lastTrackIdRef.current) return
+
+    lastTrackIdRef.current = currentTrack.id
+    const videoId = currentTrack.youtubeId
+
+    if (!videoId) {
+      console.log("[AudioEngine] ❌ No YouTube ID")
+      return
+    }
+
+    console.log("[AudioEngine] 🎵 Loading track:", videoId)
+
+    // Load and play immediately
+    try {
+      ytPlayerRef.current.loadVideoById(videoId)
+    } catch (err) {
+      console.log("[AudioEngine] ❌ Error loading video:", err)
+    }
+  }, [currentTrack, playerReady])
+
+  // ========== HANDLE PLAY/PAUSE ==========
+  useEffect(() => {
+    if (!playerReady || !ytPlayerRef.current) return
+
+    if (isPlaying) {
       try {
-        await wakeLockRef.current.release()
-        wakeLockRef.current = null
+        ytPlayerRef.current.playVideo()
+        // Start progress tracking
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+        progressIntervalRef.current = setInterval(() => {
+          if (!isSeekingRef.current && ytPlayerRef.current) {
+            try {
+              const currentTime = ytPlayerRef.current.getCurrentTime()
+              const totalDuration = ytPlayerRef.current.getDuration()
+              if (totalDuration > 0) {
+                setProgress(currentTime)
+                setDuration(totalDuration)
+              }
+            } catch {}
+          }
+        }, 250)
       } catch {}
+    } else {
+      try {
+        ytPlayerRef.current.pauseVideo()
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current)
+        }
+      } catch {}
+    }
+  }, [isPlaying, playerReady, setProgress, setDuration])
+
+  // ========== HANDLE VOLUME ==========
+  useEffect(() => {
+    if (!playerReady || !ytPlayerRef.current) return
+    try {
+      ytPlayerRef.current.setVolume(volume * 100)
+    } catch {}
+  }, [volume, playerReady])
+
+  // Expose seek function to global
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).xalanifySeek = (seconds: number) => {
+        if (ytPlayerRef.current) {
+          isSeekingRef.current = true
+          try {
+            ytPlayerRef.current.seekTo(seconds, true)
+          } catch {}
+          setTimeout(() => {
+            isSeekingRef.current = false
+          }, 100)
+        }
+      }
     }
   }, [])
 
-  useEffect(() => {
-    if (isPlaying && currentTrack) {
-      requestWakeLock()
-    } else {
-      releaseWakeLock()
-    }
-  }, [isPlaying, currentTrack, requestWakeLock, releaseWakeLock])
-
-  // ========== MEDIA SESSION - Lock screen controls & notifications ==========
+  // ========== MEDIA SESSION ==========
   useEffect(() => {
     if (!currentTrack || typeof navigator === 'undefined' || !('mediaSession' in navigator)) return
 
-    // Set media metadata for lock screen
     navigator.mediaSession.metadata = new MediaMetadata({
       title: currentTrack.title || "Unknown",
       artist: currentTrack.artist || "Unknown",
@@ -82,52 +246,39 @@ export default function AudioEngine() {
       ],
     })
 
-    // Set action handlers for lock screen controls
     try {
-      navigator.mediaSession.setActionHandler("play", () => {
-        console.log("[AudioEngine] ▶️ Media Session: Play")
-        resume?.()
-      })
-      navigator.mediaSession.setActionHandler("pause", () => {
-        console.log("[AudioEngine] ⏸️ Media Session: Pause")
-        pause?.()
-      })
-      navigator.mediaSession.setActionHandler("previoustrack", () => {
-        console.log("[AudioEngine] ⏮️ Media Session: Previous")
-        previous?.()
-      })
-      navigator.mediaSession.setActionHandler("nexttrack", () => {
-        console.log("[AudioEngine] ⏭️ Media Session: Next")
-        next?.()
-      })
+      navigator.mediaSession.setActionHandler("play", () => resume?.())
+      navigator.mediaSession.setActionHandler("pause", () => pause?.())
+      navigator.mediaSession.setActionHandler("previoustrack", () => previous?.())
+      navigator.mediaSession.setActionHandler("nexttrack", () => next?.())
       
-      // Seek actions
       navigator.mediaSession.setActionHandler("seekbackward", () => {
-        const newPos = Math.max(0, progress - 10)
-        if (playerRef.current?.seekTo) {
-          playerRef.current.seekTo(newPos, 'seconds')
+        if (ytPlayerRef.current) {
+          const newTime = Math.max(0, ytPlayerRef.current.getCurrentTime() - 10)
+          ;(window as any).xalanifySeek?.(newTime)
         }
       })
+      
       navigator.mediaSession.setActionHandler("seekforward", () => {
-        const newPos = Math.min(duration, progress + 10)
-        if (playerRef.current?.seekTo) {
-          playerRef.current.seekTo(newPos, 'seconds')
+        if (ytPlayerRef.current) {
+          const newTime = Math.min(ytPlayerRef.current.getDuration(), ytPlayerRef.current.getCurrentTime() + 10)
+          ;(window as any).xalanifySeek?.(newTime)
         }
       })
     } catch (err) {
-      console.log("[AudioEngine] ⚠️ Media Session handlers error:", err)
+      console.log("[AudioEngine] ⚠️ Media Session error:", err)
     }
-  }, [currentTrack, next, previous, resume, pause, progress, duration, playerRef])
+  }, [currentTrack, next, previous, resume, pause])
 
   // Update playback state
   useEffect(() => {
-    if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !currentTrack) return
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused"
-  }, [isPlaying, currentTrack])
+  }, [isPlaying])
 
   // Update position state
   useEffect(() => {
-    if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !currentTrack) return
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return
     if (!('setPositionState' in navigator.mediaSession)) return
     
     try {
@@ -137,18 +288,17 @@ export default function AudioEngine() {
         position: progress || 0,
       })
     } catch {}
-  }, [progress, duration, currentTrack])
+  }, [progress, duration])
 
-  // ========== BACKGROUND PLAYBACK - Handle visibility changes ==========
+  // ========== VISIBILITY CHANGE - KEEP PLAYING ==========
   useEffect(() => {
     if (typeof document === 'undefined') return
 
     const handleVisibilityChange = () => {
-      if (document.hidden) {
-        console.log("[AudioEngine] 📱 App em segundo plano")
-        // Keep playing in background - don't pause!
+      if (!document.hidden) {
+        console.log("[AudioEngine] 📱 App visible")
       } else {
-        console.log("[AudioEngine] 📱 App visível")
+        console.log("[AudioEngine] 📱 App in background - keeping playback")
       }
     }
 
@@ -156,153 +306,10 @@ export default function AudioEngine() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
 
-  // ========== RESET ON TRACK CHANGE ==========
-  useEffect(() => {
-    if (currentTrack?.youtubeId && currentTrack.youtubeId !== lastVideoIdRef.current) {
-      lastVideoIdRef.current = currentTrack.youtubeId
-      setStreamUrl(null)
-      setUseDirectStream(true)
-      setStreamError(false)
-      retryCountRef.current = 0
-    }
-  }, [currentTrack?.youtubeId])
-
-  // ========== FETCH STREAM URL ==========
-  useEffect(() => {
-    if (!currentTrack?.youtubeId) {
-      setStreamUrl(null)
-      return
-    }
-
-    const videoId = currentTrack.youtubeId
-    
-    fetch(`/api/stream/${videoId}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.url) {
-          console.log("[AudioEngine] ✅ Stream direto obtido!")
-          setStreamUrl(data.url)
-          setStreamError(false)
-        } else {
-          console.log("[AudioEngine] ❌ Stream não encontrado")
-          setUseDirectStream(false)
-        }
-      })
-      .catch(err => {
-        console.log("[AudioEngine] ❌ Erro ao buscar stream:", err)
-        setUseDirectStream(false)
-        setStreamError(true)
-      })
-  }, [currentTrack?.youtubeId])
-
-  // ========== CONTROL STREAM PLAYBACK ==========
-  useEffect(() => {
-    if (!streamUrl || !streamAudioRef.current || !useDirectStream) return
-
-    const audio = streamAudioRef.current
-
-    if (isPlaying) {
-      audio.play()
-        .then(() => console.log("[AudioEngine] ▶️ Stream a reproduzir"))
-        .catch(err => {
-          console.log("[AudioEngine] ❌ Erro ao reproduzir stream:", err)
-          // Retry logic
-          if (retryCountRef.current < 3) {
-            retryCountRef.current++
-            console.log(`[AudioEngine] 🔄 Retry ${retryCountRef.current}/3`)
-            setTimeout(() => audio.play().catch(() => {}), 1000)
-          } else {
-            setUseDirectStream(false)
-            setStreamUrl(null)
-          }
-        })
-    } else {
-      audio.pause()
-    }
-  }, [isPlaying, streamUrl, useDirectStream])
-
-  // ========== VOLUME CONTROL ==========
-  useEffect(() => {
-    if (streamAudioRef.current) {
-      streamAudioRef.current.volume = volume
-    }
-  }, [volume])
-
-  // ========== FALLBACK PREVIEW AUDIO ==========
-  useEffect(() => {
-    if (!audioRef.current || currentTrack?.youtubeId || !currentTrack?.previewUrl) return
-    if (isPlaying) audioRef.current.play().catch(() => {})
-    else audioRef.current.pause()
-  }, [isPlaying, currentTrack, audioRef])
-
-  useEffect(() => {
-    if (!audioRef.current) return
-    audioRef.current.volume = volume
-  }, [volume, audioRef])
-
-  // ========== RENDER ==========
-  if (!currentTrack) return null
-
-  const youtubeUrl = currentTrack.youtubeId 
-    ? `https://www.youtube.com/watch?v=${currentTrack.youtubeId}`
-    : null
-
   return (
     <div className="pointer-events-none fixed -left-[9999px] -top-[9999px] h-0 w-0 overflow-hidden opacity-0">
-      {/* Direct Audio Stream - Best for background playback */}
-      {useDirectStream && streamUrl && (
-        <audio
-          ref={streamAudioRef}
-          src={streamUrl}
-          autoPlay={isPlaying}
-          preload="auto"
-          crossOrigin="anonymous"
-          onTimeUpdate={(e) => setProgress((e.currentTarget as HTMLAudioElement).currentTime)}
-          onLoadedMetadata={(e) => setDuration((e.currentTarget as HTMLAudioElement).duration || 0)}
-          onEnded={() => {
-            console.log("[AudioEngine] 🎵 Stream ended, next track")
-            next?.()
-          }}
-          onError={() => {
-            console.log("[AudioEngine] ❌ Stream error")
-            setStreamError(true)
-            setUseDirectStream(false)
-            setStreamUrl(null)
-          }}
-          onCanPlay={() => console.log("[AudioEngine] ✅ Stream ready")}
-        />
-      )}
-
-      {/* YouTube Iframe - Hidden but keeps playing in background on mobile */}
-      {!useDirectStream && youtubeUrl && (
-        <iframe
-          ref={(el) => {
-            if (el && playerRef) {
-              // Store the iframe element for YouTube API
-              (playerRef as any).current = el
-            }
-          }}
-          src={`https://www.youtube.com/embed/${currentTrack.youtubeId}?autoplay=1&playsinline=1&controls=0&disablekb=1&modestbranding=1&rel=0&enablejsapi=1&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-          allowFullScreen
-          style={{ display: 'none', visibility: 'hidden' }}
-          title="YouTube Player"
-        />
-      )}
-
-      {/* Spotify/Preview Audio Fallback */}
-      {!currentTrack.youtubeId && currentTrack.previewUrl && (
-        <audio
-          key={currentTrack.id}
-          ref={audioRef}
-          src={currentTrack.previewUrl}
-          autoPlay={isPlaying}
-          preload="auto"
-          onTimeUpdate={(e) => setProgress((e.currentTarget as HTMLAudioElement).currentTime)}
-          onLoadedMetadata={(e) => setDuration((e.currentTarget as HTMLAudioElement).duration || 0)}
-          onEnded={() => next?.()}
-        />
-      )}
+      {/* YouTube Player Container */}
+      <div id="youtube-audio-player" />
     </div>
   )
 }

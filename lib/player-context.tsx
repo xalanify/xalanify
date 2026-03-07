@@ -56,37 +56,37 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     currentTrackRef.current = currentTrack
   }, [currentTrack])
 
-  // Play - Simples e direto
+  // Play - Simple and direct
   const play = useCallback(async (track: Track) => {
     setProgress(0)
     setDuration(0)
 
     let ytId = track.youtubeId
 
-    // Se não tem YouTube ID, buscar
+    // If no YouTube ID, search for it
     if (!ytId) {
-      console.log("[Player] 🔍 A procurar YouTube ID para:", track.title, "-", track.artist)
+      console.log("[Player] 🔍 Searching YouTube ID for:", track.title, "-", track.artist)
       ytId = await getYoutubeId(track.title, track.artist)
     }
 
-    console.log("[Player] ▶️ A reproduzir:", track.title, "YouTube ID:", ytId)
+    console.log("[Player] ▶️ Playing:", track.title, "YouTube ID:", ytId)
 
-    // Guardar track com YouTube ID
+    // Save track with YouTube ID
     setCurrentTrack({ ...track, youtubeId: ytId ?? null })
     setIsPlaying(true)
   }, [])
 
-  // Retry - para usar quando Piped/YouTube fail
+  // Retry - for when Piped/YouTube fails
   const retryTrack = useCallback(async () => {
     const track = currentTrackRef.current
     if (!track) return
     
-    console.log("[Player] 🔄 Retry para:", track.title)
+    console.log("[Player] 🔄 Retry for:", track.title)
     
     const newId = await getYoutubeId(track.title, track.artist)
     
     if (newId) {
-      console.log("[Player] ✅ Novo YouTube ID:", newId)
+      console.log("[Player] ✅ New YouTube ID:", newId)
       setCurrentTrack({ ...track, youtubeId: newId })
       setIsPlaying(true)
     }
@@ -114,14 +114,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const seekTo = useCallback((fraction: number) => {
-    if (currentTrack?.previewUrl && !currentTrack.youtubeId && audioRef.current && duration > 0) {
-      audioRef.current.currentTime = fraction * duration
-      return
+    // Calculate seconds from fraction
+    const seconds = fraction * duration
+    
+    // Try to use global seek function (from AudioEngine)
+    if (typeof window !== 'undefined') {
+      const globalSeek = (window as any).xalanifySeek
+      if (globalSeek) {
+        globalSeek(seconds)
+        return
+      }
     }
-    if (playerRef.current) {
-      playerRef.current.seekTo(fraction, "fraction")
+    
+    // Fallback: set progress directly
+    if (duration > 0) {
+      setProgress(seconds)
     }
-  }, [audioRef, currentTrack, duration])
+  }, [duration])
 
   const setVolume = useCallback((value: number) => {
     const nextValue = Math.max(0, Math.min(1, value))

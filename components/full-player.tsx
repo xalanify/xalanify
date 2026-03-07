@@ -47,10 +47,12 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
   const { user, isAdmin } = useAuth()
   const { accentHex } = useTheme()
   const [liked, setLiked] = useState(false)
+  const [isSeeking, setIsSeeking] = useState(false)
+  const [seekValue, setSeekValue] = useState(0)
 
   const fullBackground = useMemo(() => {
     const { r, g, b } = hexToRgb(accentHex)
-    return `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.45) 0%, #0a0404 72%)`
+    return `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.45) 0%, #000000 72%)`
   }, [accentHex])
 
   const playButtonBackground = useMemo(() => {
@@ -59,6 +61,10 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
   }, [accentHex])
 
   if (!currentTrack) return null
+
+  // Update seek value when not seeking
+  const fraction = duration > 0 ? progress / duration : 0
+  const displayValue = isSeeking ? seekValue : fraction
 
   async function handleLike() {
     if (!user || !currentTrack) return
@@ -90,12 +96,20 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
     }
   }, [user, currentTrack, isAdmin])
 
-  function handleSeek(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = parseFloat(e.target.value)
-    seekTo(val)
+  function handleSeekStart() {
+    setIsSeeking(true)
+    setSeekValue(fraction)
   }
 
-  const fraction = duration > 0 ? progress / duration : 0
+  function handleSeekChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = parseFloat(e.target.value)
+    setSeekValue(val)
+  }
+
+  function handleSeekEnd() {
+    seekTo(seekValue)
+    setIsSeeking(false)
+  }
 
   return (
     <div
@@ -105,10 +119,10 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
       }}
     >
       <div className="flex items-center justify-between px-6 pb-2 pt-4">
-        <button onClick={onClose} className="p-1 text-[#a08070]" aria-label="Fechar">
+        <button onClick={onClose} className="p-1 text-[#8E8E93]" aria-label="Fechar">
           <ChevronDown className="h-7 w-7" />
         </button>
-        <p className="text-xs font-medium uppercase tracking-wider text-[#706050]">
+        <p className="text-xs font-medium uppercase tracking-wider text-[#8E8E93]">
           A Reproduzir
         </p>
         <div className="w-9" />
@@ -125,23 +139,25 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
       </div>
 
       <div className="px-8 pb-10">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate text-xl font-bold text-[#D2B48C]">
-                {currentTrack.title}
-              </h2>
-              <p className="truncate text-sm text-[#8E8E93]">{currentTrack.artist}</p>
-            </div>
+        {/* Track Info */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-xl font-bold text-[#D2B48C]">
+              {currentTrack.title}
+            </h2>
+            <p className="truncate text-sm text-[#8E8E93]">{currentTrack.artist}</p>
+          </div>
           <button
             onClick={handleLike}
-            className={`shrink-0 p-2 ${liked ? "text-[#e63946]" : "text-[#8E8E93]"}`}
+            className={`shrink-0 p-2 ${liked ? "text-red-500" : "text-[#8E8E93]"}`}
             aria-label="Adicionar aos favoritos"
           >
             <Heart className={`h-6 w-6 ${liked ? "fill-current" : ""}`} />
           </button>
         </div>
 
-          <div className="mb-6">
+        {/* Progress Bar */}
+        <div className="mb-6">
           <input
             id="player-seek"
             name="seek"
@@ -149,19 +165,25 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
             min={0}
             max={1}
             step={0.001}
-            value={fraction}
-            onChange={handleSeek}
-            className="w-full"
+            value={displayValue}
+            onMouseDown={handleSeekStart}
+            onChange={handleSeekChange}
+            onMouseUp={handleSeekEnd}
+            onTouchStart={handleSeekStart}
+            onChangeCapture={handleSeekChange}
+            onTouchEnd={handleSeekEnd}
+            className="w-full cursor-pointer"
             style={{
-              background: `linear-gradient(to right, ${accentHex} ${fraction * 100}%, rgba(255,255,255,0.1) ${fraction * 100}%)`,
+              background: `linear-gradient(to right, ${accentHex} ${displayValue * 100}%, rgba(255,255,255,0.1) ${displayValue * 100}%)`,
             }}
           />
           <div className="mt-1 flex justify-between text-xs text-[#8E8E93]">
-            <span>{formatTime(progress)}</span>
-            <span>{formatTime(duration)}</span>
+            <span>{formatTime(isSeeking ? seekValue * duration : progress)}</span>
+            <span>{formatTime(duration || 0)}</span>
           </div>
         </div>
 
+        {/* Volume Control */}
         <div className="mb-6 flex items-center gap-3">
           <button
             onClick={() => setVolume(volume <= 0.01 ? 0.85 : 0)}
@@ -179,11 +201,14 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
             step={0.01}
             value={volume}
             onChange={(e) => setVolume(Number(e.target.value))}
-            className="xala-volume-slider w-full"
-            aria-label="Controlo de volume"
+            className="w-full cursor-pointer"
+            style={{
+              background: `linear-gradient(to right, ${accentHex} ${volume * 100}%, rgba(255,255,255,0.1) ${volume * 100}%)`,
+            }}
           />
         </div>
 
+        {/* Playback Controls */}
         <div className="flex items-center justify-center gap-8">
           <button
             onClick={previous}
@@ -194,7 +219,7 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
           </button>
           <button
             onClick={isPlaying ? pause : resume}
-            className="flex h-16 w-16 items-center justify-center rounded-full text-[#fff]"
+            className="flex h-16 w-16 items-center justify-center rounded-full text-white"
             style={{ background: playButtonBackground }}
             aria-label={isPlaying ? "Pausar" : "Reproduzir"}
           >
@@ -216,3 +241,4 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
     </div>
   )
 }
+
