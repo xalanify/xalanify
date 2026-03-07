@@ -7,18 +7,20 @@
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "fullscreen"],
-  "background_color": "#0a0a0a",
-  "theme_color": "#e63946",
+  "background_color": "#000000",
+  "theme_color": "#3B82F6",
   "orientation": "portrait-primary",
   "categories": ["music", "entertainment"],
   "prefer_related_applications": false,
   "related_applications": [],
   "permissions": [
-    "background-media-playback",
+    "background",
+    "background-sync",
     "notifications",
     "fullscreen",
     "accelerometer",
-    "gyroscope"
+    "gyroscope",
+    "wake-lock"
   ],
   "shortcuts": [
     {

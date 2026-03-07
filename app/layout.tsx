@@ -45,7 +45,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0a0a0a',
+  themeColor: '#000000',
   viewportFit: 'cover',
 }
 
@@ -61,9 +61,9 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="Xalanify" />
         <meta name="application-name" content="Xalanify" />
-        <meta name="msapplication-TileColor" content="#0a0a0a" />
+        <meta name="msapplication-TileColor" content="#000000" />
         <meta name="msapplication-TileImage" content="/icon-192.png" />
-        <meta name="theme-color" content="#e63946" />
+        <meta name="theme-color" content="#3B82F6" />
         
         {/* PWA Icons */}
         <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -133,3 +133,4 @@ export default function RootLayout({
     </html>
   )
 }
+

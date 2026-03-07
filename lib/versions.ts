@@ -1,8 +1,8 @@
 // Version and changelog management
-// This file tracks all app updates
+// Auto-updates when version changes
 
-export const APP_VERSION = "1.1.0"
-export const APP_VERSION_DATE = "2026-01-20"
+export const APP_VERSION = "0.67.0"
+export const APP_VERSION_DATE = "2026-01-21"
 
 export interface AppUpdate {
   version: string
@@ -14,20 +14,32 @@ export interface AppUpdate {
 
 export const CHANGELOG: AppUpdate[] = [
   {
-    version: "1.1.0",
+    version: "0.67.0",
+    date: "2026-01-21",
+    title: "Novo Design & Melhorias",
+    changes: [
+      "Design atualizado com sistema de cores (Bege #D2B48C, Cinzento #8E8E93)",
+      "Glass cards com blur e bordas sutis",
+      "Cards padronizados (76px altura, 18px raio)",
+      "Inputs de login com estilo glass",
+      "Barra de navegação com efeito glass",
+      "Melhorias no background playback",
+    ],
+    isNew: true,
+  },
+  {
+    version: "0.66.8",
     date: "2026-01-20",
-    title: "Melhorias e Atualizações",
+    title: "Correções e Estabilidade",
     changes: [
       "Cards de playlist e favoritos com tamanho padronizado",
       "Histórico completo de atualizações nos Ajustes",
       "Sistema de auto-refresh ao iniciar a app",
       "Notificação automática de novas funcionalidades",
-      "Limpeza automática de cache ao entrar na app",
     ],
-    isNew: true,
   },
   {
-    version: "1.0.0",
+    version: "0.66.7",
     date: "2026-01-15",
     title: "Correção do Sistema de Reprodução",
     changes: [
@@ -38,7 +50,7 @@ export const CHANGELOG: AppUpdate[] = [
     ],
   },
   {
-    version: "0.9.0",
+    version: "0.66.6",
     date: "2026-01-10",
     title: "Busca Integrada",
     changes: [
@@ -49,7 +61,7 @@ export const CHANGELOG: AppUpdate[] = [
     ],
   },
   {
-    version: "0.8.0",
+    version: "0.66.5",
     date: "2026-01-05",
     title: "Biblioteca e Playlists",
     changes: [
@@ -60,7 +72,7 @@ export const CHANGELOG: AppUpdate[] = [
     ],
   },
   {
-    version: "0.7.0",
+    version: "0.66.4",
     date: "2025-12-20",
     title: "UI e Personalização",
     changes: [
@@ -75,35 +87,58 @@ export const CHANGELOG: AppUpdate[] = [
 // Storage keys
 const VERSION_KEY = "xalanify.version"
 const CACHE_KEY = "xalanify.cacheCleared"
+const FORCE_REFRESH_KEY = "xalanify.forceRefresh"
 
-// Check if there's a new version
+// Check if there's a new version compared to stored
 export function checkForNewVersion(): AppUpdate | null {
   if (typeof window === "undefined") return null
   
   const storedVersion = localStorage.getItem(VERSION_KEY)
-
+  
+  // If no stored version, this is first visit
   if (!storedVersion) {
-    // First visit - show what's new
     return CHANGELOG[0]
   }
-
+  
+  // Compare versions - if different, there's an update
   if (storedVersion !== APP_VERSION) {
     return CHANGELOG[0]
   }
-
+  
   return null
 }
 
-// Mark version as seen
+// Check if we need to force a page refresh
+export function needsForceRefresh(): boolean {
+  if (typeof window === "undefined") return false
+  
+  const shouldRefresh = localStorage.getItem(FORCE_REFRESH_KEY)
+  return shouldRefresh === "true"
+}
+
+// Mark version as seen and clear force refresh flag
 export function markVersionAsSeen() {
   if (typeof window !== "undefined") {
     localStorage.setItem(VERSION_KEY, APP_VERSION)
+    localStorage.setItem(FORCE_REFRESH_KEY, "false")
+  }
+}
+
+// Set force refresh flag
+export function setForceRefresh() {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(FORCE_REFRESH_KEY, "true")
   }
 }
 
 // Get what's new message
 export function getWhatsNewMessage(): string {
   return CHANGELOG[0].changes.slice(0, 2).join(". ")
+}
+
+// Get full changelog for current version
+export function getCurrentVersionChanges(): string[] {
+  return CHANGELOG[0].changes
 }
 
 // Clear all app caches (localStorage, sessionStorage)
@@ -122,7 +157,9 @@ export function clearAppCache(): void {
     if (authToken) localStorage.setItem("supabase.auth.token", authToken)
     if (themePrefs) localStorage.setItem("xalanify.theme", themePrefs)
     if (prefs) localStorage.setItem("xalanify.preferences", prefs)
-    if (VERSION_KEY) localStorage.setItem(VERSION_KEY, APP_VERSION)
+    
+    // Set current version
+    localStorage.setItem(VERSION_KEY, APP_VERSION)
     
     // Mark cache as cleared
     localStorage.setItem(CACHE_KEY, new Date().toISOString())
@@ -131,6 +168,31 @@ export function clearAppCache(): void {
   } catch (error) {
     console.error("[Xalanify] Error clearing cache:", error)
   }
+}
+
+// Smart version check - detects if version changed and triggers refresh
+export async function smartVersionCheck(): Promise<{ hasUpdate: boolean; update: AppUpdate | null }> {
+  if (typeof window === "undefined") {
+    return { hasUpdate: false, update: null }
+  }
+  
+  // Check if version changed
+  const update = checkForNewVersion()
+  const shouldForceRefresh = needsForceRefresh()
+  
+  if (update || shouldForceRefresh) {
+    console.log("[Xalanify] 🔄 Version changed, triggering refresh...")
+    
+    // Clear cache to ensure fresh load
+    clearAppCache()
+    
+    // Force reload without cache
+    window.location.reload()
+    
+    return { hasUpdate: true, update }
+  }
+  
+  return { hasUpdate: false, update: null }
 }
 
 // Check if cache should be cleared (once per day)

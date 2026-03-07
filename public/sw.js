@@ -1,5 +1,5 @@
-// Xalanify Service Worker - com suporte para background media e auto-update
-const CACHE_NAME = 'xalanify-v4';
+// Xalanify Service Worker - com suporte para background media playback
+const CACHE_NAME = 'xalanify-v5';
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -38,35 +38,16 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Verificar atualizações a cada hora
-self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'content-sync') {
-    event.waitUntil(checkForUpdates());
-  }
-});
-
-async function checkForUpdates() {
-  try {
-    const response = await fetch('/manifest.json?t=' + Date.now());
-    if (response.ok) {
-      console.log('[SW] New version available');
-      // Notificar clients
-      const clients = await self.clients.matchAll();
-      clients.forEach(client => {
-        client.postMessage({ type: 'NEW_VERSION' });
-      });
-    }
-  } catch (e) {
-    console.log('[SW] Update check failed:', e);
-  }
-}
-
 // Fetch
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
-  // Ignorar requests de media (streaming) - não fazer cache
-  if (event.request.destination === 'audio' || event.request.destination === 'video') {
+  // ========== MEDIA STREAMS - Never cache, always fetch ==========
+  if (event.request.destination === 'audio' || 
+      event.request.destination === 'video' ||
+      url.pathname.includes('/api/stream/') ||
+      url.hostname.includes('googlevideo') ||
+      url.hostname.includes('youtubei')) {
     event.respondWith(
       fetch(event.request).catch(() => {
         return new Response('Media not available', { status: 408 });
@@ -75,7 +56,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // Para APIs e URLs dinâmicas, network first (sempre buscar fresco)
+  // Para APIs e URLs dinâmicas, network first
   if (url.pathname.startsWith('/api/') || 
       url.hostname.includes('supabase') || 
       url.hostname.includes('firebase') ||
@@ -85,7 +66,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Guardar resposta em cache também
           if (response.ok) {
             const responseClone = response.clone();
             caches.open(CACHE_NAME).then(cache => {
@@ -104,7 +84,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request)
       .then((response) => {
         if (response) {
-          // Em background, verificar atualização
+          // Em background, verificar atualização para scripts/styles
           if (event.request.destination === 'script' || event.request.destination === 'style') {
             fetch(event.request).then(networkResponse => {
               if (networkResponse.ok) {
@@ -140,13 +120,22 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'GET_VERSION') {
     event.ports[0].postMessage({ version: CACHE_NAME });
   }
+  
+  // Media Session messages from client
+  if (event.data && event.data.type === 'MEDIA_STATE') {
+    console.log('[SW] Media state:', event.data.state);
+  }
 });
 
-// Media Session handlers
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.openWindow('/')
-  );
+// Background sync for playlists (optional future enhancement)
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-playlists') {
+    event.waitUntil(syncPlaylists());
+  }
 });
+
+async function syncPlaylists() {
+  console.log('[SW] Syncing playlists...');
+  // Placeholder for future playlist sync
+}
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Settings, Library, Sparkles, X } from "lucide-react"
+import { Search, Settings, Library, Sparkles } from "lucide-react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { PlayerProvider, usePlayer, type Track } from "@/lib/player-context"
 import { ThemeProvider, useTheme } from "@/lib/theme-context"
@@ -15,18 +15,79 @@ import AudioEngine from "@/components/audio-engine"
 import TrackMenu from "@/components/track-menu"
 import { Toaster } from "@/components/ui/sonner"
 import { getPlaylists } from "@/lib/supabase"
-import { checkForNewVersion, markVersionAsSeen, getWhatsNewMessage, autoClearCacheIfNeeded } from "@/lib/versions"
+import { 
+  checkForNewVersion, 
+  markVersionAsSeen, 
+  autoClearCacheIfNeeded,
+  smartVersionCheck,
+  type AppUpdate
+} from "@/lib/versions"
 
 function SplashScreen({ accentHex }: { accentHex: string }) {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-[#0a0a0a]">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-[#000000]">
       <div 
         className="h-16 w-16 animate-spin rounded-full border-4 border-white/10"
         style={{ borderTopColor: accentHex }}
       />
       <div className="text-center">
-        <h1 className="text-5xl font-bold tracking-tight text-[#f0e0d0]">Xalanify</h1>
-        <p className="mt-3 text-sm tracking-[0.3em] text-[#a08070] uppercase">Em Desenvolvimento</p>
+        <h1 className="text-5xl font-bold tracking-tight text-[#D2B48C]">Xalanify</h1>
+        <p className="mt-3 text-sm tracking-[0.3em] text-[#8E8E93] uppercase">Em Desenvolvimento</p>
+      </div>
+    </div>
+  )
+}
+
+// What's New Modal with glass card style
+function WhatsNewModal({ 
+  update, 
+  onClose 
+}: { 
+  update: AppUpdate
+  onClose: () => void 
+}) {
+  const { accentHex } = useTheme()
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
+      <div className="w-full max-w-sm rounded-[18px] glass-card p-6 animate-in fade-in zoom-in duration-300">
+        {/* Header with icon */}
+        <div className="flex items-center justify-center mb-4">
+          <div 
+            className="h-16 w-16 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: `${accentHex}30` }}
+          >
+            <Sparkles className="h-8 w-8" style={{ color: accentHex }} />
+          </div>
+        </div>
+
+        {/* Title and version */}
+        <div className="text-center mb-2">
+          <h2 className="text-xl font-bold text-[#D2B48C] mb-1">Nova Versão!</h2>
+          <p className="text-sm" style={{ color: accentHex }}>v{update.version}</p>
+        </div>
+
+        {/* Version title */}
+        <h3 className="text-center text-[#8E8E93] font-medium mb-4">{update.title}</h3>
+
+        {/* Changes list */}
+        <div className="space-y-2 mb-6 max-h-[200px] overflow-y-auto">
+          {update.changes.map((change, index) => (
+            <div key={index} className="flex items-start gap-2">
+              <span className="text-[#8E8E93] mt-1">•</span>
+              <p className="text-sm text-[#D2B48C]/80">{change}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Continue button */}
+        <button
+          onClick={onClose}
+          className="w-full rounded-xl py-3 text-sm font-semibold text-white"
+          style={{ backgroundColor: accentHex }}
+        >
+          Continuar
+        </button>
       </div>
     </div>
   )
@@ -46,21 +107,49 @@ function XalanifyApp() {
   const [libraryKey, setLibraryKey] = useState(0)
   const [userPlaylists, setUserPlaylists] = useState<{id: string, name: string}[]>([])
   const [showWhatsNew, setShowWhatsNew] = useState(false)
-  const [whatsNewMessage, setWhatsNewMessage] = useState("")
+  const [currentUpdate, setCurrentUpdate] = useState<AppUpdate | null>(null)
 
-  // Auto-clear cache and check for updates on app start
+  // Smart version check on app start
   useEffect(() => {
-    // Auto clear cache once per day
+    // First, do auto clear cache
     autoClearCacheIfNeeded()
     
-    // Check for new version
-    const newUpdate = checkForNewVersion()
-    if (newUpdate) {
-      setWhatsNewMessage(getWhatsNewMessage())
-      setShowWhatsNew(true)
-      markVersionAsSeen()
+    // Then check for version changes
+    const initApp = async () => {
+      // Check if we need to force refresh (version changed)
+      const result = await smartVersionCheck()
+      
+      // If no refresh needed, check for new version to show modal
+      if (!result.hasUpdate) {
+        const update = checkForNewVersion()
+        if (update) {
+          setCurrentUpdate(update)
+          setShowWhatsNew(true)
+          markVersionAsSeen()
+        }
+      }
     }
+    
+    initApp()
   }, [])
+
+  // Check version on app focus (when user returns to app)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // App became visible - check for updates
+        const update = checkForNewVersion()
+        if (update && !showWhatsNew) {
+          setCurrentUpdate(update)
+          setShowWhatsNew(true)
+          markVersionAsSeen()
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [showWhatsNew])
 
   // Fetch user playlists for track menu
   useEffect(() => {
@@ -78,6 +167,11 @@ function XalanifyApp() {
     return () => clearTimeout(timer)
   }, [])
 
+  function handleWhatsNewClose() {
+    setShowWhatsNew(false)
+    setCurrentUpdate(null)
+  }
+
   if (showSplash || loading) return <SplashScreen accentHex={accentHex} />
   if (!user) return <LoginScreen />
 
@@ -92,30 +186,16 @@ function XalanifyApp() {
   }
 
   return (
-    <div className="relative flex h-dvh min-h-0 flex-col overflow-hidden bg-[#0a0a0a] text-[#f0e0d0]">
+    <div className="relative flex h-dvh min-h-0 flex-col overflow-hidden bg-[#000000] text-[#D2B48C]">
       <AudioEngine />
       <Toaster position="top-center" richColors />
 
       {/* What's New Modal */}
-      {showWhatsNew && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
-          <div className="w-full max-w-sm rounded-3xl bg-[#1a1a1a] border border-[#f0e0d0]/10 p-6 animate-in fade-in zoom-in duration-300">
-            <div className="flex items-center justify-center mb-4">
-              <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: `${accentHex}30` }}>
-                <Sparkles className="h-8 w-8" style={{ color: accentHex }} />
-              </div>
-            </div>
-            <h2 className="text-xl font-bold text-center text-[#f0e0d0] mb-2">Novidades!</h2>
-            <p className="text-sm text-[#a08070] text-center mb-6">{whatsNewMessage}</p>
-            <button
-              onClick={() => setShowWhatsNew(false)}
-              className="w-full rounded-xl py-3 text-sm font-semibold text-white"
-              style={{ backgroundColor: accentHex }}
-            >
-              Continuar
-            </button>
-          </div>
-        </div>
+      {showWhatsNew && currentUpdate && (
+        <WhatsNewModal 
+          update={currentUpdate} 
+          onClose={handleWhatsNewClose} 
+        />
       )}
 
       {/* Main Content */}
@@ -204,3 +284,4 @@ export default function Page() {
     </AuthProvider>
   )
 }
+
