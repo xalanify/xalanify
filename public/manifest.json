@@ -8,7 +8,7 @@
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "fullscreen"],
   "background_color": "#000000",
-  "theme_color": "#3B82F6",
+  "theme_color": "#1a1a1a",
   "orientation": "portrait-primary",
   "categories": ["music", "entertainment"],
   "prefer_related_applications": false,

@@ -27,8 +27,8 @@ export default function MiniPlayer({ onExpand }: MiniPlayerProps) {
 
   if (!currentTrack) return null
 
-  // Create solid gradient background from accent color
-  const solidBackground = `linear-gradient(135deg, ${accentHex} 0%, ${accentHex}cc 100%)`
+  // Create subtle gradient background from accent color (low opacity for soft look)
+  const solidBackground = `linear-gradient(135deg, ${accentHex}15 0%, ${accentHex}08 100%)`
 
   return (
     <div 
