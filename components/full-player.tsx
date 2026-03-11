@@ -1,6 +1,6 @@
 "use client"
 
-import { Play, Pause, SkipForward, SkipBack, ChevronDown, Heart, Volume2, VolumeX, List, X, GripVertical } from "lucide-react"
+import { Play, Pause, SkipForward, SkipBack, ChevronDown, Heart, Volume2, VolumeX, List, X, GripVertical, ChevronUp, ChevronDown as DownArrow } from "lucide-react"
 import { usePlayer } from "@/lib/player-context"
 import { useAuth } from "@/lib/auth-context"
 import { useTheme } from "@/lib/theme-context"
@@ -45,6 +45,7 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
     setVolume,
     queue,
     play,
+    reorderQueue,
   } = usePlayer()
   const { user, isAdmin } = useAuth()
   const { accentHex } = useTheme()
@@ -52,6 +53,7 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
   const [isSeeking, setIsSeeking] = useState(false)
   const [seekValue, setSeekValue] = useState(0)
   const [showQueue, setShowQueue] = useState(false)
+  const [selectedTrack, setSelectedTrack] = useState<number | null>(null)
 
   const fullBackground = useMemo(() => {
     const { r, g, b } = hexToRgb(accentHex)
@@ -114,6 +116,26 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
     setIsSeeking(false)
   }
 
+  function handleSelectTrack(index: number) {
+    if (selectedTrack === index) {
+      setSelectedTrack(null)
+    } else {
+      setSelectedTrack(index)
+    }
+  }
+
+  function handleMoveUp(index: number) {
+    if (index > 0) {
+      reorderQueue(index, index - 1)
+    }
+  }
+
+  function handleMoveDown(index: number) {
+    if (index < queue.length - 1) {
+      reorderQueue(index, index + 1)
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col safe-top safe-bottom"
@@ -128,13 +150,7 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
         <p className="text-xs font-medium uppercase tracking-wider text-[#8E8E93]">
           A Reproduzir
         </p>
-        <button 
-          onClick={() => setShowQueue(true)} 
-          className="p-1 text-[#8E8E93] hover:text-white"
-          aria-label="Ver fila de músicas"
-        >
-          <List className="h-6 w-6" />
-        </button>
+        <div className="w-9" />
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center px-10">
@@ -246,6 +262,18 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
             <SkipForward className="h-7 w-7 fill-current" />
           </button>
         </div>
+
+        {/* Queue Button - Now at bottom */}
+        <div className="flex justify-center mt-6">
+          <button 
+            onClick={() => setShowQueue(true)} 
+            className="flex items-center gap-2 px-6 py-3 rounded-full text-white"
+            style={{ backgroundColor: `${accentHex}40` }}
+          >
+            <List className="h-5 w-5" />
+            <span className="text-sm font-medium">Lista ({queue.length})</span>
+          </button>
+        </div>
       </div>
 
       {/* Queue Modal */}
@@ -264,6 +292,11 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
               <div className="w-10" />
             </div>
 
+            {/* Instructions */}
+            <div className="px-4 pb-2">
+              <p className="text-xs text-[#8E8E93]">Clica na música para selecionar, depois move para cima/baixo</p>
+            </div>
+
             {/* Queue List */}
             <div className="flex-1 overflow-y-auto px-4 pb-20">
               {queue.length === 0 ? (
@@ -275,33 +308,69 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
                 <div className="space-y-2">
                   {queue.map((track, index) => {
                     const isCurrent = track.id === currentTrack?.id
+                    const isSelected = selectedTrack === index
                     return (
-                      <button
+                      <div
                         key={`${track.id}-${index}`}
-                        onClick={() => play(track)}
-                        className={`w-full flex items-center gap-3 rounded-xl p-2 transition-colors ${
-                          isCurrent ? "bg-white/10" : "hover:bg-white/5"
+                        className={`flex items-center gap-2 rounded-xl p-2 transition-colors ${
+                          isCurrent ? "bg-white/10" : isSelected ? "bg-white/20" : "hover:bg-white/5"
                         }`}
                       >
-                        <div className="w-6 flex-shrink-0">
+                        {/* Track number / playing indicator */}
+                        <button
+                          onClick={() => handleSelectTrack(index)}
+                          className="w-8 flex-shrink-0"
+                        >
                           {isCurrent && isPlaying ? (
                             <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                           ) : (
-                            <span className="text-xs text-[#8E8E93]">{index + 1}</span>
+                            <span className={`text-xs ${isCurrent ? "text-white" : "text-[#8E8E93]"}`}>{index + 1}</span>
                           )}
-                        </div>
-                        <img 
-                          src={track.thumbnail} 
-                          alt={track.title} 
-                          className="h-10 w-10 rounded-lg object-cover"
-                        />
-                        <div className="flex-1 text-left min-w-0">
+                        </button>
+
+                        {/* Thumbnail */}
+                        <button
+                          onClick={() => play(track)}
+                          className="shrink-0"
+                        >
+                          <img 
+                            src={track.thumbnail} 
+                            alt={track.title} 
+                            className="h-10 w-10 rounded-lg object-cover"
+                          />
+                        </button>
+
+                        {/* Track info */}
+                        <button
+                          onClick={() => play(track)}
+                          className="flex-1 text-left min-w-0"
+                        >
                           <p className={`truncate text-sm ${isCurrent ? "text-white font-medium" : "text-[#D2B48C]"}`}>
                             {track.title}
                           </p>
                           <p className="truncate text-xs text-[#8E8E93]">{track.artist}</p>
-                        </div>
-                      </button>
+                        </button>
+
+                        {/* Reorder buttons - only show when selected */}
+                        {isSelected && (
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => handleMoveUp(index)}
+                              disabled={index === 0}
+                              className="p-1 rounded bg-white/10 disabled:opacity-30"
+                            >
+                              <ChevronUp className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleMoveDown(index)}
+                              disabled={index === queue.length - 1}
+                              className="p-1 rounded bg-white/10 disabled:opacity-30"
+                            >
+                              <DownArrow className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )
                   })}
                 </div>

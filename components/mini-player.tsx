@@ -27,8 +27,8 @@ export default function MiniPlayer({ onExpand }: MiniPlayerProps) {
 
   if (!currentTrack) return null
 
-  // Solid background from accent color
-  const solidBackground = accentHex
+  // Solid background - use a darker version with accent tint
+  const solidBackground = `rgba(30, 30, 30, 0.95)`
 
   return (
     <div 

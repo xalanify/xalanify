@@ -14,6 +14,8 @@ import {
   Download,
   Copy,
   Check,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { usePlayer, type Track } from "@/lib/player-context"
@@ -204,6 +206,9 @@ export default function LibraryTab() {
   const [newPlaylistName, setNewPlaylistName] = useState("")
   const [importId, setImportId] = useState("")
   const [importing, setImporting] = useState(false)
+  
+  // Reorder state
+  const [selectedTrackIndex, setSelectedTrackIndex] = useState<number | null>(null)
 
   const userId = user?.uid || ""
 
@@ -338,6 +343,56 @@ export default function LibraryTab() {
   function playTrack(track: Track, tracks: Track[]) {
     setQueue(tracks)
     play(track)
+  }
+
+  // Reorder functions for playlist
+  async function handleMoveTrackUp(index: number) {
+    if (!selectedPlaylist || index <= 0) return
+    const newTracks = [...selectedPlaylist.tracks]
+    const temp = newTracks[index]
+    newTracks[index] = newTracks[index - 1]
+    newTracks[index - 1] = temp
+    
+    setSelectedPlaylist({ ...selectedPlaylist, tracks: newTracks })
+    await reorderPlaylistTracks(selectedPlaylist.id, newTracks)
+    setSelectedTrackIndex(null)
+  }
+
+  async function handleMoveTrackDown(index: number) {
+    if (!selectedPlaylist || index >= selectedPlaylist.tracks.length - 1) return
+    const newTracks = [...selectedPlaylist.tracks]
+    const temp = newTracks[index]
+    newTracks[index] = newTracks[index + 1]
+    newTracks[index + 1] = temp
+    
+    setSelectedPlaylist({ ...selectedPlaylist, tracks: newTracks })
+    await reorderPlaylistTracks(selectedPlaylist.id, newTracks)
+    setSelectedTrackIndex(null)
+  }
+
+  // Reorder functions for liked tracks
+  async function handleMoveLikedTrackUp(index: number) {
+    if (index <= 0 || !userId) return
+    const newTracks = [...likedTracks]
+    const temp = newTracks[index]
+    newTracks[index] = newTracks[index - 1]
+    newTracks[index - 1] = temp
+    
+    setLikedTracks(newTracks)
+    await reorderLikedTracks(userId, newTracks)
+    setSelectedTrackIndex(null)
+  }
+
+  async function handleMoveLikedTrackDown(index: number) {
+    if (index >= likedTracks.length - 1 || !userId) return
+    const newTracks = [...likedTracks]
+    const temp = newTracks[index]
+    newTracks[index] = newTracks[index + 1]
+    newTracks[index + 1] = temp
+    
+    setLikedTracks(newTracks)
+    await reorderLikedTracks(userId, newTracks)
+    setSelectedTrackIndex(null)
   }
 
   // Get other playlists for "add to playlist" menu
@@ -480,14 +535,14 @@ export default function LibraryTab() {
       <div className="flex min-h-0 flex-1 flex-col w-full max-w-full overflow-hidden">
         <div className="px-4 sm:px-6 pb-6 pt-4 flex-1 overflow-y-auto">
           <button 
-            onClick={() => setView("list")} 
+            onClick={() => { setView("list"); setSelectedTrackIndex(null) }} 
             className="mb-4 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]"
           >
             <ArrowLeft className="h-5 w-5" />
             <span className="text-sm">Voltar</span>
           </button>
 
-          <div className="mb-6 flex items-start gap-3 sm:gap-4">
+          <div className="mb-4 flex items-start gap-3 sm:gap-4">
             <div 
               className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: `${accentHex}20` }}
@@ -501,6 +556,7 @@ export default function LibraryTab() {
             <div className="flex-1 min-w-0">
               <h2 className="text-lg sm:text-xl font-bold text-[#f0e0d0] truncate">{selectedPlaylist.name}</h2>
               <p className="text-sm text-[#a08070]">{selectedPlaylist.tracks.length} músicas</p>
+              <p className="text-xs text-[#706050] mt-1">Clica na música para selecionar, depois move para cima/baixo</p>
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={() => selectedPlaylist.tracks.length > 0 && playTrack(selectedPlaylist.tracks[0], selectedPlaylist.tracks)}
@@ -523,36 +579,65 @@ export default function LibraryTab() {
                 <p className="text-sm text-[#706050] mt-2">Adiciona músicas da pesquisa</p>
               </div>
             ) : (
-              selectedPlaylist.tracks.map((track, index) => (
-                <div 
-                  key={`${track.id}-${index}`} 
-                  className="flex items-center gap-2 sm:gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-2 sm:p-3 hover:bg-[#1a1a1a] transition-colors w-full"
-                >
-                  <button
-                    onClick={() => playTrack(track, selectedPlaylist.tracks)}
-                    className="shrink-0"
+              selectedPlaylist.tracks.map((track, index) => {
+                const isSelected = selectedTrackIndex === index
+                return (
+                  <div 
+                    key={`${track.id}-${index}`} 
+                    className={`flex items-center gap-2 sm:gap-3 rounded-xl p-2 sm:p-3 transition-colors w-full ${
+                      isSelected ? "bg-white/20" : "bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 hover:bg-[#1a1a1a]"
+                    }`}
                   >
-                    <img src={track.thumbnail} alt={track.title} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover" />
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate font-medium text-[#f0e0d0] text-sm">{track.title}</p>
-                    <p className="truncate text-xs sm:text-sm text-[#a08070]">{track.artist}</p>
+                    {/* Reorder buttons or index */}
+                    <div className="w-8 flex-shrink-0">
+                      <button
+                        onClick={() => setSelectedTrackIndex(isSelected ? null : index)}
+                        className="text-xs text-[#8E8E93] hover:text-white"
+                      >
+                        {index + 1}
+                      </button>
+                    </div>
+                    
+                    <button
+                      onClick={() => playTrack(track, selectedPlaylist.tracks)}
+                      className="shrink-0"
+                    >
+                      <img src={track.thumbnail} alt={track.title} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate font-medium text-[#f0e0d0] text-sm">{track.title}</p>
+                      <p className="truncate text-xs sm:text-sm text-[#a08070]">{track.artist}</p>
+                    </div>
+                    
+                    {/* Reorder controls - only show when selected */}
+                    {isSelected && (
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => handleMoveTrackUp(index)}
+                          disabled={index === 0}
+                          className="p-1 rounded bg-white/10 disabled:opacity-30 hover:bg-white/20"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleMoveTrackDown(index)}
+                          disabled={index === selectedPlaylist.tracks.length - 1}
+                          className="p-1 rounded bg-white/10 disabled:opacity-30 hover:bg-white/20"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                    
+                    <TrackMenu 
+                      onRemove={() => handleRemoveFromPlaylist(track.id)}
+                      onAddToFavorites={() => handleAddToFavorites(track)}
+                      onAddToPlaylist={(playlistId) => handleAddTrackToPlaylist(track, playlistId)}
+                      playlists={otherPlaylists}
+                    />
                   </div>
-                  <button
-                    onClick={() => playTrack(track, selectedPlaylist.tracks)}
-                    className="rounded-full p-1.5 sm:p-2 flex-shrink-0"
-                    style={{ backgroundColor: `${accentHex}30` }}
-                  >
-                    <Play className="h-3 w-3 sm:h-4 sm:w-4" style={{ color: accentHex }} />
-                  </button>
-                  <TrackMenu 
-                    onRemove={() => handleRemoveFromPlaylist(track.id)}
-                    onAddToFavorites={() => handleAddToFavorites(track)}
-                    onAddToPlaylist={(playlistId) => handleAddTrackToPlaylist(track, playlistId)}
-                    playlists={otherPlaylists}
-                  />
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>
@@ -566,14 +651,14 @@ export default function LibraryTab() {
       <div className="flex min-h-0 flex-1 flex-col w-full max-w-full overflow-hidden">
         <div className="px-4 sm:px-6 pb-6 pt-4 flex-1 overflow-y-auto">
           <button 
-            onClick={() => setView("list")} 
+            onClick={() => { setView("list"); setSelectedTrackIndex(null) }} 
             className="mb-4 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]"
           >
             <ArrowLeft className="h-5 w-5" />
             <span className="text-sm">Voltar</span>
           </button>
 
-          <div className="mb-6 flex items-center gap-3 sm:gap-4">
+          <div className="mb-4 flex items-center gap-3 sm:gap-4">
             <div 
               className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: `${accentHex}20` }}
@@ -583,6 +668,7 @@ export default function LibraryTab() {
             <div className="min-w-0">
               <h2 className="text-xl sm:text-2xl font-bold text-[#f0e0d0]">Favoritos</h2>
               <p className="text-sm text-[#a08070]">{likedTracks.length} músicas</p>
+              <p className="text-xs text-[#706050] mt-1">Clica na música para selecionar, depois move para cima/baixo</p>
             </div>
           </div>
 
@@ -594,36 +680,65 @@ export default function LibraryTab() {
                 <p className="text-sm text-[#706050] mt-2">Adiciona músicas da pesquisa</p>
               </div>
             ) : (
-              likedTracks.map((track, index) => (
-                <div 
-                  key={`${track.id}-${index}`} 
-                  className="flex items-center gap-2 sm:gap-3 rounded-xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-2 sm:p-3 hover:bg-[#1a1a1a] transition-colors w-full"
-                >
-                  <button
-                    onClick={() => playTrack(track, likedTracks)}
-                    className="shrink-0"
+              likedTracks.map((track, index) => {
+                const isSelected = selectedTrackIndex === index
+                return (
+                  <div 
+                    key={`${track.id}-${index}`} 
+                    className={`flex items-center gap-2 sm:gap-3 rounded-xl p-2 sm:p-3 transition-colors w-full ${
+                      isSelected ? "bg-white/20" : "bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 hover:bg-[#1a1a1a]"
+                    }`}
                   >
-                    <img src={track.thumbnail} alt={track.title} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover" />
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate font-medium text-[#f0e0d0] text-sm">{track.title}</p>
-                    <p className="truncate text-xs sm:text-sm text-[#a08070]">{track.artist}</p>
+                    {/* Reorder buttons or index */}
+                    <div className="w-8 flex-shrink-0">
+                      <button
+                        onClick={() => setSelectedTrackIndex(isSelected ? null : index)}
+                        className="text-xs text-[#8E8E93] hover:text-white"
+                      >
+                        {index + 1}
+                      </button>
+                    </div>
+                    
+                    <button
+                      onClick={() => playTrack(track, likedTracks)}
+                      className="shrink-0"
+                    >
+                      <img src={track.thumbnail} alt={track.title} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate font-medium text-[#f0e0d0] text-sm">{track.title}</p>
+                      <p className="truncate text-xs sm:text-sm text-[#a08070]">{track.artist}</p>
+                    </div>
+                    
+                    {/* Reorder controls - only show when selected */}
+                    {isSelected && (
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => handleMoveLikedTrackUp(index)}
+                          disabled={index === 0}
+                          className="p-1 rounded bg-white/10 disabled:opacity-30 hover:bg-white/20"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleMoveLikedTrackDown(index)}
+                          disabled={index === likedTracks.length - 1}
+                          className="p-1 rounded bg-white/10 disabled:opacity-30 hover:bg-white/20"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                    
+                    <TrackMenu 
+                      onRemove={() => handleRemoveFromLiked(track.id)}
+                      onAddToPlaylist={(playlistId) => handleAddTrackToPlaylist(track, playlistId)}
+                      isLikedView={true}
+                      playlists={playlists}
+                    />
                   </div>
-                  <button
-                    onClick={() => playTrack(track, likedTracks)}
-                    className="rounded-full p-1.5 sm:p-2 flex-shrink-0"
-                    style={{ backgroundColor: `${accentHex}30` }}
-                  >
-                    <Play className="h-3 w-3 sm:h-4 sm:w-4" style={{ color: accentHex }} />
-                  </button>
-                  <TrackMenu 
-                    onRemove={() => handleRemoveFromLiked(track.id)}
-                    onAddToPlaylist={(playlistId) => handleAddTrackToPlaylist(track, playlistId)}
-                    isLikedView={true}
-                    playlists={playlists}
-                  />
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>
@@ -674,3 +789,4 @@ export default function LibraryTab() {
 
   return null
 }
+

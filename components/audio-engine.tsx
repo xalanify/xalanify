@@ -290,21 +290,52 @@ export default function AudioEngine() {
     } catch {}
   }, [progress, duration])
 
+  // ========== CHECK FOR TRACK END - FALLBACK ==========
+  useEffect(() => {
+    if (!playerReady || !ytPlayerRef.current || !isPlaying) return
+    
+    const checkInterval = setInterval(() => {
+      if (!ytPlayerRef.current || !isPlaying) return
+      
+      try {
+        const currentTime = ytPlayerRef.current.getCurrentTime()
+        const totalDuration = ytPlayerRef.current.getDuration()
+        
+        // If we're within 1 second of the end, auto-play next
+        if (totalDuration > 0 && currentTime >= totalDuration - 1) {
+          console.log("[AudioEngine] 🎵 Track ended - playing next")
+          next?.()
+        }
+      } catch {}
+    }, 500)
+    
+    return () => clearInterval(checkInterval)
+  }, [isPlaying, playerReady, next])
+
   // ========== VISIBILITY CHANGE - KEEP PLAYING ==========
   useEffect(() => {
     if (typeof document === 'undefined') return
 
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (!document.hidden) {
-        console.log("[AudioEngine] 📱 App visible")
+        console.log("[AudioEngine] 📱 App visible - ensuring playback")
+        // Try to resume if we were playing
+        if (isPlaying && ytPlayerRef.current) {
+          try {
+            const state = ytPlayerRef.current.getPlayerState()
+            if (state !== window.YT.PlayerState.PLAYING) {
+              ytPlayerRef.current.playVideo()
+            }
+          } catch {}
+        }
       } else {
-        console.log("[AudioEngine] 📱 App in background - keeping playback")
+        console.log("[AudioEngine] 📱 App in background")
       }
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [])
+  }, [isPlaying])
 
   return (
     <div className="pointer-events-none fixed -left-[9999px] -top-[9999px] h-0 w-0 overflow-hidden opacity-0">
