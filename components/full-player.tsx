@@ -1,6 +1,6 @@
 "use client"
 
-import { Play, Pause, SkipForward, SkipBack, ChevronDown, Heart, Volume2, VolumeX } from "lucide-react"
+import { Play, Pause, SkipForward, SkipBack, ChevronDown, Heart, Volume2, VolumeX, List, X, GripVertical } from "lucide-react"
 import { usePlayer } from "@/lib/player-context"
 import { useAuth } from "@/lib/auth-context"
 import { useTheme } from "@/lib/theme-context"
@@ -43,12 +43,15 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
     seekTo,
     volume,
     setVolume,
+    queue,
+    play,
   } = usePlayer()
   const { user, isAdmin } = useAuth()
   const { accentHex } = useTheme()
   const [liked, setLiked] = useState(false)
   const [isSeeking, setIsSeeking] = useState(false)
   const [seekValue, setSeekValue] = useState(0)
+  const [showQueue, setShowQueue] = useState(false)
 
   const fullBackground = useMemo(() => {
     const { r, g, b } = hexToRgb(accentHex)
@@ -125,7 +128,13 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
         <p className="text-xs font-medium uppercase tracking-wider text-[#8E8E93]">
           A Reproduzir
         </p>
-        <div className="w-9" />
+        <button 
+          onClick={() => setShowQueue(true)} 
+          className="p-1 text-[#8E8E93] hover:text-white"
+          aria-label="Ver fila de músicas"
+        >
+          <List className="h-6 w-6" />
+        </button>
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center px-10">
@@ -238,6 +247,69 @@ export default function FullPlayer({ onClose }: FullPlayerProps) {
           </button>
         </div>
       </div>
+
+      {/* Queue Modal */}
+      {showQueue && (
+        <div className="fixed inset-0 z-[60] bg-black/90">
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 pt-12">
+              <button 
+                onClick={() => setShowQueue(false)} 
+                className="p-2 text-[#8E8E93] hover:text-white"
+              >
+                <X className="h-6 w-6" />
+              </button>
+              <p className="text-sm font-medium text-[#8E8E93]">Fila de Reprodução</p>
+              <div className="w-10" />
+            </div>
+
+            {/* Queue List */}
+            <div className="flex-1 overflow-y-auto px-4 pb-20">
+              {queue.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-[#8E8E93]">
+                  <List className="h-12 w-12 mb-4 opacity-30" />
+                  <p>Nenhuma música na fila</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {queue.map((track, index) => {
+                    const isCurrent = track.id === currentTrack?.id
+                    return (
+                      <button
+                        key={`${track.id}-${index}`}
+                        onClick={() => play(track)}
+                        className={`w-full flex items-center gap-3 rounded-xl p-2 transition-colors ${
+                          isCurrent ? "bg-white/10" : "hover:bg-white/5"
+                        }`}
+                      >
+                        <div className="w-6 flex-shrink-0">
+                          {isCurrent && isPlaying ? (
+                            <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <span className="text-xs text-[#8E8E93]">{index + 1}</span>
+                          )}
+                        </div>
+                        <img 
+                          src={track.thumbnail} 
+                          alt={track.title} 
+                          className="h-10 w-10 rounded-lg object-cover"
+                        />
+                        <div className="flex-1 text-left min-w-0">
+                          <p className={`truncate text-sm ${isCurrent ? "text-white font-medium" : "text-[#D2B48C]"}`}>
+                            {track.title}
+                          </p>
+                          <p className="truncate text-xs text-[#8E8E93]">{track.artist}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

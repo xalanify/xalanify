@@ -29,6 +29,9 @@ interface PlayerContextType {
   next: () => void
   previous: () => void
   setQueue: (tracks: Track[]) => void
+  addToQueue: (track: Track) => void
+  removeFromQueue: (index: number) => void
+  reorderQueue: (fromIndex: number, toIndex: number) => void
   setProgress: (p: number) => void
   setDuration: (d: number) => void
   seekTo: (fraction: number) => void
@@ -111,6 +114,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const setQueue = useCallback((tracks: Track[]) => {
     setQueueState(tracks)
+  }, [])
+
+  const addToQueue = useCallback((track: Track) => {
+    setQueueState(prev => [...prev, track])
+  }, [])
+
+  const removeFromQueue = useCallback((index: number) => {
+    setQueueState(prev => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const reorderQueue = useCallback((fromIndex: number, toIndex: number) => {
+    setQueueState(prev => {
+      const newQueue = [...prev]
+      const [removed] = newQueue.splice(fromIndex, 1)
+      newQueue.splice(toIndex, 0, removed)
+      return newQueue
+    })
   }, [])
 
   const seekTo = useCallback((fraction: number) => {
@@ -213,6 +233,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         next,
         previous,
         setQueue,
+        addToQueue,
+        removeFromQueue,
+        reorderQueue,
         setProgress,
         setDuration,
         seekTo,

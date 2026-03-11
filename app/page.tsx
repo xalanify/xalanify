@@ -15,7 +15,7 @@ import AudioEngine from "@/components/audio-engine"
 import TrackMenu from "@/components/track-menu"
 import { Toaster } from "@/components/ui/sonner"
 import { getPlaylists } from "@/lib/supabase"
-import { APP_VERSION, checkForNewVersion, markVersionAsSeen, autoClearCacheIfNeeded, smartVersionCheck, type AppUpdate } from "@/lib/versions"
+import { APP_VERSION, checkForNewVersion, markVersionAsSeen, autoClearCacheIfNeeded, smartVersionCheck, setDontShowVersion, type AppUpdate } from "@/lib/versions"
 
 function SplashScreen({ accentHex }: { accentHex: string }) {
   return (
@@ -36,12 +36,23 @@ function SplashScreen({ accentHex }: { accentHex: string }) {
 function WhatsNewModal({ update, onClose }: { update: AppUpdate; onClose: () => void }) {
   const { accentHex } = useTheme()
 
+  function handleDontShow() {
+    setDontShowVersion(update.version)
+    markVersionAsSeen()
+    onClose()
+  }
+
+  function handleOk() {
+    markVersionAsSeen()
+    onClose()
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={handleOk}
       />
       
       {/* Modal Card */}
@@ -54,7 +65,7 @@ function WhatsNewModal({ update, onClose }: { update: AppUpdate; onClose: () => 
       >
         {/* Close button */}
         <button
-          onClick={onClose}
+          onClick={handleOk}
           className="absolute right-4 top-4 rounded-full p-1.5 text-[#8E8E93] hover:text-white hover:bg-white/10 transition-colors"
         >
           <X className="h-4 w-4" />
@@ -95,14 +106,22 @@ function WhatsNewModal({ update, onClose }: { update: AppUpdate; onClose: () => 
           ))}
         </ul>
 
-        {/* CTA Button */}
-        <button
-          onClick={onClose}
-          className="w-full rounded-xl py-3 text-sm font-semibold text-white transition-all hover:opacity-90"
-          style={{ backgroundColor: accentHex }}
-        >
-          Continuar
-        </button>
+        {/* Buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={handleDontShow}
+            className="flex-1 rounded-xl py-3 text-sm font-medium text-[#8E8E93] hover:text-white transition-colors border border-[#8E8E93]/30"
+          >
+            Não mostrar novamente
+          </button>
+          <button
+            onClick={handleOk}
+            className="flex-1 rounded-xl py-3 text-sm font-semibold text-white transition-all hover:opacity-90"
+            style={{ backgroundColor: accentHex }}
+          >
+            OK
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -123,8 +142,8 @@ function XalanifyApp() {
   const [userPlaylists, setUserPlaylists] = useState<{id: string, name: string}[]>([])
   const [whatsNewUpdate, setWhatsNewUpdate] = useState<AppUpdate | null>(null)
 
-  // Create subtle gradient for tab bar from accent color (low opacity for soft look)
-  const tabBarBackground = `linear-gradient(135deg, ${accentHex}15 0%, ${accentHex}08 100%)`
+  // Create solid background for tab bar from accent color
+  const tabBarBackground = `${accentHex}25`
 
   // Check for updates and show WhatsNew modal on mount
   useEffect(() => {
@@ -206,12 +225,11 @@ function XalanifyApp() {
           />
         )}
         
-        {/* Navigation - Subtle Background with gradient from accent color */}
+        {/* Navigation - Solid Background */}
         <nav 
           className="mx-4 mb-4 flex items-center justify-around rounded-2xl px-2 py-3"
           style={{ 
             background: tabBarBackground,
-            boxShadow: `0 4px 20px ${accentHex}15`
           }}
         >
           {tabs.map((tab) => {

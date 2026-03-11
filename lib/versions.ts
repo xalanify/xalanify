@@ -1,8 +1,8 @@
 // Version and changelog management
 // Auto-updates when version changes
 
-export const APP_VERSION = "0.68.0"
-export const APP_VERSION_DATE = "2026-01-25"
+export const APP_VERSION = "0.69.0"
+export const APP_VERSION_DATE = "2026-01-26"
 
 export interface AppUpdate {
   version: string
@@ -14,6 +14,20 @@ export interface AppUpdate {
 
 export const CHANGELOG: AppUpdate[] = [
   {
+    version: "0.69.0",
+    date: "2026-01-26",
+    title: "Melhorias de UI & Player",
+    changes: [
+      "Card de novidades com botão 'Não mostrar novamente'",
+      "Barra de navegação com cor sólida",
+      "Mini-player com cor sólida",
+      "Botões de próxima/anterior no mini-player",
+      "Lista de músicas no player completo",
+      "Funções para reordenar músicas",
+    ],
+    isNew: true,
+  },
+  {
     version: "0.68.0",
     date: "2026-01-25",
     title: "Design Sutil & WhatsNew",
@@ -24,7 +38,6 @@ export const CHANGELOG: AppUpdate[] = [
       "Atualização automática sem precisar apagar cache",
       "Cache diário automático",
     ],
-    isNew: true,
   },
   {
     version: "0.67.1",
@@ -110,12 +123,32 @@ export const CHANGELOG: AppUpdate[] = [
 const VERSION_KEY = "xalanify.version"
 const CACHE_KEY = "xalanify.cacheCleared"
 const FORCE_REFRESH_KEY = "xalanify.forceRefresh"
+const DONT_SHOW_KEY = "xalanify.dontShowVersion"
+
+// Check if user chose to not show this version again
+export function getDontShowVersion(): string | null {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem(DONT_SHOW_KEY)
+}
+
+// Set version to not show again
+export function setDontShowVersion(version: string) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(DONT_SHOW_KEY, version)
+  }
+}
 
 // Check if there's a new version compared to stored
 export function checkForNewVersion(): AppUpdate | null {
   if (typeof window === "undefined") return null
   
   const storedVersion = localStorage.getItem(VERSION_KEY)
+  const dontShowVersion = getDontShowVersion()
+  
+  // If user chose to not show this version again, skip
+  if (dontShowVersion === APP_VERSION) {
+    return null
+  }
   
   // If no stored version, this is first visit
   if (!storedVersion) {

@@ -203,6 +203,54 @@ export async function removeTrackFromPlaylist(playlistId: string, trackId: strin
   }
 }
 
+// Reorder tracks in playlist
+export async function reorderPlaylistTracks(playlistId: string, tracks: any[]): Promise<boolean> {
+  try {
+    const ref = doc(db, COLLECTIONS.PLAYLISTS, playlistId)
+    const snap = await getDoc(ref)
+    
+    if (!snap.exists()) return false
+    
+    await updateDoc(ref, { tracks })
+    return true
+  } catch (error) {
+    console.error("[DB] Reorder tracks error:", error)
+    return false
+  }
+}
+
+// Reorder liked tracks - rebuild entire liked collection
+export async function reorderLikedTracks(userId: string, tracks: any[]): Promise<boolean> {
+  try {
+    // Delete all existing liked tracks
+    const q = query(
+      collection(db, COLLECTIONS.LIKED_TRACKS),
+      where("user_id", "==", userId)
+    )
+    const snapshot = await getDocs(q)
+    
+    const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref))
+    await Promise.all(deletePromises)
+    
+    // Add all tracks in new order
+    const addPromises = tracks.map((track, index) => {
+      const id = `${userId}_${track.id}_${index}`
+      return setDoc(doc(db, COLLECTIONS.LIKED_TRACKS, id), {
+        user_id: userId,
+        track_id: track.id,
+        track_data: track,
+        created_at: serverTimestamp()
+      })
+    })
+    
+    await Promise.all(addPromises)
+    return true
+  } catch (error) {
+    console.error("[DB] Reorder liked tracks error:", error)
+    return false
+  }
+}
+
 // Like track - simple
 export async function likeTrack(track: any): Promise<boolean> {
   const userId = getCurrentUserId()

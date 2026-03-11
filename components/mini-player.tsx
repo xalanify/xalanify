@@ -1,6 +1,6 @@
 "use client"
 
-import { Play, Pause, ChevronUp } from "lucide-react"
+import { Play, Pause, ChevronUp, SkipForward, SkipBack } from "lucide-react"
 import { usePlayer } from "@/lib/player-context"
 import { useTheme } from "@/lib/theme-context"
 
@@ -22,20 +22,19 @@ function hexToRgb(hex: string) {
 }
 
 export default function MiniPlayer({ onExpand }: MiniPlayerProps) {
-  const { currentTrack, isPlaying, play, pause } = usePlayer()
+  const { currentTrack, isPlaying, play, pause, next, previous } = usePlayer()
   const { accentHex } = useTheme()
 
   if (!currentTrack) return null
 
-  // Create subtle gradient background from accent color (low opacity for soft look)
-  const solidBackground = `linear-gradient(135deg, ${accentHex}15 0%, ${accentHex}08 100%)`
+  // Solid background from accent color
+  const solidBackground = accentHex
 
   return (
     <div 
-      className="mx-4 mb-3 flex items-center gap-3 rounded-[18px] p-3 cursor-pointer active:scale-[0.98] transition-transform"
+      className="mx-4 mb-3 flex items-center gap-2 rounded-[18px] p-2 cursor-pointer active:scale-[0.98] transition-transform"
       style={{ 
-        background: solidBackground,
-        boxShadow: `0 4px 20px ${accentHex}40`
+        backgroundColor: solidBackground,
       }}
       onClick={onExpand}
     >
@@ -48,9 +47,18 @@ export default function MiniPlayer({ onExpand }: MiniPlayerProps) {
       
       {/* Center: Title (Bege, 17pt, Semi-bold) + Subtitle (Gray, 14pt) */}
       <div className="flex-1 min-w-0">
-        <p className="truncate font-semibold text-[17px] text-white">{currentTrack.title}</p>
-        <p className="truncate text-[14px] text-white/70">{currentTrack.artist}</p>
+        <p className="truncate font-semibold text-[15px] text-white">{currentTrack.title}</p>
+        <p className="truncate text-[12px] text-white/70">{currentTrack.artist}</p>
       </div>
+
+      {/* Previous Button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); previous() }}
+        className="p-2 text-white/70 hover:text-white transition-colors"
+        aria-label="Anterior"
+      >
+        <SkipBack className="h-4 w-4" />
+      </button>
 
       {/* Play/Pause Button - White for contrast */}
       <button
@@ -64,10 +72,19 @@ export default function MiniPlayer({ onExpand }: MiniPlayerProps) {
         )}
       </button>
 
+      {/* Next Button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); next() }}
+        className="p-2 text-white/70 hover:text-white transition-colors"
+        aria-label="Próxima"
+      >
+        <SkipForward className="h-4 w-4" />
+      </button>
+
       {/* Expand Button */}
       <button
         onClick={(e) => { e.stopPropagation(); onExpand() }}
-        className="rounded-full p-2 text-white/70 hover:text-white"
+        className="p-2 text-white/70 hover:text-white"
       >
         <ChevronUp className="h-5 w-5" />
       </button>
