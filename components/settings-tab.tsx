@@ -649,7 +649,7 @@ export default function SettingsTab() {
         </button>
 
         {/* Install PWA Button */}
-        {(canInstall || !isInstalled) && (
+        {isAdmin && (canInstall || !isInstalled) && (
           <button 
             onClick={handleInstallPWA} 
             disabled={installing}

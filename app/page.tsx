@@ -32,8 +32,11 @@ function SplashScreen({ accentHex }: { accentHex: string }) {
   )
 }
 
-// WhatsNew Modal Component
-function WhatsNewModal({ update, onClose }: { update: AppUpdate; onClose: () => void }) {
+// Fixed WhatsNewModal Component
+function WhatsNewModal({ update, onClose }: { 
+  update: AppUpdate; 
+  onClose: () => void 
+}) {
   const { accentHex } = useTheme()
 
   function handleDontShow() {
@@ -48,76 +51,40 @@ function WhatsNewModal({ update, onClose }: { update: AppUpdate; onClose: () => 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={handleOk}
-      />
-      
-      {/* Modal Card */}
-      <div 
-        className="relative w-full max-w-sm rounded-3xl border p-6 animate-in fade-in zoom-in-95 duration-200"
-        style={{ 
-          backgroundColor: "#1a1a1a",
-          borderColor: `${accentHex}30`
-        }}
-      >
-        {/* Close button */}
-        <button
-          onClick={handleOk}
-          className="absolute right-4 top-4 rounded-full p-1.5 text-[#8E8E93] hover:text-white hover:bg-white/10 transition-colors"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-5">
-          <div 
-            className="flex h-12 w-12 items-center justify-center rounded-xl"
-            style={{ backgroundColor: `${accentHex}20` }}
-          >
-            <Sparkles className="h-6 w-6" style={{ color: accentHex }} />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80">
+      <div className="w-full max-w-md rounded-3xl bg-[#1c1c1e] border-2 border-[#D2B48C]/30 p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-r from-[#D2B48C] to-[#8E8E93] p-3">
+            <Sparkles className="h-6 w-6 text-black" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-[#f0e0d0]">Novidades!</h2>
-            <p className="text-sm text-[#8E8E93]">Versão {update.version}</p>
+            <h2 className="text-2xl font-bold text-[#D2B48C]">Nova Versão!</h2>
+            <p className="text-lg font-semibold text-white">{update.version}</p>
           </div>
         </div>
-
-        {/* Title */}
-        <h3 
-          className="text-lg font-semibold mb-4"
-          style={{ color: accentHex }}
-        >
-          {update.title}
-        </h3>
-
-        {/* Changes List */}
-        <ul className="space-y-3 mb-6">
-          {update.changes.slice(0, 4).map((change, index) => (
-            <li key={index} className="flex items-start gap-3">
-              <span 
-                className="mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: accentHex }}
-              />
-              <span className="text-sm text-[#c0c0c0]">{change}</span>
-            </li>
-          ))}
-        </ul>
-
-        {/* Buttons */}
-        <div className="flex gap-3">
+        
+        <div className="mb-8">
+          <h3 className="text-xl font-bold text-white mb-4">{update.title}</h3>
+          <div className="space-y-2">
+            {update.changes.slice(0, 4).map((change, i) => (
+              <div key={i} className="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
+                <div className="h-2 w-2 bg-[#D2B48C] rounded-full mt-2 flex-shrink-0" />
+                <span className="text-sm text-[#D2B48C]">{change}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="flex gap-3 pt-4 border-t border-white/10">
           <button
             onClick={handleDontShow}
-            className="flex-1 rounded-xl py-3 text-sm font-medium text-[#8E8E93] hover:text-white transition-colors border border-[#8E8E93]/30"
+            className="flex-1 rounded-xl py-4 px-6 text-sm font-semibold text-[#8E8E93] bg-white/5 hover:bg-white/10 hover:text-white transition-all border border-white/20"
           >
             Não mostrar novamente
           </button>
           <button
             onClick={handleOk}
-            className="flex-1 rounded-xl py-3 text-sm font-semibold text-white transition-all hover:opacity-90"
-            style={{ backgroundColor: accentHex }}
+            className="flex-1 rounded-xl py-4 px-6 text-sm font-bold text-white bg-gradient-to-r from-[#D2B48C] to-[#8E8E93] hover:from-[#D2B48C]/90 shadow-lg hover:shadow-xl transition-all"
           >
             OK
           </button>
@@ -136,6 +103,7 @@ function XalanifyApp() {
   const [menuTrack, setMenuTrack] = useState<Track | null>(null)
   const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null)
   const [showSplash, setShowSplash] = useState(true)
+  const [forceUpdate, setForceUpdate] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Track[]>([])
   const [libraryKey, setLibraryKey] = useState(0)
@@ -143,7 +111,7 @@ function XalanifyApp() {
   const [whatsNewUpdate, setWhatsNewUpdate] = useState<AppUpdate | null>(null)
 
   // Create solid background for tab bar from accent color
-  const tabBarBackground = `${accentHex}25`
+  const tabBarBackground = '#1c1c1e'
 
   // Check for updates and show WhatsNew modal on mount
   useEffect(() => {
@@ -153,10 +121,8 @@ function XalanifyApp() {
     // Check for version update
     const update = checkForNewVersion()
     if (update) {
-      // Show WhatsNew modal
       setWhatsNewUpdate(update)
-      // Mark version as seen (don't auto-refresh anymore, just show modal)
-      markVersionAsSeen()
+      setForceUpdate(true)
     }
   }, [])
 
@@ -183,6 +149,7 @@ function XalanifyApp() {
 
   function handleWhatsNewClose() {
     setWhatsNewUpdate(null)
+    setForceUpdate(false)
   }
 
   if (showSplash || loading) return <SplashScreen accentHex={accentHex} />
@@ -195,7 +162,7 @@ function XalanifyApp() {
   ]
 
   return (
-    <div className="relative flex h-dvh min-h-0 flex-col overflow-hidden bg-[#000000] text-[#D2B48C]">
+    <>
       <AudioEngine />
       <Toaster position="top-center" richColors />
 
@@ -217,7 +184,7 @@ function XalanifyApp() {
         {activeTab === "settings" && <SettingsTab />}
       </div>
 
-      {/* Bottom Player + Navigation - Solid Tab Bar */}
+      {/* Bottom Player + Navigation */}
       <div className="absolute inset-x-0 bottom-0 z-20">
         {currentTrack && (
           <MiniPlayer 
@@ -225,11 +192,11 @@ function XalanifyApp() {
           />
         )}
         
-        {/* Navigation - Solid Background */}
+        {/* Navigation Tab Bar */}
         <nav 
           className="mx-4 mb-4 flex items-center justify-around rounded-2xl px-2 py-3"
           style={{ 
-            background: tabBarBackground,
+            backgroundColor: tabBarBackground,
           }}
         >
           {tabs.map((tab) => {
@@ -275,13 +242,13 @@ function XalanifyApp() {
           playlists={userPlaylists}
         />
       )}
-      {whatsNewUpdate && (
+      {forceUpdate && whatsNewUpdate && (
         <WhatsNewModal 
           update={whatsNewUpdate} 
-          onClose={handleWhatsNewClose} 
+          onClose={handleWhatsNewClose}
         />
       )}
-    </div>
+    </>
   )
 }
 
@@ -296,4 +263,3 @@ export default function Page() {
     </AuthProvider>
   )
 }
-

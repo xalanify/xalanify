@@ -63,7 +63,7 @@ export default function RootLayout({
         <meta name="application-name" content="Xalanify" />
         <meta name="msapplication-TileColor" content="#000000" />
         <meta name="msapplication-TileImage" content="/icon-192.png" />
-        <meta name="theme-color" content="#3B82F6" />
+        <meta name="theme-color" content="#000000" />
         
         {/* PWA Icons */}
         <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -133,4 +133,3 @@ export default function RootLayout({
     </html>
   )
 }
-

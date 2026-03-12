@@ -1,53 +1,36 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-@custom-variant dark (&:is(.dark *));
+/* @custom-variant dark (&:is(.dark *)); */
 
 :root {
-  /* ============================================
-     NOVO DESIGN SYSTEM - Especificações do Utilizador
-     ============================================ */
+  --background: #000000;
+  --foreground: #D2B48C;
+  --foreground-secondary: #8E8E93;
   
-  /* 1. Cores de Fundo */
-  --background: #000000; /* Preto absoluto para OLED */
-  --foreground: #D2B48C;  /* Bege suave para títulos principais */
-  --foreground-secondary: #8E8E93; /* Cinzento médio para metadados */
-  
-  /* 2. Cores de Destaque (Accent) - Azul vibrante */
   --accent: #3B82F6;
   --accent-foreground: #ffffff;
   
-  /* 3. Sistema de Cards - Glass Effect */
-  /* Fundo: cinzento muito escuro translúcido */
-  --card: rgba(28, 28, 30, 0.7);
+  /* Clean solid cards - NO TRANSPARENCY */
+  --card: #1c1c1e;
   --card-foreground: #D2B48C;
-  --popover: rgba(28, 28, 30, 0.9);
+  --popover: #1c1c1e;
   --popover-foreground: #D2B48C;
   
   --primary: #D2B48C;
   --primary-foreground: #000000;
-  --secondary: rgba(28, 28, 30, 0.7);
+  --secondary: #1c1c1e;
   --secondary-foreground: #D2B48C;
-  --muted: rgba(28, 28, 30, 0.5);
+  --muted: #2a2a2e;
   --muted-foreground: #8E8E93;
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.98 0 0);
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
   
-  /* Borda: 0.5px cinzento claro subtil */
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(28, 28, 30, 0.7);
+  --border: #2a2a2e;
+  --input: #1c1c1e;
   --ring: #3B82F6;
   
-  /* Corner Radius: 16px a 20px */
-  --radius: 1.125rem; /* 18px */
-  
-  /* Mantendo variáveis existentes */
-  --musify-red: oklch(0.6 0.22 25);
-  --musify-dark: #000000;
-  --musify-card: rgba(28, 28, 30, 0.7);
-  --musify-card-border: rgba(255, 255, 255, 0.1);
-  --musify-gradient-start: #000000;
-  --musify-gradient-end: #000000;
+  --radius: 1.125rem;
 }
 
 @theme inline {
@@ -76,11 +59,6 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-
-  --color-musify-red: var(--musify-red);
-  --color-musify-dark: var(--musify-dark);
-  --color-musify-card: var(--musify-card);
-  --color-musify-card-border: var(--musify-card-border);
 }
 
 @layer base {
@@ -92,7 +70,7 @@
   }
 }
 
-/* PWA / App-like styles */
+/* PWA Safe areas */
 html, body {
   overscroll-behavior-y: contain;
   -webkit-tap-highlight-color: transparent;
@@ -103,93 +81,13 @@ body {
   min-height: 100dvh;
 }
 
-/* Scroll container: keep smooth touch scrolling and show scrollbar */
-.hide-scrollbar {
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
-  scrollbar-width: thin;
-}
-.hide-scrollbar::-webkit-scrollbar {
-  width: 8px;
-}
-.hide-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.2);
-  border-radius: 9999px;
+/* Solid Card Style - Clean Professional */
+.solid-card {
+  background: #1c1c1e;
+  border: 1px solid #2a2a2e;
 }
 
-/* ============================================
-   GLASS CARD EFFECT - Especificações do Utilizador
-   ============================================ */
-/* 
-   - Fundo: rgba(28, 28, 30, 0.7) - cinzento muito escuro translúcido
-   - Background Blur: efeito de desfoque de fundo
-   - Borda: 0.5px rgba(255, 255, 255, 0.1)
-   - Corner Radius: 16px a 20px
-*/
-
-.glass-card {
-  background: rgba(28, 28, 30, 0.7);
-  border: 0.5px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-.glass-card-strong {
-  background: rgba(28, 28, 30, 0.85);
-  border: 0.5px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-}
-
-/* Card de input para formulários (Login) */
-.glass-input {
-  background: rgba(28, 28, 30, 0.7);
-  border: 0.5px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-/* Botão sólido para ações principais */
-.solid-button {
-  background: #3B82F6;
-  border: none;
-}
-
-/* Toggle Switch estilo iOS */
-.toggle-switch {
-  position: relative;
-  width: 51px;
-  height: 31px;
-  background: rgba(28, 28, 30, 0.8);
-  border-radius: 9999px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-  border: 0.5px solid rgba(255, 255, 255, 0.1);
-}
-
-.toggle-switch.active {
-  background: #3B82F6;
-}
-
-.toggle-switch::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 27px;
-  height: 27px;
-  background: white;
-  border-radius: 50%;
-  transition: transform 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.toggle-switch.active::after {
-  transform: translateX(20px);
-}
-
-/* Standalone PWA safe areas */
-@supports (padding: env(safe-area-inset-top)) {
+@media (prefers-color-scheme: dark) {
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }
@@ -198,13 +96,14 @@ body {
   }
 }
 
-/* Custom range slider for player */
+/* Custom range slider */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
   border-radius: 2px;
   outline: none;
+  background: #2a2a2e;
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -212,17 +111,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 12px;
   height: 12px;
   border-radius: 50%;
+  background: #D2B48C;
   cursor: pointer;
 }
 
-
-@keyframes rainbowShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-.rainbow-shift {
-  background-size: 220% 220% !important;
-  animation: rainbowShift 8s ease infinite;
-}

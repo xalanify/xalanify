@@ -1,7 +1,7 @@
 // Version and changelog management
 // Auto-updates when version changes
 
-export const APP_VERSION = "0.69.0"
+export const APP_VERSION = "0.70.2"
 export const APP_VERSION_DATE = "2026-01-26"
 
 export interface AppUpdate {
