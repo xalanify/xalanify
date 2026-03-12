@@ -15,7 +15,7 @@ import AudioEngine from "@/components/audio-engine"
 import TrackMenu from "@/components/track-menu"
 import { Toaster } from "@/components/ui/sonner"
 import { getPlaylists } from "@/lib/supabase"
-import { APP_VERSION, checkForNewVersion, markVersionAsSeen, autoClearCacheIfNeeded, smartVersionCheck, setDontShowVersion, type AppUpdate } from "@/lib/versions"
+import { APP_VERSION, checkForNewVersion, markVersionAsSeen, autoClearCacheIfNeeded, setDontShowVersion, type AppUpdate } from "@/lib/versions"
 
 function SplashScreen({ accentHex }: { accentHex: string }) {
   return (
@@ -32,63 +32,53 @@ function SplashScreen({ accentHex }: { accentHex: string }) {
   )
 }
 
-// Fixed WhatsNewModal Component
-function WhatsNewModal({ update, onClose }: { 
-  update: AppUpdate; 
-  onClose: () => void 
+function BlockingUpdateModal({ update, onClose, onUpdate }: { 
+  update: AppUpdate
+  onClose: () => void
+  onUpdate: () => void
 }) {
-  const { accentHex } = useTheme()
-
-  function handleDontShow() {
-    setDontShowVersion(update.version)
-    markVersionAsSeen()
-    onClose()
-  }
-
-  function handleOk() {
-    markVersionAsSeen()
-    onClose()
-  }
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80">
-      <div className="w-full max-w-md rounded-3xl bg-[#1c1c1e] border-2 border-[#D2B48C]/30 p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
+    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/90">
+      <div className="w-full max-w-md rounded-3xl bg-[#1c1c1e] border-4 border-[#D2B48C] p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
         <div className="mb-6 flex items-center gap-3">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-r from-[#D2B48C] to-[#8E8E93] p-3">
-            <Sparkles className="h-6 w-6 text-black" />
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-r from-[#D2B48C] to-[#8E8E93] p-4 flex items-center justify-center">
+            <Sparkles className="h-8 w-8 text-black" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-[#D2B48C]">Nova Versão!</h2>
-            <p className="text-lg font-semibold text-white">{update.version}</p>
+            <h2 className="text-3xl font-bold text-[#D2B48C]">Nova Atualização!</h2>
+            <p className="text-xl font-semibold text-white">{update.version}</p>
           </div>
         </div>
         
         <div className="mb-8">
-          <h3 className="text-xl font-bold text-white mb-4">{update.title}</h3>
-          <div className="space-y-2">
-            {update.changes.slice(0, 4).map((change, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
-                <div className="h-2 w-2 bg-[#D2B48C] rounded-full mt-2 flex-shrink-0" />
-                <span className="text-sm text-[#D2B48C]">{change}</span>
+          <h3 className="text-2xl font-bold text-white mb-6">{update.title}</h3>
+          <div className="space-y-3">
+            {update.changes.slice(0, 5).map((change: string, i: number) => (
+              <div key={i} className="flex items-start gap-4 p-4 bg-white/10 rounded-2xl">
+                <div className="h-3 w-3 bg-[#D2B48C] rounded-full mt-2 flex-shrink-0" />
+                <span className="text-base text-[#D2B48C]">{change}</span>
               </div>
             ))}
           </div>
         </div>
         
-        <div className="flex gap-3 pt-4 border-t border-white/10">
+        <div className="flex gap-4 pt-6 border-t border-white/20">
           <button
-            onClick={handleDontShow}
-            className="flex-1 rounded-xl py-4 px-6 text-sm font-semibold text-[#8E8E93] bg-white/5 hover:bg-white/10 hover:text-white transition-all border border-white/20"
+            onClick={onClose}
+            className="flex-1 rounded-2xl py-4 px-6 text-lg font-semibold text-[#8E8E93] bg-white/10 hover:bg-white/20 hover:text-white transition-all border border-white/30"
           >
-            Não mostrar novamente
+            Ignorar (Não recomendado)
           </button>
           <button
-            onClick={handleOk}
-            className="flex-1 rounded-xl py-4 px-6 text-sm font-bold text-white bg-gradient-to-r from-[#D2B48C] to-[#8E8E93] hover:from-[#D2B48C]/90 shadow-lg hover:shadow-xl transition-all"
+            onClick={onUpdate}
+            className="flex-1 rounded-2xl py-4 px-6 text-lg font-bold text-black bg-gradient-to-r from-[#D2B48C] to-[#8E8E93] hover:from-[#D2B48C]/90 shadow-2xl hover:shadow-3xl hover:scale-[1.02] transition-all duration-200"
           >
-            OK
+            Atualizar Agora
           </button>
         </div>
+        <p className="mt-4 text-xs text-[#8E8E93] text-center opacity-75">
+          Atualização necessária para novas funcionalidades
+        </p>
       </div>
     </div>
   )
@@ -97,7 +87,8 @@ function WhatsNewModal({ update, onClose }: {
 function XalanifyApp() {
   const { user, loading } = useAuth()
   const { currentTrack } = usePlayer()
-  const { accentHex } = useTheme()
+  const theme = useTheme()
+  const { accentHex, fontClass, backgroundClass, navIconClass } = theme
   const [activeTab, setActiveTab] = useState<"search" | "library" | "settings">("search")
   const [showFullPlayer, setShowFullPlayer] = useState(false)
   const [menuTrack, setMenuTrack] = useState<Track | null>(null)
@@ -110,15 +101,10 @@ function XalanifyApp() {
   const [userPlaylists, setUserPlaylists] = useState<{id: string, name: string}[]>([])
   const [whatsNewUpdate, setWhatsNewUpdate] = useState<AppUpdate | null>(null)
 
-  // Create solid background for tab bar from accent color
   const tabBarBackground = '#1c1c1e'
 
-  // Check for updates and show WhatsNew modal on mount
   useEffect(() => {
-    // Auto-clear cache daily
     autoClearCacheIfNeeded()
-
-    // Check for version update
     const update = checkForNewVersion()
     if (update) {
       setWhatsNewUpdate(update)
@@ -126,7 +112,6 @@ function XalanifyApp() {
     }
   }, [])
 
-  // Fetch user playlists for track menu
   useEffect(() => {
     if (user?.uid) {
       getPlaylists(user.uid).then((data: unknown) => {
@@ -148,12 +133,25 @@ function XalanifyApp() {
   }
 
   function handleWhatsNewClose() {
+    setDontShowVersion(APP_VERSION)
+    markVersionAsSeen()
     setWhatsNewUpdate(null)
     setForceUpdate(false)
   }
 
+  function handleForceUpdate() {
+    window.location.reload()
+  }
+
   if (showSplash || loading) return <SplashScreen accentHex={accentHex} />
   if (!user) return <LoginScreen />
+  if (forceUpdate && whatsNewUpdate) return (
+    <BlockingUpdateModal 
+      update={whatsNewUpdate}
+      onClose={handleWhatsNewClose}
+      onUpdate={handleForceUpdate}
+    />
+  )
 
   const tabs = [
     { id: "search" as const, label: "Pesquisar", icon: Search },
@@ -162,11 +160,10 @@ function XalanifyApp() {
   ]
 
   return (
-    <>
+    <div className={`h-dvh min-h-0 flex flex-col overflow-hidden bg-[#000000] text-[#D2B48C] ${fontClass} ${backgroundClass}`}>
       <AudioEngine />
       <Toaster position="top-center" richColors />
 
-      {/* Main Content */}
       <div className={`flex-1 overflow-y-auto ${currentTrack ? "pb-[160px]" : "pb-[100px]"}`}>
         {activeTab === "search" && (
           <SearchTab
@@ -184,17 +181,15 @@ function XalanifyApp() {
         {activeTab === "settings" && <SettingsTab />}
       </div>
 
-      {/* Bottom Player + Navigation */}
-      <div className="absolute inset-x-0 bottom-0 z-20">
+      <div className="absolute inset-x-0 bottom-0 z-50">
         {currentTrack && (
           <MiniPlayer 
             onExpand={() => setShowFullPlayer(true)} 
           />
         )}
         
-        {/* Navigation Tab Bar */}
         <nav 
-          className="mx-4 mb-4 flex items-center justify-around rounded-2xl px-2 py-3"
+          className={`mx-4 mb-4 flex items-center justify-around rounded-2xl px-2 py-3 ${navIconClass}`}
           style={{ 
             backgroundColor: tabBarBackground,
           }}
@@ -227,7 +222,6 @@ function XalanifyApp() {
         </nav>
       </div>
 
-      {/* Modals */}
       {showFullPlayer && (
         <FullPlayer 
           onClose={() => setShowFullPlayer(false)} 
@@ -242,13 +236,7 @@ function XalanifyApp() {
           playlists={userPlaylists}
         />
       )}
-      {forceUpdate && whatsNewUpdate && (
-        <WhatsNewModal 
-          update={whatsNewUpdate} 
-          onClose={handleWhatsNewClose}
-        />
-      )}
-    </>
+    </div>
   )
 }
 
@@ -263,3 +251,4 @@ export default function Page() {
     </AuthProvider>
   )
 }
+

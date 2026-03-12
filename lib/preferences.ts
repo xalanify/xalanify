@@ -2,6 +2,11 @@
 
 export interface UserPreferences {
   autoRetry: boolean
+  themePrefs?: {
+    navIcons: 'default' | 'minimal' | 'bold'
+    fontFamily: string
+    backgroundStyle: string
+  }
 }
 
 const PREFERENCES_KEY = "xalanify.preferences"

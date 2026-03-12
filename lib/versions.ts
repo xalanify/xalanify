@@ -1,8 +1,8 @@
 // Version and changelog management
 // Auto-updates when version changes
 
-export const APP_VERSION = "0.70.2"
-export const APP_VERSION_DATE = "2026-01-26"
+export const APP_VERSION = "0.70.3"
+export const APP_VERSION_DATE = "2026-01-27"
 
 export interface AppUpdate {
   version: string
@@ -13,6 +13,22 @@ export interface AppUpdate {
 }
 
 export const CHANGELOG: AppUpdate[] = [
+  {
+    version: "0.70.3",
+    date: "2026-01-27",
+    title: "Personalização Avançada & Correções",
+    changes: [
+      "Atualização obrigatória com modal bloqueante",
+      "Mais opções de cores e temas personalizados",
+      "Novos ícones personalizáveis na barra de navegação",
+      "Novas fontes e estilos de texto",
+      "Efeitos de fundo e gradientes personalizáveis",
+      "Correção da barra de navegação no scroll mobile",
+      "Guardar todas as personalizações permanentemente",
+      "Full dark mode e novos efeitos visuais"
+    ],
+    isNew: true,
+  },
   {
     version: "0.69.0",
     date: "2026-01-26",

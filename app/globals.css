@@ -1,7 +1,47 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-/* @custom-variant dark (&:is(.dark *)); */
+/* Font Families */
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/GeistVF.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMonoVF.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'SF Pro';
+  src: local('SF Pro'), local('system-ui');
+}
+
+.font-geist { font-family: 'Geist', sans-serif; }
+.font-inter { font-family: 'Inter', sans-serif; }
+.font-sf-pro { font-family: 'SF Pro', system-ui, sans-serif; }
+.font-system { font-family: system-ui, sans-serif; }
+
+/* Background Styles */
+.bg-solid-dark { 
+  background: #000000; 
+}
+
+.bg-gradient { 
+  background: linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%); 
+}
+
+.bg-shapes { 
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(210, 180, 140, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(142, 142, 147, 0.1) 0%, transparent 50%),
+    #000000;
+}
+
+.bg-glass { 
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(20px);
+}
+
+/* Custom-variant dark (&:is(.dark *)); */
 
 :root {
   --background: #000000;
@@ -82,9 +122,18 @@ body {
 }
 
 /* Solid Card Style - Clean Professional */
-.solid-card {
+.solid-card, .glass-card {
   background: #1c1c1e;
   border: 1px solid #2a2a2e;
+}
+
+/* Nav Icon Styles */
+.nav-icons-minimal .h-5 { 
+  stroke-width: 3;
+}
+.nav-icons-bold .h-5 { 
+  stroke-width: 1.5;
+  stroke: currentColor;
 }
 
 @media (prefers-color-scheme: dark) {
