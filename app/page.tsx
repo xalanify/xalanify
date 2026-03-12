@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
+import { toast } from "sonner"
 import { Search, Settings, Library, X, Sparkles } from "lucide-react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { PlayerProvider, usePlayer, type Track } from "@/lib/player-context"
@@ -16,10 +17,6 @@ import TrackMenu from "@/components/track-menu"
 import { Toaster } from "@/components/ui/sonner"
 import { getPlaylists } from "@/lib/supabase"
 import { APP_VERSION, checkForNewVersion, markVersionAsSeen, autoClearCacheIfNeeded, setDontShowVersion, performPWAUpdate, type AppUpdate } from "@/lib/versions"
-import { toast } from "sonner"
-import { useCallback } from "react"
-import { toast } from "sonner"
-import { useEffect, useState, useCallback } from "react"
 
 function SplashScreen({ accentHex }: { accentHex: string }) {
   return (
@@ -255,4 +252,3 @@ export default function Page() {
     </AuthProvider>
   )
 }
-

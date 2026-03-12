@@ -202,7 +202,7 @@ export async function performPWAUpdate(): Promise<void> {
     window.location.href = window.location.href + (window.location.href.includes('?') ? '&' : '?') + '_nocache=' + Date.now()
   } catch (error) {
     console.error('PWA Update failed:', error)
-    window.location.reload(true)
+    window.location.reload()
   }
 }
 
