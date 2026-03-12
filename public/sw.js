@@ -1,5 +1,6 @@
 // Xalanify Service Worker - com suporte para background media playback
-const CACHE_NAME = 'xalanify-v5';
+// Dynamic cache name with version - gets from client message
+let CACHE_NAME = 'xalanify-v0.70.4';
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -117,8 +118,21 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
   
+  if (event.data && event.data.type === 'SET_CACHE_NAME') {
+    CACHE_NAME = 'xalanify-cache-v' + event.data.version;
+    console.log('[SW] Cache name updated:', CACHE_NAME);
+    event.ports[0]?.postMessage({ status: 'cache-updated', version: event.data.version });
+  }
+  
   if (event.data && event.data.type === 'GET_VERSION') {
-    event.ports[0].postMessage({ version: CACHE_NAME });
+    event.ports[0]?.postMessage({ version: CACHE_NAME });
+  }
+  
+  if (event.data && event.data.type === 'FORCE_UPDATE') {
+    self.skipWaiting();
+    self.clients.matchAll().then(clients => {
+      clients.forEach(client => client.postMessage({ type: 'sw-updated' }));
+    });
   }
   
   // Media Session messages from client

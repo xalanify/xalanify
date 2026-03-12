@@ -15,7 +15,11 @@ import AudioEngine from "@/components/audio-engine"
 import TrackMenu from "@/components/track-menu"
 import { Toaster } from "@/components/ui/sonner"
 import { getPlaylists } from "@/lib/supabase"
-import { APP_VERSION, checkForNewVersion, markVersionAsSeen, autoClearCacheIfNeeded, setDontShowVersion, type AppUpdate } from "@/lib/versions"
+import { APP_VERSION, checkForNewVersion, markVersionAsSeen, autoClearCacheIfNeeded, setDontShowVersion, performPWAUpdate, type AppUpdate } from "@/lib/versions"
+import { toast } from "sonner"
+import { useCallback } from "react"
+import { toast } from "sonner"
+import { useEffect, useState, useCallback } from "react"
 
 function SplashScreen({ accentHex }: { accentHex: string }) {
   return (
@@ -139,9 +143,9 @@ function XalanifyApp() {
     setForceUpdate(false)
   }
 
-  function handleForceUpdate() {
-    window.location.reload()
-  }
+  const handleForceUpdate = useCallback(async () => {
+    await performPWAUpdate()
+  }, [])
 
   if (showSplash || loading) return <SplashScreen accentHex={accentHex} />
   if (!user) return <LoginScreen />

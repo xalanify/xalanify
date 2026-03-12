@@ -26,7 +26,7 @@ import { likeTrack, createPlaylist, subscribeToPlaylists, subscribeToLikedTracks
 import { searchMusic, searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
 import { type Track } from "@/lib/player-context"
 import { getPreferences, setPreferences } from "@/lib/preferences"
-import { CHANGELOG, APP_VERSION } from "@/lib/versions"
+import { CHANGELOG, APP_VERSION, forceVersionCheck, forceClearPWA, type AppUpdate } from "@/lib/versions"
 import { toast } from "sonner"
 
 const THEME_COLORS = [
@@ -305,7 +305,106 @@ export default function SettingsTab() {
     )
   }
 
-  // ... all other views unchanged (updates, tools, etc.) - copy from original file ...
+// Updates view - Full changelog + update controls
+  if (activeView === "updates") {
+    const [checking, setChecking] = useState(false)
+    const [hasUpdate, setHasUpdate] = useState<AppUpdate | null>(null)
+
+    const checkUpdates = async () => {
+      setChecking(true)
+      const update = await forceVersionCheck()
+      setChecking(false)
+      if (update) {
+        setHasUpdate(update)
+        toast.success(`Nova versão ${update.version} disponível!`)
+        window.dispatchEvent(new CustomEvent('remote-update-available', { detail: update }))
+      } else {
+        toast.success('App atualizado!')
+      }
+    }
+
+    const clearPWACache = async () => {
+      if (confirm('Limpar cache PWA e recarregar app? (mantém login)')) {
+        await forceClearPWA()
+      }
+    }
+
+    return (
+      <div className={`flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4 ${prefs.fontFamily}`}>
+        <button onClick={() => setActiveView("menu")} className="mb-6 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+        
+        <div className="space-y-6">
+          <div className="rounded-3xl bg-gradient-to-r from-[#D2B48C]/10 to-[#8E8E93]/10 border-2 border-[#D2B48C]/30 p-6">
+            <h2 className="text-2xl font-bold text-[#D2B48C] mb-4 flex items-center gap-3">
+              <RefreshCw className="h-6 w-6" />
+              Atualizações & Cache PWA
+            </h2>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <button 
+                onClick={checkUpdates} 
+                disabled={checking}
+                className="flex items-center gap-3 rounded-xl p-4 bg-white/10 hover:bg-white/20 border border-white/20 transition-all"
+              >
+                {checking ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#D2B48C] border-t-transparent" />
+                ) : (
+                  <Sparkles className="h-5 w-5 text-[#D2B48C]" />
+                )}
+                <span className="font-semibold text-[#D2B48C]">Verificar GitHub</span>
+              </button>
+              <button 
+                onClick={clearPWACache}
+                className="flex items-center gap-3 rounded-xl p-4 bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 transition-all text-red-100 hover:text-red-50"
+              >
+                <RefreshCw className="h-5 w-5" />
+                <span className="font-semibold">Limpar Cache PWA</span>
+              </button>
+            </div>
+            
+            <div className="text-sm text-[#8E8E93] bg-black/50 p-3 rounded-xl">
+              Versão atual: <span className="font-bold text-[#D2B48C]">{APP_VERSION}</span>
+              {hasUpdate && (
+                <span className="ml-2 px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs">
+                  Atualização: {hasUpdate.version}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Histórico de Atualizações
+            </h3>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {CHANGELOG.slice(0, 5).map((update, i) => (
+                <div key={i} className="p-4 bg-white/5 rounded-xl border-l-4" style={{ borderLeftColor: update.isNew ? '#D2B48C' : '#8E8E93' }}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="font-bold text-lg text-[#D2B48C]">{update.version}</span>
+                    <span className="text-sm opacity-75">{update.date}</span>
+                  </div>
+                  <ul className="space-y-1 text-sm">
+                    {update.changes.slice(0, 3).map((change, j) => (
+                      <li key={j} className="flex items-start gap-2">
+                        <div className="h-2 w-2 bg-[#D2B48C] rounded-full mt-1.5 flex-shrink-0" />
+                        <span>{change}</span>
+                      </li>
+                    ))}
+                    {update.changes.length > 3 && (
+                      <span className="text-xs opacity-50">...e mais</span>
+                    )}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // Main menu
   return (
