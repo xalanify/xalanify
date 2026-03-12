@@ -106,6 +106,17 @@ function XalanifyApp() {
 
   useEffect(() => {
     autoClearCacheIfNeeded()
+    // Se acabámos de vir de um reload de atualização, marcar como visto e não mostrar o card (evita loop)
+    const search = typeof window !== "undefined" ? window.location.search : ""
+    if (search.includes("update=") || search.includes("v=")) {
+      markVersionAsSeen()
+      setDontShowVersion(APP_VERSION)
+      // Opcional: limpar o query da URL sem recarregar (fica mais limpo)
+      if (typeof window !== "undefined" && window.history.replaceState) {
+        window.history.replaceState({}, "", window.location.pathname || "/")
+      }
+      return
+    }
     const update = checkForNewVersion()
     if (update) {
       setWhatsNewUpdate(update)
@@ -182,18 +193,19 @@ function XalanifyApp() {
   }
 
   const handleForceUpdate = useCallback(async () => {
-    // Prefer a clean SW activation + reload without nuking user storage/session.
+    // Marcar versão como vista ANTES do reload para não voltar a mostrar o card (evita loop)
+    markVersionAsSeen()
+    setDontShowVersion(APP_VERSION)
     try {
       const reg = (window as any).__xalanifySwRegistration as ServiceWorkerRegistration | null | undefined
       if (reg?.waiting) {
         reg.waiting.postMessage({ type: "SKIP_WAITING" })
         await new Promise((r) => setTimeout(r, 600))
       }
-      // Hard reload with cache-bust query to avoid stale HTML.
+      // Hard reload with cache-bust; ?update= faz com que na próxima carga não mostremos o modal
       window.location.href = "/?update=" + Date.now()
       return
     } catch {
-      // Fallback to the existing heavy reset flow (kept for worst cases).
       await performPWAUpdate()
     }
   }, [])

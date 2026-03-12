@@ -92,6 +92,9 @@ export default function SettingsTab() {
   const [isInstalled, setIsInstalled] = useState(false)
   const [installing, setInstalling] = useState(false)
 
+  const [checking, setChecking] = useState(false)
+  const [hasUpdate, setHasUpdate] = useState<AppUpdate | null>(null)
+
   const userId = user?.uid || ""
 
   useEffect(() => {
@@ -305,11 +308,8 @@ export default function SettingsTab() {
     )
   }
 
-// Updates view - Full changelog + update controls
+  // Updates view - Full changelog + update controls
   if (activeView === "updates") {
-    const [checking, setChecking] = useState(false)
-    const [hasUpdate, setHasUpdate] = useState<AppUpdate | null>(null)
-
     const checkUpdates = async () => {
       setChecking(true)
       const update = await forceVersionCheck()
@@ -400,6 +400,59 @@ export default function SettingsTab() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Ferramentas de admin (só visível para isAdmin)
+  if (activeView === "tools") {
+    return (
+      <div className={`flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4 ${prefs.fontFamily}`}>
+        <button onClick={() => setActiveView("menu")} className="mb-6 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+        <h2 className="mb-6 text-2xl font-bold text-[#f0e0d0] flex items-center gap-3">
+          <Wrench className="h-6 w-6" style={{ color: accentHex }} />
+          Ferramentas de Admin
+        </h2>
+        <div className="space-y-4">
+          <div className="rounded-3xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-6">
+            <p className="text-sm text-[#a08070] mb-4">Área reservada a administradores. Aqui poderás gerir conteúdos e configurações do serviço.</p>
+            <div className="flex flex-wrap gap-3">
+              <span className="px-3 py-1.5 rounded-lg bg-white/10 text-[#f0e0d0] text-sm">Em breve</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Créditos / Sobre a app
+  if (activeView === "credits") {
+    return (
+      <div className={`flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4 ${prefs.fontFamily}`}>
+        <button onClick={() => setActiveView("menu")} className="mb-6 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar</span>
+        </button>
+        <h2 className="mb-6 text-2xl font-bold text-[#f0e0d0] flex items-center gap-3">
+          <Info className="h-6 w-6" style={{ color: accentHex }} />
+          Créditos
+        </h2>
+        <div className="space-y-6">
+          <div className="rounded-3xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-6">
+            <p className="text-xl font-semibold text-[#D2B48C] mb-1">Xalanify</p>
+            <p className="text-sm text-[#a08070] mb-4">Your music, everywhere.</p>
+            <p className="text-sm text-[#a08070]">Versão <span className="font-mono font-semibold text-[#f0e0d0]">{APP_VERSION}</span></p>
+          </div>
+          <div className="rounded-3xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-6">
+            <h3 className="font-semibold text-[#f0e0d0] mb-3">Sobre</h3>
+            <p className="text-sm text-[#a08070] leading-relaxed">
+              Aplicação de música em desenvolvimento. Obrigado por usares o Xalanify.
+            </p>
           </div>
         </div>
       </div>
