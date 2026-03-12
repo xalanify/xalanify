@@ -176,6 +176,10 @@ export function setDontShowVersion(version: string) {
 export async function performPWAUpdate(): Promise<void> {
   if (typeof window === "undefined") return
 
+// Mark as seen BEFORE clearing (prevents loop)
+  localStorage.setItem(VERSION_KEY, APP_VERSION)
+  localStorage.setItem(DONT_SHOW_KEY, APP_VERSION)
+  
   try {
     console.log("🔄 Atualizando app...")
     
@@ -192,14 +196,16 @@ export async function performPWAUpdate(): Promise<void> {
       )
     }
     
-    // Keep auth only
+    // Keep auth + version keys only
     const authToken = localStorage.getItem("supabase.auth.token")
     localStorage.clear()
     sessionStorage.clear()
     if (authToken) localStorage.setItem("supabase.auth.token", authToken)
+    localStorage.setItem(VERSION_KEY, APP_VERSION)
+    localStorage.setItem(DONT_SHOW_KEY, APP_VERSION)
     
-    // Hard reload with no cache
-    window.location.href = window.location.href + (window.location.href.includes('?') ? '&' : '?') + '_nocache=' + Date.now()
+    // Hard reload to root with timestamp
+    window.location.href = '/' + '?v=' + Date.now()
   } catch (error) {
     console.error('PWA Update failed:', error)
     window.location.reload()
