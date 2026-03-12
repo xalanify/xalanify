@@ -39,47 +39,70 @@ function BlockingUpdateModal({ update, onClose, onUpdate }: {
   onUpdate: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/90">
-      <div className="w-full max-w-md rounded-3xl bg-[#1c1c1e] border-4 border-[#D2B48C] p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
-        <div className="mb-6 flex items-center gap-3">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-r from-[#D2B48C] to-[#8E8E93] p-4 flex items-center justify-center">
-            <Sparkles className="h-8 w-8 text-black" />
+    <div className="fixed inset-0 z-[999] flex items-center justify-center p-5 bg-black/80 backdrop-blur-xl">
+      <div className="w-full max-w-lg rounded-[28px] border border-[#D2B48C]/35 bg-[#050506]/95 shadow-[0_24px_80px_rgba(0,0,0,0.85)] px-6 py-7 space-y-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#D2B48C] to-[#8E8E93] flex items-center justify-center shadow-lg">
+              <Sparkles className="h-7 w-7 text-black" />
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-[#8E8E93]">
+                Atualização Disponível
+              </p>
+              <h2 className="mt-1 text-[22px] font-semibold text-[#F5E9D8]">
+                Nova versão do Xalanify
+              </h2>
+            </div>
           </div>
-          <div>
-            <h2 className="text-3xl font-bold text-[#D2B48C]">Nova Atualização!</h2>
-            <p className="text-xl font-semibold text-white">{update.version}</p>
+          <div className="flex flex-col items-end gap-1">
+            <span className="rounded-full border border-[#D2B48C]/40 bg-[#1c1c1e]/80 px-3 py-1 text-[11px] font-mono text-[#D2B48C]">
+              v{update.version}
+            </span>
+            <span className="text-[11px] text-[#8E8E93]">
+              {update.date}
+            </span>
           </div>
         </div>
-        
-        <div className="mb-8">
-          <h3 className="text-2xl font-bold text-white mb-6">{update.title}</h3>
-          <div className="space-y-3">
+
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-[#F5E9D8]">
+            {update.title}
+          </h3>
+          <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
             {update.changes.slice(0, 5).map((change: string, i: number) => (
-              <div key={i} className="flex items-start gap-4 p-4 bg-white/10 rounded-2xl">
-                <div className="h-3 w-3 bg-[#D2B48C] rounded-full mt-2 flex-shrink-0" />
-                <span className="text-base text-[#D2B48C]">{change}</span>
+              <div
+                key={i}
+                className="flex items-start gap-3 rounded-2xl bg-[#111112] px-4 py-3"
+              >
+                <div className="mt-1 h-1.5 w-1.5 rounded-full bg-[#D2B48C]" />
+                <p className="text-[13px] leading-snug text-[#D2B48C]">
+                  {change}
+                </p>
               </div>
             ))}
           </div>
         </div>
-        
-        <div className="flex gap-4 pt-6 border-t border-white/20">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-2xl py-4 px-6 text-lg font-semibold text-[#8E8E93] bg-white/10 hover:bg-white/20 hover:text-white transition-all border border-white/30"
-          >
-            Ignorar (Não recomendado)
-          </button>
-          <button
-            onClick={onUpdate}
-            className="flex-1 rounded-2xl py-4 px-6 text-lg font-bold text-black bg-gradient-to-r from-[#D2B48C] to-[#8E8E93] hover:from-[#D2B48C]/90 shadow-2xl hover:shadow-3xl hover:scale-[1.02] transition-all duration-200"
-          >
-            Atualizar Agora
-          </button>
+
+        <div className="space-y-3 border-t border-white/10 pt-4">
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-2xl border border-white/12 bg-white/[0.02] px-4 py-3.5 text-[13px] font-medium text-[#A0A0AB] transition-colors hover:bg-white/[0.05] hover:text-[#F5E9D8]"
+            >
+              Agora não
+            </button>
+            <button
+              onClick={onUpdate}
+              className="flex-1 rounded-2xl bg-gradient-to-r from-[#D2B48C] to-[#8E8E93] px-4 py-3.5 text-[13px] font-semibold text-black shadow-[0_18px_40px_rgba(0,0,0,0.8)] transition-transform hover:scale-[1.02]"
+            >
+              Atualizar e reiniciar
+            </button>
+          </div>
+          <p className="text-center text-[11px] text-[#70707A]">
+            O app será recarregado com a nova versão. Não perdes o login.
+          </p>
         </div>
-        <p className="mt-4 text-xs text-[#8E8E93] text-center opacity-75">
-          Atualização necessária para novas funcionalidades
-        </p>
       </div>
     </div>
   )

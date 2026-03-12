@@ -420,10 +420,227 @@ export default function SettingsTab() {
         </h2>
         <div className="space-y-4">
           <div className="rounded-3xl bg-[#1a1a1a]/60 border border-[#f0e0d0]/10 p-6">
-            <p className="text-sm text-[#a08070] mb-4">Área reservada a administradores. Aqui poderás gerir conteúdos e configurações do serviço.</p>
-            <div className="flex flex-wrap gap-3">
-              <span className="px-3 py-1.5 rounded-lg bg-white/10 text-[#f0e0d0] text-sm">Em breve</span>
+            <p className="text-sm text-[#a08070] mb-4">
+              Área reservada a administradores. Ferramentas apenas para testes e gestão.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => setActiveView("discover_playlists")}
+                className="flex w-full items-center justify-between rounded-2xl bg-[#111112] px-4 py-3 hover:bg-[#18181b] transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Search className="h-5 w-5 text-[#D2B48C]" />
+                  <div className="text-left">
+                    <p className="text-[15px] font-semibold text-[#f0e0d0]">
+                      Procurar playlists públicas
+                    </p>
+                    <p className="text-[12px] text-[#a08070]">
+                      Importar playlists de teste para a tua biblioteca
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-[#8E8E93]" />
+              </button>
             </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Discover playlists (admin only)
+  if (activeView === "discover_playlists") {
+    const handleSearch = async () => {
+      if (!discoverQuery.trim()) {
+        toast.error("Escreve um nome ou artista para procurar playlists")
+        return
+      }
+      setDiscoverLoading(true)
+      setSelectedDiscoverPlaylist(null)
+      try {
+        const results = await searchPlaylistSuggestions(discoverQuery.trim())
+        setDiscoverResults(results)
+        if (results.length === 0) {
+          toast.message("Nenhuma playlist encontrada", {
+            description: "Tenta outro nome ou artista.",
+          })
+        }
+      } catch {
+        toast.error("Erro ao procurar playlists")
+      } finally {
+        setDiscoverLoading(false)
+      }
+    }
+
+    const handleImportSelected = async () => {
+      if (!userId || !selectedDiscoverPlaylist) {
+        toast.error("Nenhuma playlist selecionada")
+        return
+      }
+      setAddingPlaylist(true)
+      try {
+        const playlistName = `${selectedDiscoverPlaylist.title}`.slice(0, 80)
+        const newPlaylist = await createPlaylist(playlistName, selectedDiscoverPlaylist.thumbnail)
+        if (!newPlaylist) {
+          toast.error("Não foi possível criar a playlist")
+          setAddingPlaylist(false)
+          return
+        }
+
+        const tracksToImport = selectedDiscoverPlaylist.previewTracks.slice(0, 200).map((t) => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          thumbnail: t.thumbnail,
+          duration: t.duration,
+          youtubeId: t.youtubeId,
+          previewUrl: t.previewUrl,
+          source: t.source,
+        }))
+
+        for (const track of tracksToImport) {
+          // Ignorar falhas individuais, é só ferramenta de teste/admin
+          // eslint-disable-next-line no-await-in-loop
+          await addTrackToPlaylist(newPlaylist.id, track)
+        }
+
+        toast.success("Playlist importada para a tua biblioteca")
+      } catch {
+        toast.error("Erro ao importar playlist")
+      } finally {
+        setAddingPlaylist(false)
+      }
+    }
+
+    return (
+      <div className={`flex min-h-0 flex-1 flex-col px-6 pb-6 pt-4 ${prefs.fontFamily}`}>
+        <button onClick={() => setActiveView("tools")} className="mb-6 flex items-center gap-2 text-[#a08070] hover:text-[#f0e0d0]">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Voltar às ferramentas</span>
+        </button>
+        <h2 className="mb-4 text-2xl font-bold text-[#f0e0d0] flex items-center gap-3">
+          <Search className="h-6 w-6" style={{ color: accentHex }} />
+          Procurar playlists públicas
+        </h2>
+        <p className="mb-4 text-xs text-[#a08070]">
+          Apenas para admin. Usa APIs externas (Spotify / YouTube) para testes – conteúdo pode ser removido a qualquer momento.
+        </p>
+
+        <div className="mb-5 flex gap-3">
+          <div className="flex-1 rounded-2xl bg-[#111112] px-3.5 py-2.5 flex items-center gap-2 border border-white/5">
+            <Search className="h-4 w-4 text-[#8E8E93]" />
+            <input
+              value={discoverQuery}
+              onChange={(e) => setDiscoverQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              placeholder="Nome da playlist, artista, mood..."
+              className="w-full bg-transparent text-sm text-[#f0e0d0] placeholder:text-[#61616b] outline-none"
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            disabled={discoverLoading}
+            className="rounded-2xl bg-[#D2B48C] px-4 text-sm font-semibold text-black disabled:opacity-60"
+          >
+            {discoverLoading ? "A procurar..." : "Procurar"}
+          </button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 gap-4">
+          <div className="w-1/2 space-y-3 overflow-y-auto pr-1">
+            {discoverResults.map((pl) => (
+              <button
+                key={`${pl.source}-${pl.id}`}
+                onClick={() => setSelectedDiscoverPlaylist(pl)}
+                className={`flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-colors ${
+                  selectedDiscoverPlaylist?.id === pl.id && selectedDiscoverPlaylist.source === pl.source
+                    ? "border-[#D2B48C] bg-[#111112]"
+                    : "border-white/8 bg-[#050506] hover:bg-[#111112]"
+                }`}
+              >
+                <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-[#111112]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={pl.thumbnail} alt={pl.title} className="h-full w-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm font-semibold text-[#f0e0d0]">{pl.title}</p>
+                  <p className="truncate text-[11px] text-[#a08070]">{pl.description}</p>
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#61616b]">
+                    {pl.trackCount} faixas • {pl.source === "spotify" ? "Spotify" : "YouTube"}
+                  </p>
+                </div>
+              </button>
+            ))}
+            {discoverResults.length === 0 && !discoverLoading && (
+              <p className="text-xs text-[#61616b]">
+                Ainda sem resultados. Faz uma pesquisa para ver playlists sugeridas.
+              </p>
+            )}
+          </div>
+
+          <div className="w-1/2 rounded-3xl border border-[#f0e0d0]/10 bg-[#050506] p-4 flex flex-col">
+            {selectedDiscoverPlaylist ? (
+              <>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-[#111112]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={selectedDiscoverPlaylist.thumbnail}
+                      alt={selectedDiscoverPlaylist.title}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[#f0e0d0]">
+                      {selectedDiscoverPlaylist.title}
+                    </p>
+                    <p className="truncate text-[11px] text-[#a08070]">
+                      {selectedDiscoverPlaylist.description}
+                    </p>
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#61616b]">
+                      {selectedDiscoverPlaylist.trackCount} faixas
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mb-3 flex-1 overflow-y-auto rounded-2xl bg-[#111112] p-3">
+                  {selectedDiscoverPlaylist.previewTracks.slice(0, 20).map((t, idx) => (
+                    <div key={t.id + idx} className="mb-2 flex items-center gap-3">
+                      <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-lg bg-[#050506]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={t.thumbnail} alt={t.title} className="h-full w-full object-cover" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-[12px] text-[#f0e0d0]">{t.title}</p>
+                        <p className="truncate text-[11px] text-[#61616b]">{t.artist}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {selectedDiscoverPlaylist.previewTracks.length > 20 && (
+                    <p className="mt-1 text-[10px] text-[#61616b]">
+                      …e mais {selectedDiscoverPlaylist.previewTracks.length - 20} faixas
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleImportSelected}
+                  disabled={addingPlaylist}
+                  className="mt-2 rounded-2xl bg-[#D2B48C] px-4 py-3 text-[13px] font-semibold text-black disabled:opacity-60"
+                >
+                  {addingPlaylist ? "A importar playlist..." : "Importar playlist para a biblioteca"}
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center text-center px-4">
+                <p className="text-sm font-medium text-[#f0e0d0] mb-1">
+                  Seleciona uma playlist para ver os detalhes
+                </p>
+                <p className="text-xs text-[#61616b]">
+                  As faixas importadas são guardadas na tua conta Firebase como playlist normal.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
