@@ -75,6 +75,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             let deferredPrompt = null;
+            let swRegistration = null;
             
             // Armazena o evento de instalação PWA
             window.addEventListener('beforeinstallprompt', (e) => {
@@ -102,12 +103,39 @@ export default function RootLayout({
                      window.matchMedia('(display-mode: minimal-ui)').matches;
             };
 
+            // Helper to notify app UI about available update
+            function notifyUpdateAvailable(reg) {
+              try {
+                window.dispatchEvent(new CustomEvent('pwa-update-available', { detail: { registration: reg || swRegistration || null } }));
+              } catch (e) {
+                window.dispatchEvent(new CustomEvent('pwa-update-available'));
+              }
+            }
+
             // Service Worker Registration
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
                   .then((registration) => {
                     console.log('SW registered:', registration.scope);
+                    swRegistration = registration;
+
+                    // If there's already a waiting SW (common on reload), prompt immediately.
+                    if (registration.waiting) {
+                      notifyUpdateAvailable(registration);
+                    }
+
+                    // Detect updates and prompt when the new SW reaches "installed" and is waiting.
+                    registration.addEventListener('updatefound', () => {
+                      const installing = registration.installing;
+                      if (!installing) return;
+                      installing.addEventListener('statechange', () => {
+                        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                          notifyUpdateAvailable(registration);
+                        }
+                      });
+                    });
+
                     // Verificar atualizações a cada 30 segundos
                     setInterval(() => registration.update(), 30000);
                   })
@@ -117,9 +145,12 @@ export default function RootLayout({
                   
                 // Listener para mensagens do SW
                 navigator.serviceWorker.addEventListener('message', (event) => {
-                  if (event.data && event.data.type === 'NEW_VERSION') {
+                  if (!event.data) return;
+
+                  // If SW tells us it updated / should reload, prompt.
+                  if (event.data.type === 'sw-updated' || event.data.type === 'NEW_VERSION') {
                     console.log('Nova versao disponivel!');
-                    window.dispatchEvent(new CustomEvent('pwa-update-available'));
+                    notifyUpdateAvailable(swRegistration);
                   }
                 });
               });

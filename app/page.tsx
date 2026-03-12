@@ -114,6 +114,47 @@ function XalanifyApp() {
   }, [])
 
   useEffect(() => {
+    function onRemoteUpdateAvailable(e: Event) {
+      const ce = e as CustomEvent<AppUpdate>
+      const update = ce.detail
+      if (update) {
+        setWhatsNewUpdate(update)
+        setForceUpdate(true)
+      }
+    }
+
+    function onPwaUpdateAvailable(e: Event) {
+      const ce = e as CustomEvent<{ registration?: ServiceWorkerRegistration | null }>
+      const reg = ce?.detail?.registration || null
+
+      const update: AppUpdate = {
+        version: "Nova versão disponível",
+        date: new Date().toISOString().split("T")[0],
+        title: "Atualização do app pronta",
+        changes: [
+          "Foi detectada uma versão nova do Xalanify",
+          "Clique em Atualizar para aplicar já",
+          "Não precisas desinstalar ou limpar cookies",
+        ],
+        isNew: true,
+      }
+
+      // Stash registration for the update button (optional)
+      ;(window as any).__xalanifySwRegistration = reg
+
+      setWhatsNewUpdate(update)
+      setForceUpdate(true)
+    }
+
+    window.addEventListener("remote-update-available", onRemoteUpdateAvailable as EventListener)
+    window.addEventListener("pwa-update-available", onPwaUpdateAvailable as EventListener)
+    return () => {
+      window.removeEventListener("remote-update-available", onRemoteUpdateAvailable as EventListener)
+      window.removeEventListener("pwa-update-available", onPwaUpdateAvailable as EventListener)
+    }
+  }, [])
+
+  useEffect(() => {
     if (user?.uid) {
       getPlaylists(user.uid).then((data: unknown) => {
         const playlists = data as Array<{id: string, name: string}>
@@ -141,7 +182,20 @@ function XalanifyApp() {
   }
 
   const handleForceUpdate = useCallback(async () => {
-    await performPWAUpdate()
+    // Prefer a clean SW activation + reload without nuking user storage/session.
+    try {
+      const reg = (window as any).__xalanifySwRegistration as ServiceWorkerRegistration | null | undefined
+      if (reg?.waiting) {
+        reg.waiting.postMessage({ type: "SKIP_WAITING" })
+        await new Promise((r) => setTimeout(r, 600))
+      }
+      // Hard reload with cache-bust query to avoid stale HTML.
+      window.location.href = "/?update=" + Date.now()
+      return
+    } catch {
+      // Fallback to the existing heavy reset flow (kept for worst cases).
+      await performPWAUpdate()
+    }
   }, [])
 
   if (showSplash || loading) return <SplashScreen accentHex={accentHex} />
