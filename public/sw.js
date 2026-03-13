@@ -1,6 +1,7 @@
-// Xalanify Service Worker - com suporte para background media playback
+// Xalanify Service Worker - com suporte para background media playback + auto-refresh
 // Dynamic cache name with version - gets from client message
-let CACHE_NAME = 'xalanify-v0.70.4';
+let CACHE_NAME = 'xalanify-v0.70.5';
+let LAST_VERSION = '0.70.4';
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -37,6 +38,13 @@ self.addEventListener('activate', (event) => {
       return self.clients.claim();
     })
   );
+  
+  // Notify clients of new version
+  event.waitUntil(self.clients.matchAll().then(clients => {
+    clients.forEach(client => {
+      client.postMessage({ type: 'NEW_SW_VERSION', version: LAST_VERSION });
+    });
+  }));
 });
 
 // Fetch
@@ -119,20 +127,30 @@ self.addEventListener('message', (event) => {
   }
   
   if (event.data && event.data.type === 'SET_CACHE_NAME') {
-    CACHE_NAME = 'xalanify-cache-v' + event.data.version;
+    CACHE_NAME = 'xalanify-v' + event.data.version;
+    LAST_VERSION = event.data.version;
     console.log('[SW] Cache name updated:', CACHE_NAME);
-    event.ports[0]?.postMessage({ status: 'cache-updated', version: event.data.version });
+    if (event.ports[0]) {
+      event.ports[0].postMessage({ status: 'cache-updated', version: LAST_VERSION });
+    }
   }
   
   if (event.data && event.data.type === 'GET_VERSION') {
-    event.ports[0]?.postMessage({ version: CACHE_NAME });
+    if (event.ports[0]) {
+      event.ports[0].postMessage({ version: LAST_VERSION, cacheName: CACHE_NAME });
+    }
   }
   
   if (event.data && event.data.type === 'FORCE_UPDATE') {
     self.skipWaiting();
     self.clients.matchAll().then(clients => {
-      clients.forEach(client => client.postMessage({ type: 'sw-updated' }));
+      clients.forEach(client => client.postMessage({ type: 'sw-updated', version: LAST_VERSION }));
     });
+  }
+  
+  if (event.data && event.data.type === 'UPDATE_VERSION') {
+    LAST_VERSION = event.data.version;
+    console.log('[SW] Version updated:', LAST_VERSION);
   }
   
   // Media Session messages from client

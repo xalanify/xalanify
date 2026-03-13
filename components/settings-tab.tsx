@@ -82,6 +82,7 @@ export default function SettingsTab() {
 
   const [discoverQuery, setDiscoverQuery] = useState("")
   const [discoverResults, setDiscoverResults] = useState<PlaylistSuggestion[]>([])
+  const [discoverError, setDiscoverError] = useState<{spotify?: string, youtube?: string} | null>(null)
   const [discoverLoading, setDiscoverLoading] = useState(false)
   const [selectedDiscoverPlaylist, setSelectedDiscoverPlaylist] = useState<PlaylistSuggestion | null>(null)
   const [addingPlaylist, setAddingPlaylist] = useState(false)
@@ -456,20 +457,39 @@ export default function SettingsTab() {
         return
       }
       setDiscoverLoading(true)
+      setDiscoverError(null)
       setSelectedDiscoverPlaylist(null)
       try {
-        const results = await searchPlaylistSuggestions(discoverQuery.trim())
-        setDiscoverResults(results)
-        if (results.length === 0) {
-          toast.message("Nenhuma playlist encontrada", {
-            description: "Tenta outro nome ou artista.",
-          })
+        const result = await searchPlaylistSuggestions(discoverQuery.trim())
+        setDiscoverResults(result.playlists)
+        
+        if (result.playlists.length === 0) {
+          if (result.spotifyError || result.youtubeError) {
+            let msg = "APIs não disponíveis: "
+            if (result.spotifyError?.includes('CREDENTIALS_MISSING')) msg += "Spotify keys em falta; "
+            if (result.youtubeError?.includes('API_KEY_MISSING')) msg += "YouTube key em falta; "
+            if (result.youtubeError?.includes('QUOTA')) msg += "YouTube quota esgotada; "
+            toast.error(msg || "Erro desconhecido nas APIs")
+            setDiscoverError({spotify: result.spotifyError, youtube: result.youtubeError})
+          } else {
+            toast.message("Nenhuma playlist encontrada", {
+              description: "Tenta outro termo de pesquisa.",
+            })
+          }
         }
-      } catch {
-        toast.error("Erro ao procurar playlists")
+      } catch (e) {
+        console.error("[Settings] Search playlists error:", e)
+        toast.error("Erro de rede na pesquisa")
+        setDiscoverError({spotify: "NETWORK_ERROR", youtube: "NETWORK_ERROR"})
       } finally {
         setDiscoverLoading(false)
       }
+    }
+
+    const handleRetrySearch = () => {
+      setDiscoverQuery("")
+      setDiscoverResults([])
+      setDiscoverError(null)
     }
 
     const handleImportSelected = async () => {
@@ -571,11 +591,23 @@ export default function SettingsTab() {
                 </div>
               </button>
             ))}
-            {discoverResults.length === 0 && !discoverLoading && (
+            {discoverResults.length === 0 && !discoverLoading && !discoverError ? (
               <p className="text-xs text-[#61616b]">
                 Ainda sem resultados. Faz uma pesquisa para ver playlists sugeridas.
               </p>
-            )}
+            ) : discoverError && !discoverLoading ? (
+              <div className="p-4 text-center space-y-2">
+                <p className="text-sm text-red-400">Erro na pesquisa:</p>
+                {discoverError.spotify && <p className="text-xs text-red-300">Spotify: {discoverError.spotify}</p>}
+                {discoverError.youtube && <p className="text-xs text-red-300">YouTube: {discoverError.youtube}</p>}
+                <button 
+                  onClick={handleRetrySearch}
+                  className="mt-2 px-4 py-1.5 bg-red-500/80 hover:bg-red-500 text-xs rounded-full text-white"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <div className="w-1/2 rounded-3xl border border-[#f0e0d0]/10 bg-[#050506] p-4 flex flex-col">

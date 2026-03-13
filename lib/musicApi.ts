@@ -28,8 +28,13 @@ export interface PlaylistSuggestion {
   previewTracks: PlaylistTrackPreview[]
 }
 
-async function getSpotifyToken() {
+async function getSpotifyToken(): Promise<{token: string | null, error: string | null}> {
   try {
+    if (!CLIENT_ID || !CLIENT_SECRET) {
+      console.error("[MusicAPI] ❌ Spotify: CLIENT_ID/SECRET em falta")
+      return { token: null, error: "SPOTIFY_CREDENTIALS_MISSING" }
+    }
+    
     const auth = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`)
     const res = await fetch("https://accounts.spotify.com/api/token", {
       method: "POST",
@@ -39,20 +44,31 @@ async function getSpotifyToken() {
       },
       body: "grant_type=client_credentials",
     })
+    
+    if (!res.ok) {
+      console.error(`[MusicAPI] ❌ Spotify token erro ${res.status}:`, await res.text())
+      return { token: null, error: `SPOTIFY_TOKEN_ERROR_${res.status}` }
+    }
+    
     const data = await res.json()
-    return data.access_token
-  } catch {
-    return null
+    if (!data.access_token) {
+      console.error("[MusicAPI] ❌ Spotify: token inválido:", data)
+      return { token: null, error: "SPOTIFY_INVALID_TOKEN" }
+    }
+    
+    return { token: data.access_token, error: null as string | null }
+  } catch (e) {
+    console.error("[MusicAPI] ❌ Spotify token exception:", e)
+    return { token: null, error: "SPOTIFY_NETWORK_ERROR" }
   }
 }
 
 // Search tracks from Spotify
-async function searchSpotifyTracks(query: string): Promise<PlaylistTrackPreview[]> {
+async function searchSpotifyTracks(query: string): Promise<{tracks: PlaylistTrackPreview[], error: string | null}> {
   try {
-    const token = await getSpotifyToken()
-    if (!token) {
-      console.log("[MusicAPI] ⚠️ Sem token Spotify")
-      return []
+    const { token, error } = await getSpotifyToken()
+    if (error) {
+      return { tracks: [], error }
     }
 
     const res = await fetch(
@@ -61,38 +77,42 @@ async function searchSpotifyTracks(query: string): Promise<PlaylistTrackPreview[
     )
 
     if (!res.ok) {
-      console.log(`[MusicAPI] ❌ Spotify erro ${res.status}`)
-      return []
+      const errorText = await res.text()
+      console.error(`[MusicAPI] ❌ Spotify search erro ${res.status}:`, errorText)
+      return { tracks: [], error: `SPOTIFY_SEARCH_ERROR_${res.status}` }
     }
 
     const data = await res.json()
     const tracks = data.tracks?.items || []
 
-    console.log("[MusicAPI] ✅ Encontradas", tracks.length, "músicas no Spotify")
+    console.log("[MusicAPI] ✅ Spotify:", tracks.length, "tracks")
 
-    return tracks.map((track: any) => ({
-      id: `spotify-${track.id}`,
-      title: track.name,
-      artist: track.artists?.map((a: any) => a.name).join(", ") || "Desconhecido",
-      thumbnail: track.album?.images?.[0]?.url || "",
-      duration: (track.duration_ms || 0) / 1000,
-      youtubeId: null,
-      previewUrl: track.preview_url || null,
-      source: "spotify" as const,
-    }))
+    return {
+      tracks: tracks.map((track: any) => ({
+        id: `spotify-${track.id}`,
+        title: track.name,
+        artist: track.artists?.map((a: any) => a.name).join(", ") || "Desconhecido",
+        thumbnail: track.album?.images?.[0]?.url || "",
+        duration: (track.duration_ms || 0) / 1000,
+        youtubeId: null,
+        previewUrl: track.preview_url || null,
+        source: "spotify" as const,
+      })),
+      error: null
+    }
   } catch (e) {
-    console.log("[MusicAPI] ❌ Spotify exception:", e)
-    return []
+    console.error("[MusicAPI] ❌ Spotify search exception:", e)
+    return { tracks: [], error: "SPOTIFY_SEARCH_EXCEPTION" }
   }
 }
 
 // YouTube search - USA A API KEY DIRETAMENTE
-async function searchMusicFromYouTube(query: string): Promise<PlaylistTrackPreview[]> {
+async function searchMusicFromYouTube(query: string): Promise<{tracks: PlaylistTrackPreview[], error: string | null}> {
   try {
     const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY
     if (!apiKey) {
-      console.log("[MusicAPI] ⚠️ Sem API Key do YouTube")
-      return []
+      console.error("[MusicAPI] ❌ YouTube: API_KEY em falta")
+      return { tracks: [], error: "YOUTUBE_API_KEY_MISSING" }
     }
 
     const res = await fetch(
@@ -100,12 +120,21 @@ async function searchMusicFromYouTube(query: string): Promise<PlaylistTrackPrevi
     )
     
     if (!res.ok) {
-      console.log(`[MusicAPI] ❌ YouTube erro ${res.status}`)
-      return []
+      const errorText = await res.text()
+      console.error(`[MusicAPI] ❌ YouTube erro ${res.status}:`, errorText)
+      if (res.status === 403) {
+        return { tracks: [], error: "YOUTUBE_QUOTA_EXCEEDED" }
+      }
+      return { tracks: [], error: `YOUTUBE_ERROR_${res.status}` }
     }
 
     const data = await res.json()
-    return (data.items || []).map((item: any) => ({
+    if (data.error) {
+      console.error("[MusicAPI] ❌ YouTube API error:", data.error)
+      return { tracks: [], error: `YOUTUBE_API_ERROR_${data.error.code}` }
+    }
+
+    const tracks = (data.items || []).map((item: any) => ({
       id: `youtube-${item.id.videoId}`,
       title: item.snippet.title,
       artist: item.snippet.channelTitle,
@@ -115,9 +144,12 @@ async function searchMusicFromYouTube(query: string): Promise<PlaylistTrackPrevi
       previewUrl: null,
       source: "youtube" as const,
     }))
+
+    console.log("[MusicAPI] ✅ YouTube:", tracks.length, "tracks")
+    return { tracks, error: null }
   } catch (e) {
-    console.log("[MusicAPI] ❌ YouTube exception:", e)
-    return []
+    console.error("[MusicAPI] ❌ YouTube exception:", e)
+    return { tracks: [], error: "YOUTUBE_NETWORK_ERROR" }
   }
 }
 
@@ -164,10 +196,11 @@ export async function getYoutubeId(title: string, artist: string): Promise<strin
   console.log("[MusicAPI] 🔍 A procurar YouTube para:", title, "-", artist)
   
   // Fase 1: Pesquisar apenas pelo título
-  const titleResults = await searchMusicFromYouTube(title)
+  const titleResultsRaw = await searchMusicFromYouTube(title)
+  const titleResults = titleResultsRaw.tracks || []
   
   if (titleResults.length > 0) {
-    const matchingResult = titleResults.find(r => {
+    const matchingResult = titleResults.find((r: PlaylistTrackPreview) => {
       if (r.title.toLowerCase().includes('live') || 
           r.title.toLowerCase().includes('stream') ||
           r.title.toLowerCase().includes('full album') ||
@@ -197,7 +230,8 @@ export async function getYoutubeId(title: string, artist: string): Promise<strin
   }
   
   // Fase 2: Pesquisar com título + artista
-  const fullResults = await searchMusicFromYouTube(`${title} ${artist}`)
+  const fullResultsRaw = await searchMusicFromYouTube(`${title} ${artist}`)
+  const fullResults = fullResultsRaw.tracks || []
   
   if (fullResults.length > 0) {
     const validResult = fullResults.find(r => 
@@ -221,7 +255,8 @@ export async function getYoutubeId(title: string, artist: string): Promise<strin
   ]
   
   for (const query of variations) {
-    const results = await searchMusicFromYouTube(query)
+    const resultsRaw = await searchMusicFromYouTube(query)
+    const results = resultsRaw.tracks || []
     if (results.length > 0) {
       const validResult = results.find(r => 
         !r.title.toLowerCase().includes('live') && 
@@ -240,53 +275,66 @@ export async function getYoutubeId(title: string, artist: string): Promise<strin
 
 export type SearchSource = "all" | "spotify" | "youtube"
 
-export async function searchMusic(query: string, source: SearchSource = "all") {
+export async function searchMusic(query: string, source: SearchSource = "all"): Promise<PlaylistTrackPreview[]> {
   const cacheKey = `${source}:${query.toLowerCase().trim()}`
   const cached = searchCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     console.log("[MusicAPI] 📦 Usando cache para:", query)
-    return cached.data
+  return cached.data
   }
 
   console.log("[MusicAPI] 🔍 A pesquisar música:", query, "source:", source)
   
   let results: PlaylistTrackPreview[] = []
+  let spotifyError: string | null = null
+  let youtubeError: string | null = null
   
   if (source === "all" || source === "spotify") {
-    const spotifyTracks = await searchSpotifyTracks(query)
-    results = [...results, ...spotifyTracks]
+    const spotifyRes = await searchSpotifyTracks(query)
+    if (spotifyRes.error) spotifyError = spotifyRes.error
+    else results = [...results, ...spotifyRes.tracks]
   }
   
   if (source === "all" || source === "youtube") {
-    const youtubeTracks = await searchMusicFromYouTube(query)
-    results = [...results, ...youtubeTracks]
+    const youtubeRes = await searchMusicFromYouTube(query)
+    if (youtubeRes.error) youtubeError = youtubeRes.error
+    else results = [...results, ...youtubeRes.tracks]
   }
 
   if (results.length > 0) {
     console.log("[MusicAPI] ✅ Encontradas", results.length, "músicas")
     searchCache.set(cacheKey, { data: results, timestamp: Date.now() })
-    return results
+  } else {
+    console.log("[MusicAPI] ❌ Nenhuma música encontrada", { spotifyError, youtubeError })
   }
 
-  console.log("[MusicAPI] ❌ Nenhuma música encontrada")
-  return []
+  return results
 }
 
 export async function searchSpotify(query: string): Promise<PlaylistTrackPreview[]> {
-  return searchMusic(query, "spotify")
+  const result = await searchMusic(query, "spotify")
+  return result.tracks
 }
 
 export async function searchYouTube(query: string): Promise<PlaylistTrackPreview[]> {
-  return searchMusic(query, "youtube")
+  const result = await searchMusic(query, "youtube")
+  return result.tracks
 }
 
-export async function searchPlaylistSuggestions(query: string): Promise<PlaylistSuggestion[]> {
-  const [spotifyPlaylists, youtubePlaylists] = await Promise.all([
-    getSpotifyPlaylists(query),
-    getYoutubePlaylists(query),
-  ])
+export async function searchPlaylistSuggestions(query: string): Promise<{playlists: PlaylistSuggestion[], spotifyError: string | null, youtubeError: string | null}> {
+  try {
+  const spotifyRes = await getSpotifyPlaylists(query)
+  const youtubeRes = await getYoutubePlaylists(query)
 
-  return [...spotifyPlaylists, ...youtubePlaylists]
+  return {
+    playlists: [...(spotifyRes || []), ...(youtubeRes || [])],
+    spotifyError: null,
+    youtubeError: null
+  }
+  } catch (e) {
+    console.error("[MusicAPI] ❌ Playlist suggestions exception:", e)
+    return { playlists: [], spotifyError: "NETWORK_ERROR", youtubeError: "NETWORK_ERROR" }
+  }
 }
 
 async function getAllSpotifyPlaylistTracks(playlistId: string, token: string) {
@@ -313,31 +361,40 @@ async function getAllSpotifyPlaylistTracks(playlistId: string, token: string) {
 
 async function getSpotifyPlaylists(query: string): Promise<PlaylistSuggestion[]> {
   try {
-    const token = await getSpotifyToken()
-    if (!token) return []
+    const { token, error } = await getSpotifyToken()
+    if (error || !token) {
+      console.error("[MusicAPI] Spotify playlists erro:", error)
+      return []
+    }
 
     const playlistRes = await fetch(
       `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=playlist&limit=12`,
       { headers: { Authorization: `Bearer ${token}` } }
     )
+    if (!playlistRes.ok) {
+      console.error("[MusicAPI] Spotify playlists search erro", playlistRes.status)
+      return []
+    }
     const playlistData = await playlistRes.json()
     const items = playlistData.playlists?.items || []
 
     const playlists = await Promise.all(
-      items.map(async (item: any) => {
+      items.slice(0, 6).map(async (item: any) => {
         const allTrackRows = await getAllSpotifyPlaylistTracks(item.id, token)
 
         const previewTracks: PlaylistTrackPreview[] = allTrackRows
           .map((entry: any) => entry.track)
           .filter(Boolean)
+          .slice(0, 50)
           .map((track: any) => ({
-            id: track.id,
+            id: `spotify-track-${track.id}`,
             title: track.name,
             artist: track.artists?.[0]?.name || "Desconhecido",
             thumbnail: track.album?.images?.[0]?.url || item.images?.[0]?.url || "",
             duration: (track.duration_ms || 0) / 1000,
             youtubeId: null,
             previewUrl: track.preview_url || null,
+            source: "spotify" as const,
           }))
 
         return {
@@ -353,7 +410,8 @@ async function getSpotifyPlaylists(query: string): Promise<PlaylistSuggestion[]>
     )
 
     return playlists
-  } catch {
+  } catch (e) {
+    console.error("[MusicAPI] getSpotifyPlaylists exception:", e)
     return []
   }
 }

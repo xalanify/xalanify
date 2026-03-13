@@ -23,8 +23,8 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return
     setSearching(true)
-    const tracks = await searchMusic(query, sourceFilter)
-    setResults(tracks)
+    const result = await searchMusic(query, sourceFilter)
+    setResults(result)
     setSearching(false)
   }, [query, sourceFilter, setResults])
 

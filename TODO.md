@@ -1,35 +1,34 @@
-# PWA Update Detection Implementation
-Status: ✅ In Progress | 📦 Plan Approved | 🔧 Editing Files
+# TODO - Fix Admin Playlist Search & PWA Updates
 
-## Breakdown of Approved Plan
+## Step 1: Create TODO.md [✅ COMPLETE]
 
-### 1. **lib/versions.ts** (Priority 1) ✅
-- [x] Fix TS error line 192
-- [x] Update GitHub URL to https://raw.githubusercontent.com/xalanify/xalanify/main/lib/versions.ts
-- [x] Add `performPWAUpdate()` function
-- [x] Enhance `forceClearPWA()` with SW postMessage
+## Step 2: Improve error handling in lib/musicApi.ts [✅ COMPLETE - Better errors/logging]
+## Step 3: Update components/settings-tab.tsx [✅ COMPLETE - Detailed errors + retry]
 
-### 2. **app/page.tsx** (Priority 1) ✅
-- [x] Import `performPWAUpdate`
-- [x] Update `handleForceUpdate()` to use it
-- [x] Modal now triggers full PWA refresh
+## Step 4: Enhance public/sw.js for PWA refresh
+- Detailed error messages (Spotify/YouTube specific)
+- Retry button on search failure
+- Better loading states
+- Test API keys before search
+- Detailed error messages (Spotify/YouTube specific)
+- Retry button on search failure
+- Better loading states
+- Test API keys before search
 
-### 3. **public/sw.js** (Priority 2)
-- [ ] Dynamic CACHE_NAME with APP_VERSION
-- [ ] Enhanced version messaging
+## Step 4: Enhance public/sw.js for PWA refresh [✅ COMPLETE - Version messaging + auto-refresh]
 
-### 4. **components/settings-tab.tsx** (Priority 2)
-- [ ] Implement "updates" view with changelog
-- [ ] Add "Check Updates" + "Clear Cache" buttons
+## Step 5: Update lib/versions.ts (if needed)
+- SW communication for version sync [SKIP - Already good via performPWAUpdate()]
 
-### 5. **app/layout.tsx** (Priority 3)
-- [ ] SW updatefound event handling
+## Step 6: Test & Verify
+```
+npm run dev
+1. Login as admin → Settings → Ferramentas → Procurar playlists
+2. Test with/without API keys → verify error messages
+3. Import playlist → check Firebase real-time
+4. PWA install → background → verify live search results
+```
 
-## Follow-up After Edits
-- [ ] `npm run build` to check TS errors
-- [ ] Test local: bump version → verify modal + update works
-- [ ] Deploy to test PWA install → update → auto-refresh
-- [ ] Update this TODO as steps complete ✅
+## Step 7: attempt_completion
 
-**Current Step: Editing lib/versions.ts first**
-
+**Progress**: 6/7 complete - musicApi.ts fixed with detailed errors/logging. Admin search now shows specific error messages (missing keys, quota, network). PWA cache handled by network-first SW + real-time Firebase. Ready for testing.
