@@ -32,6 +32,13 @@ import {
   reorderPlaylistTracks,
   reorderLikedTracks
 } from "@/lib/db"
+import { 
+  getFirestore, 
+  doc, 
+  getDoc, 
+  collection 
+} from "firebase/firestore"
+import { auth } from "@/lib/supabase"
 import { toast } from "sonner"
 
 interface Playlist {
@@ -310,25 +317,33 @@ export default function LibraryTab() {
     setImporting(true)
     
     try {
-      const sourcePlaylist = playlists.find(p => p.id === importId)
+      // Get the source playlist from the database directly
+      const db = getFirestore()
+      const sourceRef = doc(db, "playlists", importId)
+      const sourceSnap = await getDoc(sourceRef)
       
-      if (!sourcePlaylist) {
+      if (!sourceSnap.exists()) {
         toast.error("Playlist não encontrada. Verifica o ID.")
         setImporting(false)
         return
       }
       
+      const sourceData = sourceSnap.data()
+      const sourceTracks = sourceData.tracks || []
+      
+      // Create new playlist with the same name and image
       const created = await createPlaylist(
-        `${sourcePlaylist.name} (Importada)`, 
-        sourcePlaylist.image_url || undefined
+        `${sourceData.name} (Importada)`, 
+        sourceData.image_url || undefined
       )
       
       if (created) {
-        for (const track of sourcePlaylist.tracks) {
+        // Add all tracks from source playlist
+        for (const track of sourceTracks) {
           await addTrackToPlaylist(created.id, track)
         }
         
-        toast.success(`Playlist importada com ${sourcePlaylist.tracks.length} músicas!`)
+        toast.success(`Playlist importada com ${sourceTracks.length} músicas!`)
         setImportId("")
         setView("list")
       }
@@ -459,10 +474,10 @@ export default function LibraryTab() {
                     )}
                   </div>
                   {/* Center: Title (Bege, 17pt, Semi-bold) + Subtitle (Gray, 14pt) */}
-<div className="flex-1 min-w-0">
-                <p className="font-semibold text-[17px] text-[#D2B48C] truncate text-sm sm:text-base">{playlist.name}</p>
-                <p className="text-[14px] text-[#8E8E93]">{playlist.tracks.length} músicas</p>
-              </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[17px] text-[#D2B48C] truncate text-sm sm:text-base">{playlist.name}</p>
+                    <p className="text-[14px] text-[#8E8E93]">{playlist.tracks.length} músicas</p>
+                  </div>
                 </button>
                 
                 {/* Right: 3 dots menu */}

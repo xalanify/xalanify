@@ -567,7 +567,7 @@ setDiscoverError({spotify: "NETWORK_ERROR", youtube: "NETWORK_ERROR"})
         </div>
 
         <div className="flex min-h-0 flex-1 gap-4">
-          <div className="w-1/2 space-y-3 overflow-y-auto pr-1">
+          <div className="w-full space-y-3 overflow-y-auto pr-1">
             {discoverResults.map((pl) => (
               <button
                 key={`${pl.source}-${pl.id}`}
@@ -609,72 +609,61 @@ setDiscoverError({spotify: "NETWORK_ERROR", youtube: "NETWORK_ERROR"})
               </div>
             ) : null}
           </div>
+        </div>
 
-          <div className="w-1/2 rounded-3xl border border-[#f0e0d0]/10 bg-[#050506] p-4 flex flex-col">
-            {selectedDiscoverPlaylist ? (
-              <>
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-[#111112]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={selectedDiscoverPlaylist.thumbnail}
-                      alt={selectedDiscoverPlaylist.title}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[#f0e0d0]">
-                      {selectedDiscoverPlaylist.title}
-                    </p>
-                    <p className="truncate text-[11px] text-[#a08070]">
-                      {selectedDiscoverPlaylist.description}
-                    </p>
-                    <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#61616b]">
-                      {selectedDiscoverPlaylist.trackCount} faixas
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mb-3 flex-1 overflow-y-auto rounded-2xl bg-[#111112] p-3">
-                  {selectedDiscoverPlaylist.previewTracks.slice(0, 20).map((t, idx) => (
-                    <div key={t.id + idx} className="mb-2 flex items-center gap-3">
-                      <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-lg bg-[#050506]">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={t.thumbnail} alt={t.title} className="h-full w-full object-cover" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-[12px] text-[#f0e0d0]">{t.title}</p>
-                        <p className="truncate text-[11px] text-[#61616b]">{t.artist}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {selectedDiscoverPlaylist.previewTracks.length > 20 && (
-                    <p className="mt-1 text-[10px] text-[#61616b]">
-                      …e mais {selectedDiscoverPlaylist.previewTracks.length - 20} faixas
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  onClick={handleImportSelected}
-                  disabled={addingPlaylist}
-                  className="mt-2 rounded-2xl bg-[#D2B48C] px-4 py-3 text-[13px] font-semibold text-black disabled:opacity-60"
-                >
-                  {addingPlaylist ? "A importar playlist..." : "Importar playlist para a biblioteca"}
-                </button>
-              </>
-            ) : (
-              <div className="flex flex-1 flex-col items-center justify-center text-center px-4">
-                <p className="text-sm font-medium text-[#f0e0d0] mb-1">
-                  Seleciona uma playlist para ver os detalhes
+        {selectedDiscoverPlaylist && (
+          <div className="mt-6 rounded-3xl border border-[#f0e0d0]/10 bg-[#050506] p-4">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-[#111112]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selectedDiscoverPlaylist.thumbnail}
+                  alt={selectedDiscoverPlaylist.title}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#f0e0d0]">
+                  {selectedDiscoverPlaylist.title}
                 </p>
-                <p className="text-xs text-[#61616b]">
-                  As faixas importadas são guardadas na tua conta Firebase como playlist normal.
+                <p className="truncate text-[11px] text-[#a08070]">
+                  {selectedDiscoverPlaylist.description}
+                </p>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#61616b]">
+                  {selectedDiscoverPlaylist.trackCount} faixas
                 </p>
               </div>
-            )}
+            </div>
+
+            <div className="mb-3 flex-1 overflow-y-auto rounded-2xl bg-[#111112] p-3">
+              {selectedDiscoverPlaylist.previewTracks.slice(0, 20).map((t, idx) => (
+                <div key={t.id + idx} className="mb-2 flex items-center gap-3">
+                  <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-lg bg-[#050506]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={t.thumbnail} alt={t.title} className="h-full w-full object-cover" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-[12px] text-[#f0e0d0]">{t.title}</p>
+                    <p className="truncate text-[11px] text-[#61616b]">{t.artist}</p>
+                  </div>
+                </div>
+              ))}
+              {selectedDiscoverPlaylist.previewTracks.length > 20 && (
+                <p className="mt-1 text-[10px] text-[#61616b]">
+                  …e mais {selectedDiscoverPlaylist.previewTracks.length - 20} faixas
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={handleImportSelected}
+              disabled={addingPlaylist}
+              className="mt-2 rounded-2xl bg-[#D2B48C] px-4 py-3 text-[13px] font-semibold text-black disabled:opacity-60"
+            >
+              {addingPlaylist ? "A importar playlist..." : "Importar playlist para a biblioteca"}
+            </button>
           </div>
-        </div>
+        )}
       </div>
     )
   }
