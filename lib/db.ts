@@ -60,23 +60,30 @@ export function subscribeToPlaylists(
   
   const q = query(
     collection(db, COLLECTIONS.PLAYLISTS),
-    where("user_id", "==", userId)
+    where("user_id", "==", userId),
+    orderBy("created_at", "desc")
   )
 
 
+  console.log('[DB] subscribeToPlaylists QUERY for userId:', userId)
   return onSnapshot(q, 
     (snapshot: QuerySnapshot<DocumentData>) => {
+      console.log('[DB] Playlists snapshot:', {
+        empty: snapshot.empty,
+        size: snapshot.size,
+        docs: snapshot.docs.map(d => ({ id: d.id, data: d.data() }))
+      })
       const playlists = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         tracks: doc.data().tracks || []
       })) as Playlist[]
       
-      console.log("[DB] Playlists updated:", playlists.length)
+      console.log("[DB] Playlists updated:", playlists.length, playlists.slice(0,2))
       onUpdate(playlists)
     },
     (error) => {
-      console.error("[DB] Playlists subscription error:", error)
+      console.error("[DB] Playlists subscription ERROR:", error.code || error.message, error)
       onError?.(error)
     }
   )
@@ -297,6 +304,30 @@ export async function isTrackLiked(trackId: string): Promise<boolean> {
     return snap.exists()
   } catch (error) {
     return false
+  }
+}
+
+// ONE-TIME FETCH fallback - Add after subscribeToPlaylists
+export async function getPlaylists(userId: string): Promise<Playlist[]> {
+  console.log('[DB] getPlaylists one-time for:', userId)
+  try {
+    const q = query(
+      collection(db, COLLECTIONS.PLAYLISTS),
+      where("user_id", "==", userId)
+      // NO orderBy - simpler for fallback, avoids index issues
+    )
+    const snapshot = await getDocs(q)
+    const playlists = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      tracks: doc.data().tracks || []
+    })) as Playlist[]
+    
+    console.log('[DB] getPlaylists result:', playlists.length, playlists.slice(0,3).map(p => ({id: p.id, name: p.name})))
+    return playlists
+  } catch (error) {
+    console.error('[DB] getPlaylists error:', error)
+    return []
   }
 }
 

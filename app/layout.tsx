@@ -15,28 +15,32 @@ declare global {
 // Client component for PWA updates
 function PWAUpdateHandler() {
   useEffect(() => {
-    async function checkAndPerformUpdate() {
-      if (typeof window === 'undefined') return;
+    async function forceSWCheck() {
+      if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
-      // Check if PWA is installed and perform auto-refresh
-      if (window.matchMedia('(display-mode: standalone)').matches ||
-          window.matchMedia('(display-mode: fullscreen)').matches ||
-          window.matchMedia('(display-mode: minimal-ui)').matches) {
-        
-        try {
-          // Import and perform PWA update with cache clear
-          const { performPWAUpdate } = await import('@/lib/versions');
-          performPWAUpdate();
-        } catch (error) {
-          console.error('PWA update error:', error);
+      try {
+        const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+        if (registration) {
+          // Force immediate SW update check
+          await registration.update();
+          
+          // If waiting SW exists, notify app
+          if (registration.waiting) {
+            window.dispatchEvent(new CustomEvent('pwa-update-available', { 
+              detail: { registration } 
+            }));
+          }
         }
+      } catch (error) {
+        console.error('SW force check error:', error);
       }
     }
 
-    // Add a small delay to ensure the app is fully loaded
-    const timer = setTimeout(checkAndPerformUpdate, 1000);
+    // Force SW check immediately + poll every 30s
+    forceSWCheck();
+    const interval = setInterval(forceSWCheck, 30000);
     
-    return () => clearTimeout(timer);
+    return () => clearInterval(interval);
   }, []);
 
   return null;

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Search, MoreHorizontal, Play } from "lucide-react"
 import { searchMusic, type SearchSource } from "@/lib/musicApi"
 import { usePlayer, type Track } from "@/lib/player-context"
@@ -17,6 +17,8 @@ interface SearchTabProps {
 export default function SearchTab({ onTrackMenu, query, setQuery, results, setResults }: SearchTabProps) {
   const [searching, setSearching] = useState(false)
   const [sourceFilter, setSourceFilter] = useState<SearchSource>("all")
+  const [sourcesAvailable, setSourcesAvailable] = useState<{spotify: boolean, youtube: boolean}>({spotify: true, youtube: true})
+
   const { play, setQueue } = usePlayer()
   const { accentHex } = useTheme()
 
@@ -38,6 +40,25 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
       setSearching(false)
     }
   }, [query, setResults])
+
+  // Check API availability on first search
+  useEffect(() => {
+    if (query.trim()) {
+      searchMusic(query, 'spotify').then((spotifyTracks) => {
+        setSourcesAvailable(prev => ({
+          ...prev,
+          spotify: spotifyTracks.length > 0
+        }))
+      }).catch(() => setSourcesAvailable(prev => ({...prev, spotify: false})))
+
+      searchMusic(query, 'youtube').then((youtubeTracks) => {
+        setSourcesAvailable(prev => ({
+          ...prev,
+          youtube: youtubeTracks.length > 0
+        }))
+      }).catch(() => setSourcesAvailable(prev => ({...prev, youtube: false})))
+    }
+  }, [])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -80,7 +101,7 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
 
       {/* Source Filter Tabs - Smaller buttons */}
       <div className="mt-3 flex gap-2">
-        {(["all", "spotify", "youtube"] as SearchSource[]).map((source) => (
+        {(["all" as SearchSource] as SearchSource[]).map((source) => (
           <button
             key={source}
             onClick={() => handleSourceChange(source)}
@@ -91,9 +112,40 @@ export default function SearchTab({ onTrackMenu, query, setQuery, results, setRe
             }`}
             style={sourceFilter === source ? { backgroundColor: accentHex } : {}}
           >
-            {source === "all" ? "Tudo" : source === "spotify" ? "Spotify" : "YouTube"}
+            Tudo
           </button>
         ))}
+        {sourcesAvailable.youtube && (
+          <button
+            onClick={() => handleSourceChange("youtube")}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+              sourceFilter === "youtube"
+                ? "text-white"
+                : "glass-card text-[#8E8E93] hover:text-[#D2B48C]"
+            }`}
+            style={sourceFilter === "youtube" ? { backgroundColor: accentHex } : {}}
+          >
+            YouTube
+          </button>
+        )}
+        {sourcesAvailable.spotify && (
+          <button
+            onClick={() => handleSourceChange("spotify")}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+              sourceFilter === "spotify"
+                ? "text-white"
+                : "glass-card text-[#8E8E93] hover:text-[#D2B48C]"
+            }`}
+            style={sourceFilter === "spotify" ? { backgroundColor: accentHex } : {}}
+          >
+            Spotify
+          </button>
+        )}
+        {(!sourcesAvailable.spotify || !sourcesAvailable.youtube) && (
+          <div className="text-xs text-[#8E8E93] ml-1">
+            {!sourcesAvailable.spotify && "SP "} {!sourcesAvailable.youtube && "YT"} offline
+          </div>
+        )}
       </div>
 
       <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto hide-scrollbar">

@@ -15,8 +15,9 @@ import FullPlayer from "@/components/full-player"
 import AudioEngine from "@/components/audio-engine"
 import TrackMenu from "@/components/track-menu"
 import { Toaster } from "@/components/ui/sonner"
-import { getPlaylists } from "@/lib/supabase"
+import { FirestoreProvider } from "@/lib/firestore-context"
 import { APP_VERSION, checkForNewVersion, markVersionAsSeen, autoClearCacheIfNeeded, setDontShowVersion, performPWAUpdate, type AppUpdate } from "@/lib/versions"
+
 
 function SplashScreen({ accentHex }: { accentHex: string }) {
   return (
@@ -122,82 +123,39 @@ function XalanifyApp() {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Track[]>([])
   const [libraryKey, setLibraryKey] = useState(0)
-  const [userPlaylists, setUserPlaylists] = useState<{id: string, name: string}[]>([])
-  const [whatsNewUpdate, setWhatsNewUpdate] = useState<AppUpdate | null>(null)
-
   const tabBarBackground = '#1c1c1e'
 
   useEffect(() => {
-    autoClearCacheIfNeeded()
-    // Se acabámos de vir de um reload de atualização, marcar como visto e não mostrar o card (evita loop)
-    const search = typeof window !== "undefined" ? window.location.search : ""
-    if (search.includes("update=") || search.includes("v=")) {
-      markVersionAsSeen()
-      setDontShowVersion(APP_VERSION)
-      // Opcional: limpar o query da URL sem recarregar (fica mais limpo)
-      if (typeof window !== "undefined" && window.history.replaceState) {
-        window.history.replaceState({}, "", window.location.pathname || "/")
-      }
-      return
-    }
-    const update = checkForNewVersion()
-    if (update) {
-      setWhatsNewUpdate(update)
-      setForceUpdate(true)
-    }
-  }, [])
-
-  useEffect(() => {
-    function onRemoteUpdateAvailable(e: Event) {
-      const ce = e as CustomEvent<AppUpdate>
-      const update = ce.detail
-      if (update) {
-        setWhatsNewUpdate(update)
-        setForceUpdate(true)
-      }
-    }
-
-    function onPwaUpdateAvailable(e: Event) {
-      const ce = e as CustomEvent<{ registration?: ServiceWorkerRegistration | null }>
-      const reg = ce?.detail?.registration || null
-
-      const update: AppUpdate = {
-        version: "Nova versão disponível",
-        date: new Date().toISOString().split("T")[0],
-        title: "Atualização do app pronta",
-        changes: [
-          "Foi detectada uma versão nova do Xalanify",
-          "Clique em Atualizar para aplicar já",
-          "Não precisas desinstalar ou limpar cookies",
-        ],
-        isNew: true,
-      }
-
-      // Stash registration for the update button (optional)
-      ;(window as any).__xalanifySwRegistration = reg
-
-      setWhatsNewUpdate(update)
-      setForceUpdate(true)
-    }
-
-    window.addEventListener("remote-update-available", onRemoteUpdateAvailable as EventListener)
-    window.addEventListener("pwa-update-available", onPwaUpdateAvailable as EventListener)
-    return () => {
-      window.removeEventListener("remote-update-available", onRemoteUpdateAvailable as EventListener)
-      window.removeEventListener("pwa-update-available", onPwaUpdateAvailable as EventListener)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (user?.uid) {
-      getPlaylists(user.uid).then((data: unknown) => {
-        const playlists = data as Array<{id: string, name: string}>
-        if (playlists && Array.isArray(playlists)) {
-          setUserPlaylists(playlists.map((p) => ({ id: p.id, name: p.name })))
+    // AUTO-REFRESH ONLY FOR PWA - site normal
+    if (typeof window !== 'undefined') {
+      const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                    window.matchMedia('(display-mode: fullscreen)').matches ||
+                    (navigator as any).standalone === true
+      
+      if (isPWA) {
+        // Only if not recent visit (5min cooldown)
+        const lastRefresh = localStorage.getItem('xalanify.lastPwaRefresh')
+        const now = Date.now()
+        const cooldownOk = !lastRefresh || (now - parseInt(lastRefresh)) > 5*60*1000
+        
+        if (cooldownOk) {
+          console.log('[App] PWA auto-refresh (cooldown OK)')
+          setTimeout(() => {
+            localStorage.setItem('xalanify.lastPwaRefresh', now.toString())
+            performPWAUpdate()
+          }, 2500)
         }
-      })
+      }
     }
-  }, [user, libraryKey])
+
+    autoClearCacheIfNeeded()
+  }, [])
+
+
+  // Removed: No update events needed
+
+// Removed duplicate playlists fetch - using FirestoreContext
+
 
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 1500)
@@ -208,40 +166,11 @@ function XalanifyApp() {
     setLibraryKey((prev) => prev + 1)
   }
 
-  function handleWhatsNewClose() {
-    setDontShowVersion(APP_VERSION)
-    markVersionAsSeen()
-    setWhatsNewUpdate(null)
-    setForceUpdate(false)
-  }
-
-  const handleForceUpdate = useCallback(async () => {
-    // Marcar versão como vista ANTES do reload para não voltar a mostrar o card (evita loop)
-    markVersionAsSeen()
-    setDontShowVersion(APP_VERSION)
-    try {
-      const reg = (window as any).__xalanifySwRegistration as ServiceWorkerRegistration | null | undefined
-      if (reg?.waiting) {
-        reg.waiting.postMessage({ type: "SKIP_WAITING" })
-        await new Promise((r) => setTimeout(r, 600))
-      }
-      // Hard reload with cache-bust; ?update= faz com que na próxima carga não mostremos o modal
-      window.location.href = "/?update=" + Date.now()
-      return
-    } catch {
-      await performPWAUpdate()
-    }
-  }, [])
+  // Removed: No manual update UI
 
   if (showSplash || loading) return <SplashScreen accentHex={accentHex} />
   if (!user) return <LoginScreen />
-  if (forceUpdate && whatsNewUpdate) return (
-    <BlockingUpdateModal 
-      update={whatsNewUpdate}
-      onClose={handleWhatsNewClose}
-      onUpdate={handleForceUpdate}
-    />
-  )
+  // Removed: No more update modals
 
   const tabs = [
     { id: "search" as const, label: "Pesquisar", icon: Search },
@@ -323,9 +252,9 @@ function XalanifyApp() {
           anchorRect={menuAnchorRect} 
           onClose={() => { setMenuTrack(null); setMenuAnchorRect(null) }}
           onLibraryUpdate={handleLibraryUpdate}
-          playlists={userPlaylists}
         />
       )}
+
     </div>
   )
 }
@@ -333,11 +262,14 @@ function XalanifyApp() {
 export default function Page() {
   return (
     <AuthProvider>
-      <PlayerProvider>
-        <ThemeProvider>
-          <XalanifyApp />
-        </ThemeProvider>
-      </PlayerProvider>
+      <FirestoreProvider>
+        <PlayerProvider>
+          <ThemeProvider>
+            <XalanifyApp />
+          </ThemeProvider>
+        </PlayerProvider>
+      </FirestoreProvider>
     </AuthProvider>
   )
 }
+

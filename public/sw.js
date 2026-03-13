@@ -47,76 +47,92 @@ self.addEventListener('activate', (event) => {
   }));
 });
 
-// Fetch
+// Fetch - Network-first strategy for fresh content
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
-  // ========== MEDIA STREAMS - Never cache, always fetch ==========
+  // ========== MEDIA STREAMS - Always fresh ==========
   if (event.request.destination === 'audio' || 
       event.request.destination === 'video' ||
       url.pathname.includes('/api/stream/') ||
       url.hostname.includes('googlevideo') ||
       url.hostname.includes('youtubei')) {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response('Media not available', { status: 408 });
-      })
-    );
+    event.respondWith(fetch(event.request).catch(() => new Response('Media not available', { status: 408 })));
     return;
   }
   
-  // Para APIs e URLs dinâmicas, network first
+// ========== APIs - Network first, NO CACHE FOR POST ==========
   if (url.pathname.startsWith('/api/') || 
       url.hostname.includes('supabase') || 
       url.hostname.includes('firebase') ||
       url.hostname.includes('googleapis') ||
+      url.hostname.includes('spotify') ||
       url.hostname.includes('youtube') ||
       url.hostname.includes('itunes')) {
+    // NO CACHING FOR ANY API REQUESTS - fresh data only
+    event.respondWith(fetch(event.request).catch(() => new Response('API offline', { status: 503 })));
+    return;
+  }
+  
+  // ========== JS/CSS - Stale-while-revalidate (1h max cache) ==========
+  if (event.request.destination === 'script' || event.request.destination === 'style') {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseClone);
-            });
-          }
-          return response;
-        })
-        .catch(() => caches.match(event.request))
+      caches.open(`${CACHE_NAME}-assets`).then(async (cache) => {
+        const cachedResponse = await cache.match(event.request);
+        if (cachedResponse) {
+          // Background update
+          fetch(event.request.clone()).then(networkResponse => {
+            if (networkResponse.ok) cache.put(event.request, networkResponse.clone());
+          }).catch(() => {});
+          return cachedResponse;
+        }
+        // Network fallback
+        const networkResponse = await fetch(event.request);
+        cache.put(event.request, networkResponse.clone());
+        return networkResponse;
+      })
     );
     return;
   }
   
-  // Para assets estáticos, cache first with network fallback
+  // ========== Everything else - Cache-first with 1h expiry ==========
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        if (response) {
-          // Em background, verificar atualização para scripts/styles
-          if (event.request.destination === 'script' || event.request.destination === 'style') {
-            fetch(event.request).then(networkResponse => {
-              if (networkResponse.ok) {
-                caches.open(CACHE_NAME).then(cache => {
-                  cache.put(event.request, networkResponse);
-                });
-              }
-            }).catch(() => {});
-          }
-          return response;
+    caches.open(`${CACHE_NAME}-static`).then(async (cache) => {
+      let cachedResponse = await cache.match(event.request);
+      
+      // Check cache age (simple heuristic)
+      if (cachedResponse) {
+        const cacheHeaders = cachedResponse.headers.get('x-cache-timestamp');
+        if (cacheHeaders && (Date.now() - parseInt(cacheHeaders)) > 3600000) { // 1h
+          cachedResponse = null;
         }
-        return fetch(event.request).then((response) => {
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
+      }
+      
+      if (cachedResponse) {
+        // Background refresh
+        fetch(event.request.clone()).then(networkResponse => {
+          if (networkResponse.ok) {
+            cache.put(event.request, networkResponse.clone());
           }
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          return response;
+        }).catch(() => {});
+        return cachedResponse;
+      }
+      
+      const networkResponse = await fetch(event.request);
+      if (networkResponse.ok) {
+        const responseWithCache = new Response(networkResponse.body, {
+          status: networkResponse.status,
+          statusText: networkResponse.statusText,
+          headers: {
+            ...networkResponse.headers,
+            'x-cache-timestamp': Date.now().toString(),
+            'cache-control': 'max-age=3600'
+          }
         });
-      })
+        cache.put(event.request, responseWithCache.clone());
+      }
+      return networkResponse;
+    })
   );
 });
 

@@ -320,42 +320,42 @@ export async function searchYouTube(query: string): Promise<PlaylistTrackPreview
 }
 
 export async function searchPlaylistSuggestions(query: string): Promise<{playlists: PlaylistSuggestion[], spotifyError: string | null, youtubeError: string | null}> {
+  console.log("[MusicAPI] 🔍 Playlist suggestions for:", query)
+  
+  let spotifyError: string | null = null
+  let youtubeError: string | null = null
+  let spotifyPlaylists: PlaylistSuggestion[] = []
+  let youtubePlaylists: PlaylistSuggestion[] = []
+
+  // Parallel but safe
   try {
-  const spotifyRes = await getSpotifyPlaylists(query)
-  const youtubeRes = await getYoutubePlaylists(query)
-
-  return {
-    playlists: [...(spotifyRes || []), ...(youtubeRes || [])],
-    spotifyError: null,
-    youtubeError: null
-  }
+    spotifyPlaylists = await getSpotifyPlaylists(query)
   } catch (e) {
-    console.error("[MusicAPI] ❌ Playlist suggestions exception:", e)
-    return { playlists: [], spotifyError: "NETWORK_ERROR", youtubeError: "NETWORK_ERROR" }
-  }
-}
-
-async function getAllSpotifyPlaylistTracks(playlistId: string, token: string) {
-  const collected: any[] = []
-  let offset = 0
-  const limit = 100
-
-  while (true) {
-    const tracksRes = await fetch(
-      `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    const tracksData = await tracksRes.json()
-    const items = tracksData.items || []
-
-    collected.push(...items)
-
-    if (!tracksData.next || items.length === 0) break
-    offset += limit
+    spotifyError = "SPOTIFY_FETCH_ERROR"
+    console.error("[MusicAPI] Spotify playlists fail:", e)
   }
 
-  return collected
+  try {
+    youtubePlaylists = await getYoutubePlaylists(query)
+  } catch (e) {
+    youtubeError = "YOUTUBE_FETCH_ERROR"
+    console.error("[MusicAPI] YouTube playlists fail:", e)
+  }
+
+  const playlists = [...spotifyPlaylists, ...youtubePlaylists]
+  
+  console.log("[MusicAPI] Playlist suggestions:", {
+    total: playlists.length,
+    spotify: spotifyPlaylists.length,
+    youtube: youtubePlaylists.length,
+    spotifyError,
+    youtubeError
+  })
+
+  return { playlists, spotifyError, youtubeError }
 }
+
+// REMOVED: getAllSpotifyPlaylistTracks - now using preview-only fetch
 
 async function getSpotifyPlaylists(query: string): Promise<PlaylistSuggestion[]> {
   try {
@@ -366,7 +366,7 @@ async function getSpotifyPlaylists(query: string): Promise<PlaylistSuggestion[]>
     }
 
     const playlistRes = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=playlist&limit=12`,
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=playlist&limit=50`,
       { headers: { Authorization: `Bearer ${token}` } }
     )
     if (!playlistRes.ok) {
@@ -377,90 +377,118 @@ async function getSpotifyPlaylists(query: string): Promise<PlaylistSuggestion[]>
     const items = playlistData.playlists?.items || []
 
     const playlists = await Promise.all(
-      items.slice(0, 6).map(async (item: any) => {
-        const allTrackRows = await getAllSpotifyPlaylistTracks(item.id, token)
+      items.slice(0, 20).map(async (item: any) => {
+        // Fetch ALL tracks - no limit for full playlists
+        const allTracks: PlaylistTrackPreview[] = []
+        let offset = 0
+        const limit = 100
+        
+        while (true) {
+          const tracksRes = await fetch(
+            `https://api.spotify.com/v1/playlists/${item.id}/tracks?limit=${limit}&offset=${offset}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+          if (!tracksRes.ok) break
+          
+          const tracksData = await tracksRes.json()
+          const trackItems = tracksData.items || []
+          
+          if (trackItems.length === 0) break
+          
+          const tracks = trackItems
+            .map((entry: any) => entry.track)
+            .filter(Boolean)
+            .map((track: any) => ({
+              id: `spotify-track-${track.id}`,
+              title: track.name,
+              artist: track.artists?.[0]?.name || "Desconhecido",
+              thumbnail: track.album?.images?.[0]?.url || item.images?.[0]?.url || "",
+              duration: (track.duration_ms || 0) / 1000,
+              youtubeId: null,
+              previewUrl: track.preview_url || null,
+              source: "spotify" as const,
+            }))
+          
+          allTracks.push(...tracks)
+          
+          if (!tracksData.next) break
+          offset += limit
+        }
 
-        const previewTracks: PlaylistTrackPreview[] = allTrackRows
-          .map((entry: any) => entry.track)
-          .filter(Boolean)
-          .slice(0, 50)
-          .map((track: any) => ({
-            id: `spotify-track-${track.id}`,
-            title: track.name,
-            artist: track.artists?.[0]?.name || "Desconhecido",
-            thumbnail: track.album?.images?.[0]?.url || item.images?.[0]?.url || "",
-            duration: (track.duration_ms || 0) / 1000,
-            youtubeId: null,
-            previewUrl: track.preview_url || null,
-            source: "spotify" as const,
-          }))
-
+        const previewTracks: PlaylistTrackPreview[] = allTracks.slice(0, 100)
         return {
           id: item.id,
           source: "spotify" as const,
           title: item.name,
           description: item.owner?.display_name ? `por ${item.owner.display_name}` : "Spotify",
           thumbnail: item.images?.[0]?.url || "",
-          trackCount: item.tracks?.total || previewTracks.length,
+          trackCount: item.tracks?.total || allTracks.length,
           previewTracks,
         }
       })
     )
 
-    return playlists
+    return playlists.filter(Boolean)
   } catch (e) {
     console.error("[MusicAPI] getSpotifyPlaylists exception:", e)
     return []
   }
 }
 
-async function getAllYoutubePlaylistItems(playlistId: string, apiKey: string) {
-  const collected: any[] = []
-  let pageToken = ""
-
-  while (true) {
-    const url = new URL("https://www.googleapis.com/youtube/v3/playlistItems")
-    url.searchParams.set("part", "snippet,contentDetails")
-    url.searchParams.set("playlistId", playlistId)
-    url.searchParams.set("maxResults", "50")
-    url.searchParams.set("key", apiKey)
-    if (pageToken) url.searchParams.set("pageToken", pageToken)
-
-    const itemsRes = await fetch(url.toString())
-    const itemsData = await itemsRes.json()
-    const items = itemsData.items || []
-
-    collected.push(...items)
-
-    if (!itemsData.nextPageToken || items.length === 0) break
-    pageToken = itemsData.nextPageToken
-  }
-
-  return collected
-}
+// REMOVED: getAllYoutubePlaylistItems - now using preview-only fetch
 
 async function getYoutubePlaylists(query: string): Promise<PlaylistSuggestion[]> {
   try {
     const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY
-    if (!apiKey) return []
+    if (!apiKey) {
+      console.error("[MusicAPI] YouTube playlists: API_KEY missing")
+      return []
+    }
 
     const res = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&q=${encodeURIComponent(query)}&key=${apiKey}&maxResults=12`
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&q=${encodeURIComponent(query)}&key=${apiKey}&maxResults=50`
     )
     
-    if (res.status === 403) {
-      console.log("[MusicAPI] YouTube playlists - quota excedida")
+    if (!res.ok) {
+      console.error("[MusicAPI] YouTube playlists search fail:", res.status)
+      if (res.status === 403) console.warn("[MusicAPI] YouTube quota exceeded")
       return []
     }
     
     const data = await res.json()
+    if (data.error) {
+      console.error("[MusicAPI] YouTube API error:", data.error)
+      return []
+    }
 
     const playlists = await Promise.all(
-      (data.items || []).map(async (item: any) => {
+      (data.items || []).slice(0, 20).map(async (item: any) => {
         const playlistId = item.id.playlistId
-        const allItems = await getAllYoutubePlaylistItems(playlistId, apiKey)
+        
+        // Full pagination - get ALL items
+        const allItems: any[] = []
+        let pageToken = ""
+        const maxResults = 50
+        
+        while (true) {
+          const url = new URL("https://www.googleapis.com/youtube/v3/playlistItems")
+          url.searchParams.set("part", "snippet,contentDetails")
+          url.searchParams.set("playlistId", playlistId)
+          url.searchParams.set("maxResults", maxResults.toString())
+          url.searchParams.set("key", apiKey)
+          if (pageToken) url.searchParams.set("pageToken", pageToken)
 
-        const previewTracks: PlaylistTrackPreview[] = allItems.map((entry: any) => ({
+          const itemsRes = await fetch(url.toString())
+          if (!itemsRes.ok) break
+          
+          const itemsData = await itemsRes.json()
+          allItems.push(...(itemsData.items || []))
+
+          if (!itemsData.nextPageToken) break
+          pageToken = itemsData.nextPageToken
+        }
+
+        const previewTracks: PlaylistTrackPreview[] = allItems.slice(0, 100).map((entry: any) => ({
           id: entry.contentDetails?.videoId || `${playlistId}-${entry.etag}`,
           title: entry.snippet?.title || "Faixa YouTube",
           artist: entry.snippet?.videoOwnerChannelTitle || entry.snippet?.channelTitle || "YouTube",
@@ -468,6 +496,7 @@ async function getYoutubePlaylists(query: string): Promise<PlaylistSuggestion[]>
           duration: 0,
           youtubeId: entry.contentDetails?.videoId || null,
           previewUrl: null,
+          source: "youtube" as const,
         }))
 
         return {
@@ -482,8 +511,9 @@ async function getYoutubePlaylists(query: string): Promise<PlaylistSuggestion[]>
       })
     )
 
-    return playlists
-  } catch {
+    return playlists.filter(Boolean)
+  } catch (e) {
+    console.error("[MusicAPI] getYoutubePlaylists exception:", e)
     return []
   }
 }

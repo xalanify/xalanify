@@ -22,11 +22,13 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useTheme } from "@/lib/theme-context"
-import { likeTrack, createPlaylist, subscribeToPlaylists, subscribeToLikedTracks, addTrackToPlaylist } from "@/lib/db"
+import { likeTrack, createPlaylist, addTrackToPlaylist } from "@/lib/db"
 import { searchMusic, searchPlaylistSuggestions, type PlaylistSuggestion } from "@/lib/musicApi"
+import { useFirestore } from "@/lib/firestore-context"
+
 import { type Track } from "@/lib/player-context"
 import { getPreferences, setPreferences } from "@/lib/preferences"
-import { CHANGELOG, APP_VERSION, forceVersionCheck, forceClearPWA, type AppUpdate } from "@/lib/versions"
+import { CHANGELOG, APP_VERSION, forceVersionCheck, forceClearPWA, performPWAUpdate, type AppUpdate } from "@/lib/versions"
 import { toast } from "sonner"
 
 const THEME_COLORS = [
@@ -144,19 +146,12 @@ const [addingPlaylist, setAddingPlaylist] = useState(false)
     ;(window as any).deferredPrompt = null
   }
 
+// Use FirestoreContext - already subscribed
+  const firestore = useFirestore()
   useEffect(() => {
-    if (!userId) return
-    const unsubPlaylists = subscribeToPlaylists(userId, (playlists) => {
-      setMyPlaylists(playlists)
-    })
-    const unsubLiked = subscribeToLikedTracks(userId, (tracks) => {
-      setLikedTracks(tracks)
-    })
-    return () => {
-      unsubPlaylists()
-      unsubLiked()
-    }
-  }, [userId])
+    setMyPlaylists(firestore.playlists)
+    setLikedTracks(firestore.likedTracks)
+  }, [firestore.playlists, firestore.likedTracks])
 
   useEffect(() => {
     const prefsData = getPreferences()
@@ -546,6 +541,26 @@ const [addingPlaylist, setAddingPlaylist] = useState(false)
           Apenas para admin. Usa APIs externas (Spotify / YouTube) para testes – conteúdo pode ser removido a qualquer momento.
         </p>
 
+        <div className="mb-3 flex gap-3">
+          <button
+            onClick={async () => {
+              setDiscoverLoading(true)
+              const testResult = await searchPlaylistSuggestions("test")
+              setDiscoverLoading(false)
+              toast.success(`APIs test: SP:${testResult.spotifyError ? '❌' : '✅'} YT:${testResult.youtubeError ? '❌' : '✅'}`)
+            }}
+            className="px-4 py-2 text-xs rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 text-blue-100"
+          >
+            Test APIs
+          </button>
+          <button
+            onClick={forceClearPWA}
+            className="px-4 py-2 text-xs rounded-xl bg-orange-500/20 hover:bg-orange-500/30 border border-orange-400/30 text-orange-100"
+          >
+            Clear Cache
+          </button>
+        </div>
+
         <div className="mb-5 flex gap-3">
           <div className="flex-1 rounded-2xl bg-[#111112] px-3.5 py-2.5 flex items-center gap-2 border border-white/5">
             <Search className="h-4 w-4 text-[#8E8E93]" />
@@ -596,16 +611,37 @@ const [addingPlaylist, setAddingPlaylist] = useState(false)
                 Ainda sem resultados. Faz uma pesquisa para ver playlists sugeridas.
               </p>
             ) : discoverError && !discoverLoading ? (
-              <div className="p-4 text-center space-y-2">
-                <p className="text-sm text-red-400">Erro na pesquisa:</p>
-                {discoverError.spotify && <p className="text-xs text-red-300">Spotify: {discoverError.spotify}</p>}
-                {discoverError.youtube && <p className="text-xs text-red-300">YouTube: {discoverError.youtube}</p>}
-                <button 
-                  onClick={handleRetrySearch}
-                  className="mt-2 px-4 py-1.5 bg-red-500/80 hover:bg-red-500 text-xs rounded-full text-white"
-                >
-                  Tentar novamente
-                </button>
+              <div className="p-6 text-center space-y-3 bg-red-500/10 border border-red-500/30 rounded-2xl">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <div className="h-8 w-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                    <Sparkles className="h-4 w-4 text-red-400" />
+                  </div>
+                  <p className="text-sm font-semibold text-red-400">APIs Offline</p>
+                </div>
+                {discoverError.spotify && (
+                  <div className="text-xs bg-red-500/20 px-3 py-2 rounded-xl border border-red-500/40">
+                    <span className="font-mono text-red-300">SP:</span> {discoverError.spotify}
+                  </div>
+                )}
+                {discoverError.youtube && (
+                  <div className="text-xs bg-yellow-500/20 px-3 py-2 rounded-xl border border-yellow-500/40">
+                    <span className="font-mono text-yellow-300">YT:</span> {discoverError.youtube}
+                  </div>
+                )}
+                <div className="flex gap-2 pt-2">
+                  <button 
+                    onClick={handleRetrySearch}
+                    className="flex-1 px-4 py-2 text-xs bg-red-500/80 hover:bg-red-500 rounded-xl text-white font-medium"
+                  >
+                    Retry
+                  </button>
+                  <button 
+                    onClick={forceClearPWA}
+                    className="px-4 py-2 text-xs bg-blue-500/80 hover:bg-blue-500 rounded-xl text-white font-medium"
+                  >
+                    Clear Cache
+                  </button>
+                </div>
               </div>
             ) : null}
           </div>
@@ -636,15 +672,15 @@ const [addingPlaylist, setAddingPlaylist] = useState(false)
             </div>
 
             <div className="mb-3 flex-1 overflow-y-auto rounded-2xl bg-[#111112] p-3">
-              {selectedDiscoverPlaylist.previewTracks.slice(0, 20).map((t, idx) => (
-                <div key={t.id + idx} className="mb-2 flex items-center gap-3">
+{(selectedDiscoverPlaylist.previewTracks || []).slice(0, 20).map((t, idx) => (
+                <div key={t?.id + idx} className="mb-2 flex items-center gap-3">
                   <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-lg bg-[#050506]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={t.thumbnail} alt={t.title} className="h-full w-full object-cover" />
+                    <img src={t?.thumbnail || ""} alt={t?.title || "Track"} className="h-full w-full object-cover" />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-[12px] text-[#f0e0d0]">{t.title}</p>
-                    <p className="truncate text-[11px] text-[#61616b]">{t.artist}</p>
+                    <p className="truncate text-[12px] text-[#f0e0d0]">{t?.title || "Título desconhecido"}</p>
+                    <p className="truncate text-[11px] text-[#61616b]">{t?.artist || "Artista desconhecido"}</p>
                   </div>
                 </div>
               ))}

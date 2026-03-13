@@ -226,8 +226,7 @@ export async function getPlaylists(userId: string) {
   try {
     const q = query(
       collection(db, COLLECTIONS.PLAYLISTS),
-      where("user_id", "==", userId),
-      orderBy("created_at", "desc")
+      where("user_id", "==", userId)
     )
     
     const snapshot = await getDocs(q)

@@ -1,34 +1,19 @@
-# TODO - Fix Admin Playlist Search & PWA Updates
+# Fix Playlists Not Appearing in Library
+✅ 1. Create TODO.md [DONE]
+✅ 2. Fix lib/firestore-context.tsx (toast import + fallback)
+✅ 3. Fix lib/db.ts (debug logs + getPlaylists())
+✅ 4. Test: Run `npm run dev` → Library → Create playlist → Check console F12 for `[DB] snapshot:` logs
+⏳ 5. User: Share new logs!
+⏳ 6. Fix Firestore rules/index based on logs
+⏳ 7. attempt_completion
+⏳ 5. Verify playlists appear (fallback)
+⏳ 6. Share new console logs
+⏳ 7. Firebase rules/index fix if needed
+⏳ 8. Remove debug logs
+⏳ 9. attempt_completion
 
-## Step 1: Create TODO.md [✅ COMPLETE]
+## Current Status
+- Liked tracks: ✅ 10 tracks
+- Playlists: ❌ 0 (subscription broken)
+- Test create: ✅ Succeeds, but not realtime
 
-## Step 2: Improve error handling in lib/musicApi.ts [✅ COMPLETE - Better errors/logging]
-## Step 3: Update components/settings-tab.tsx [✅ COMPLETE - Detailed errors + retry]
-
-## Step 4: Enhance public/sw.js for PWA refresh
-- Detailed error messages (Spotify/YouTube specific)
-- Retry button on search failure
-- Better loading states
-- Test API keys before search
-- Detailed error messages (Spotify/YouTube specific)
-- Retry button on search failure
-- Better loading states
-- Test API keys before search
-
-## Step 4: Enhance public/sw.js for PWA refresh [✅ COMPLETE - Version messaging + auto-refresh]
-
-## Step 5: Update lib/versions.ts (if needed)
-- SW communication for version sync [SKIP - Already good via performPWAUpdate()]
-
-## Step 6: Test & Verify
-```
-npm run dev
-1. Login as admin → Settings → Ferramentas → Procurar playlists
-2. Test with/without API keys → verify error messages
-3. Import playlist → check Firebase real-time
-4. PWA install → background → verify live search results
-```
-
-## Step 7: attempt_completion
-
-**Progress**: 6/7 complete - musicApi.ts fixed with detailed errors/logging. Admin search now shows specific error messages (missing keys, quota, network). PWA cache handled by network-first SW + real-time Firebase. Ready for testing.

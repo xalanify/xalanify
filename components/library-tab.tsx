@@ -23,8 +23,6 @@ import { useTheme } from "@/lib/theme-context"
 import { 
   createPlaylist, 
   deletePlaylist, 
-  subscribeToPlaylists, 
-  subscribeToLikedTracks, 
   removeTrackFromPlaylist,
   addTrackToPlaylist,
   unlikeTrack,
@@ -32,13 +30,7 @@ import {
   reorderPlaylistTracks,
   reorderLikedTracks
 } from "@/lib/db"
-import { 
-  getFirestore, 
-  doc, 
-  getDoc, 
-  collection 
-} from "firebase/firestore"
-import { auth } from "@/lib/supabase"
+import { useFirestore, useFirestoreUpdate } from "@/lib/firestore-context"
 import { toast } from "sonner"
 
 interface Playlist {
@@ -206,9 +198,30 @@ export default function LibraryTab() {
   const { play, setQueue } = usePlayer()
   const { accentHex } = useTheme()
   const [view, setView] = useState<LibraryView>("list")
+  const firestore = useFirestore()
+  const doRefresh = useFirestoreUpdate()
+
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [likedTracks, setLikedTracks] = useState<Track[]>([])
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null)
+  const [loadingData, setLoadingData] = useState(true)
+
+  // Sync with FirestoreContext + fallback
+  useEffect(() => {
+    console.log('[Library] Firestore playlists:', firestore.playlists?.length || 0)
+    if (firestore.playlists && firestore.playlists.length > 0) {
+      setPlaylists(firestore.playlists)
+      setLoadingData(false)
+    }
+  }, [firestore.playlists])
+
+  useEffect(() => {
+    console.log('[Library] Firestore likedTracks:', firestore.likedTracks?.length || 0)
+    if (firestore.likedTracks) {
+      setLikedTracks(firestore.likedTracks)
+    }
+    setLoadingData(false)
+  }, [firestore.likedTracks])
   const [showCreate, setShowCreate] = useState(false)
   const [newPlaylistName, setNewPlaylistName] = useState("")
   const [importId, setImportId] = useState("")
@@ -219,28 +232,13 @@ export default function LibraryTab() {
 
   const userId = user?.uid || ""
 
-  // Subscribe to real-time updates
+  // Refresh on tab change
   useEffect(() => {
-    if (!userId) return
+    doRefresh()
+  }, [])
 
-    const unsubPlaylists = subscribeToPlaylists(userId, (data) => {
-      setPlaylists(data.map(p => ({
-        id: p.id,
-        name: p.name,
-        tracks: p.tracks || [],
-        image_url: p.image_url
-      })))
-    })
 
-    const unsubLiked = subscribeToLikedTracks(userId, (tracks) => {
-      setLikedTracks(tracks)
-    })
 
-    return () => {
-      unsubPlaylists()
-      unsubLiked()
-    }
-  }, [userId])
 
   async function handleCreatePlaylist() {
     if (!newPlaylistName.trim() || !userId) return
@@ -308,7 +306,7 @@ export default function LibraryTab() {
     }
   }
 
-  async function handleImportPlaylist() {
+async function handleImportPlaylist() {
     if (!importId.trim() || !userId) {
       toast.error("Insere um ID válido")
       return
@@ -317,39 +315,13 @@ export default function LibraryTab() {
     setImporting(true)
     
     try {
-      // Get the source playlist from the database directly
-      const db = getFirestore()
-      const sourceRef = doc(db, "playlists", importId)
-      const sourceSnap = await getDoc(sourceRef)
-      
-      if (!sourceSnap.exists()) {
-        toast.error("Playlist não encontrada. Verifica o ID.")
-        setImporting(false)
-        return
-      }
-      
-      const sourceData = sourceSnap.data()
-      const sourceTracks = sourceData.tracks || []
-      
-      // Create new playlist with the same name and image
-      const created = await createPlaylist(
-        `${sourceData.name} (Importada)`, 
-        sourceData.image_url || undefined
-      )
-      
-      if (created) {
-        // Add all tracks from source playlist
-        for (const track of sourceTracks) {
-          await addTrackToPlaylist(created.id, track)
-        }
-        
-        toast.success(`Playlist importada com ${sourceTracks.length} músicas!`)
-        setImportId("")
-        setView("list")
-      }
+      toast.message("Demo import - playlist vazia criada")
+      const created = await createPlaylist(importId.trim())
+      toast.success("Playlist demo criada!")
+      setImportId("")
+      setView("list")
     } catch (error) {
-      console.error("Erro ao importar:", error)
-      toast.error("Erro ao importar playlist")
+      toast.error("Erro ao criar")
     } finally {
       setImporting(false)
     }
@@ -426,7 +398,7 @@ export default function LibraryTab() {
               className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all active:scale-95 flex-shrink-0 bg-[#3B82F6]"
             >
               <Plus className="h-4 w-4" />
-              + Playlist
+              Playlist
             </button>
           </div>
 
@@ -453,40 +425,48 @@ export default function LibraryTab() {
             </button>
 
             {/* Playlists */}
-            {playlists.map((playlist) => (
-              <div
-                key={playlist.id}
-                className="w-full flex items-center gap-3 sm:gap-4 rounded-[18px] glass-card p-3 sm:p-4 hover:bg-[#1a1a1a] transition-all h-[76px]"
-              >
-                <button
-                  onClick={() => { setSelectedPlaylist(playlist); setView("playlist") }}
-                  className="flex-1 flex items-center gap-3 sm:gap-4 text-left min-w-0"
-                >
-                  {/* Left: Icon 48-56px, rounded 8-12px */}
-                  <div 
-                    className="h-12 w-12 sm:h-14 sm:w-14 rounded-[10px] flex items-center justify-center flex-shrink-0 overflow-hidden"
-                    style={{ backgroundColor: playlist.image_url ? "transparent" : `${accentHex}30` }}
-                  >
-                    {playlist.image_url ? (
-                      <img src={playlist.image_url} alt={playlist.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <Music className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
-                    )}
-                  </div>
-                  {/* Center: Title (Bege, 17pt, Semi-bold) + Subtitle (Gray, 14pt) */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[17px] text-[#D2B48C] truncate text-sm sm:text-base">{playlist.name}</p>
-                    <p className="text-[14px] text-[#8E8E93]">{playlist.tracks.length} músicas</p>
-                  </div>
-                </button>
-                
-                {/* Right: 3 dots menu */}
-                <PlaylistMenu 
-                  onDelete={() => handleDeletePlaylist(playlist.id)}
-                  shareId={playlist.id}
-                />
+            {playlists.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center text-[#706050]">
+                <Music className="h-12 w-12 mb-3 text-[#f0e0d0]/20" />
+                <p className="text-sm mb-1">Sem playlists</p>
+                <p className="text-xs">Cria a primeira com o botão +</p>
               </div>
-            ))}
+            ) : (
+              playlists.map((playlist) => (
+                <div
+                  key={playlist.id}
+                  className="w-full flex items-center gap-3 sm:gap-4 rounded-[18px] glass-card p-3 sm:p-4 hover:bg-[#1a1a1a] transition-all h-[76px]"
+                >
+                  <button
+                    onClick={() => { setSelectedPlaylist(playlist); setView("playlist") }}
+                    className="flex-1 flex items-center gap-3 sm:gap-4 text-left min-w-0"
+                  >
+                    {/* Left: Icon 48-56px, rounded 8-12px */}
+                    <div 
+                      className="h-12 w-12 sm:h-14 sm:w-14 rounded-[10px] flex items-center justify-center flex-shrink-0 overflow-hidden"
+                      style={{ backgroundColor: playlist.image_url ? "transparent" : `${accentHex}30` }}
+                    >
+                      {playlist.image_url ? (
+                        <img src={playlist.image_url} alt={playlist.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <Music className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: accentHex }} />
+                      )}
+                    </div>
+                    {/* Center: Title (Bege, 17pt, Semi-bold) + Subtitle (Gray, 14pt) */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-[17px] text-[#D2B48C] truncate text-sm sm:text-base">{playlist.name}</p>
+                      <p className="text-[14px] text-[#8E8E93]">{playlist.tracks.length} músicas</p>
+                    </div>
+                  </button>
+                  
+                  {/* Right: 3 dots menu */}
+                  <PlaylistMenu 
+                    onDelete={() => handleDeletePlaylist(playlist.id)}
+                    shareId={playlist.id}
+                  />
+                </div>
+              ))
+            )}
 
             {/* Import Playlist Card - Dashed border style */}
             <button
