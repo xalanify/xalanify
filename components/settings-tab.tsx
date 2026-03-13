@@ -470,7 +470,7 @@ const [addingPlaylist, setAddingPlaylist] = useState(false)
             if (result.youtubeError?.includes('API_KEY_MISSING')) msg += "YouTube key em falta; "
             if (result.youtubeError?.includes('QUOTA')) msg += "YouTube quota esgotada; "
             toast.error(msg || "Erro desconhecido nas APIs")
-setDiscoverError({spotify: result.spotifyError || undefined, youtube: result.youtubeError || undefined})
+            setDiscoverError({spotify: result.spotifyError || undefined, youtube: result.youtubeError || undefined})
           } else {
             toast.message("Nenhuma playlist encontrada", {
               description: "Tenta outro termo de pesquisa.",
@@ -480,7 +480,7 @@ setDiscoverError({spotify: result.spotifyError || undefined, youtube: result.you
       } catch (e) {
         console.error("[Settings] Search playlists error:", e)
         toast.error("Erro de rede na pesquisa")
-setDiscoverError({spotify: "NETWORK_ERROR", youtube: "NETWORK_ERROR"})
+        setDiscoverError({spotify: "NETWORK_ERROR", youtube: "NETWORK_ERROR"})
       } finally {
         setDiscoverLoading(false)
       }

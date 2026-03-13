@@ -23,13 +23,20 @@ function PWAUpdateHandler() {
           window.matchMedia('(display-mode: fullscreen)').matches ||
           window.matchMedia('(display-mode: minimal-ui)').matches) {
         
-        // Import and perform PWA update with cache clear
-        const { performPWAUpdate } = await import('@/lib/versions');
-        performPWAUpdate();
+        try {
+          // Import and perform PWA update with cache clear
+          const { performPWAUpdate } = await import('@/lib/versions');
+          performPWAUpdate();
+        } catch (error) {
+          console.error('PWA update error:', error);
+        }
       }
     }
 
-    checkAndPerformUpdate();
+    // Add a small delay to ensure the app is fully loaded
+    const timer = setTimeout(checkAndPerformUpdate, 1000);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   return null;
