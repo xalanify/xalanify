@@ -459,10 +459,10 @@ export default function LibraryTab() {
                     )}
                   </div>
                   {/* Center: Title (Bege, 17pt, Semi-bold) + Subtitle (Gray, 14pt) */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[17px] text-[#D2B48C] truncate text-sm sm:text-base">{playlist.name}</p>
-                    <p className="text-[14px] text-[#8E8E93]">{playlist.tracks.length} músicas</p>
-                  </div>
+<div className="flex-1 min-w-0">
+                <p className="font-semibold text-[17px] text-[#D2B48C] truncate text-sm sm:text-base">{playlist.name}</p>
+                <p className="text-[14px] text-[#8E8E93]">{playlist.tracks.length} músicas</p>
+              </div>
                 </button>
                 
                 {/* Right: 3 dots menu */}

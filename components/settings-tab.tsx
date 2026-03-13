@@ -80,12 +80,12 @@ export default function SettingsTab() {
   const [smartResults, setSmartResults] = useState<Track[]>([])
   const [smartMsg, setSmartMsg] = useState("")
 
-  const [discoverQuery, setDiscoverQuery] = useState("")
-  const [discoverResults, setDiscoverResults] = useState<PlaylistSuggestion[]>([])
-  const [discoverError, setDiscoverError] = useState<{spotify?: string, youtube?: string} | null>(null)
-  const [discoverLoading, setDiscoverLoading] = useState(false)
-  const [selectedDiscoverPlaylist, setSelectedDiscoverPlaylist] = useState<PlaylistSuggestion | null>(null)
-  const [addingPlaylist, setAddingPlaylist] = useState(false)
+const [discoverQuery, setDiscoverQuery] = useState("")
+const [discoverResults, setDiscoverResults] = useState<PlaylistSuggestion[]>([])
+const [discoverError, setDiscoverError] = useState<{spotify?: string, youtube?: string} | null>(null)
+const [discoverLoading, setDiscoverLoading] = useState(false)
+const [selectedDiscoverPlaylist, setSelectedDiscoverPlaylist] = useState<PlaylistSuggestion | null>(null)
+const [addingPlaylist, setAddingPlaylist] = useState(false)
 
   const [playerPrefs, setPlayerPrefs] = useState<{ autoRetry: boolean }>({ autoRetry: true })
   
@@ -470,7 +470,7 @@ export default function SettingsTab() {
             if (result.youtubeError?.includes('API_KEY_MISSING')) msg += "YouTube key em falta; "
             if (result.youtubeError?.includes('QUOTA')) msg += "YouTube quota esgotada; "
             toast.error(msg || "Erro desconhecido nas APIs")
-            setDiscoverError({spotify: result.spotifyError, youtube: result.youtubeError})
+setDiscoverError({spotify: result.spotifyError || undefined, youtube: result.youtubeError || undefined})
           } else {
             toast.message("Nenhuma playlist encontrada", {
               description: "Tenta outro termo de pesquisa.",
@@ -480,7 +480,7 @@ export default function SettingsTab() {
       } catch (e) {
         console.error("[Settings] Search playlists error:", e)
         toast.error("Erro de rede na pesquisa")
-        setDiscoverError({spotify: "NETWORK_ERROR", youtube: "NETWORK_ERROR"})
+setDiscoverError({spotify: "NETWORK_ERROR", youtube: "NETWORK_ERROR"})
       } finally {
         setDiscoverLoading(false)
       }

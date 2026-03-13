@@ -3,7 +3,7 @@
 
 export type LocalStorageValue = string | null;
 
-export const APP_VERSION = "0.70.4"
+export const APP_VERSION = "0.70.5"
 export const APP_VERSION_DATE = "2026-01-28"
 
 export interface AppUpdate {
@@ -15,6 +15,18 @@ export interface AppUpdate {
 }
 
 export const CHANGELOG: AppUpdate[] = [
+{
+    version: "0.70.5",
+    date: "2026-03-13",
+    title: "Melhorias na Biblioteca",
+    changes: [
+      "Refresh automático PWA ao entrar no app",
+      "Botão de play removido dos cards de playlists",
+      "Melhorias na função de buscar playlist",
+      "Correções de bugs e otimizações"
+    ],
+    isNew: true,
+  },
   {
     version: "0.70.4",
     date: "2026-01-28",

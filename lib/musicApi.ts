@@ -312,13 +312,11 @@ export async function searchMusic(query: string, source: SearchSource = "all"): 
 }
 
 export async function searchSpotify(query: string): Promise<PlaylistTrackPreview[]> {
-  const result = await searchMusic(query, "spotify")
-  return result.tracks
+  return searchMusic(query, "spotify")
 }
 
 export async function searchYouTube(query: string): Promise<PlaylistTrackPreview[]> {
-  const result = await searchMusic(query, "youtube")
-  return result.tracks
+  return searchMusic(query, "youtube")
 }
 
 export async function searchPlaylistSuggestions(query: string): Promise<{playlists: PlaylistSuggestion[], spotifyError: string | null, youtubeError: string | null}> {

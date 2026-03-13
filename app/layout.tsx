@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { useEffect } from 'react'
+import { performPWAUpdate } from '@/lib/versions'
 
 // Types for PWA functions
 declare global {
@@ -54,6 +56,20 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Auto-refresh PWA on app load
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Check if PWA is installed and perform auto-refresh
+    if (window.matchMedia('(display-mode: standalone)').matches ||
+        window.matchMedia('(display-mode: fullscreen)').matches ||
+        window.matchMedia('(display-mode: minimal-ui)').matches) {
+      
+      // Perform PWA update with cache clear
+      performPWAUpdate();
+    }
+  }, []);
+
   return (
     <html lang="pt">
       <head>
